@@ -7,10 +7,7 @@ pub type HighPrecisionBalance = U256;
 pub type LowPrecisionBalance = u128;
 pub type Balance = u128;
 
-
-fn calculate_spot_price(sell_reserve: Balance,
-				  buy_reserve: Balance,
-				  amount: Balance) -> u128{
+fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> u128 {
 	let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
 	let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
 	let sell_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_reserve);
@@ -25,21 +22,20 @@ fn calculate_spot_price(sell_reserve: Balance,
 	spot_price_lp.unwrap_or(0)
 }
 
-fn convert_to_u128(s: &str) -> u128{
-    match s.parse::<u128>() {
-        Ok(v) => v,
-        Err(_)=> 0
-    }
+fn convert_to_u128(s: &str) -> u128 {
+	match s.parse::<u128>() {
+		Ok(v) => v,
+		Err(_) => 0,
+	}
 }
 
-
 #[wasm_bindgen]
-pub fn get_spot_price(s: String, b: String, a : String) -> String{
-	let sell_reserve= convert_to_u128(&s);
+pub fn get_spot_price(s: String, b: String, a: String) -> String {
+	let sell_reserve = convert_to_u128(&s);
 	let buy_reserve = convert_to_u128(&b);
-	let amount =  convert_to_u128(&a);
+	let amount = convert_to_u128(&a);
 
-	let result  = calculate_spot_price(sell_reserve,buy_reserve,amount);
+	let result = calculate_spot_price(sell_reserve, buy_reserve, amount);
 
-        result.to_string().chars().collect::<String>()
+	result.to_string().chars().collect::<String>()
 }
