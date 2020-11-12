@@ -9,9 +9,7 @@ let f = function(){
 
     let r = wasm.get_spot_price(s.value.toString(),b.value.toString(),a.value.toString());
 
-
     o.value = r;
-
 }
 
 let button = document.querySelector('#btn');
