@@ -8,9 +8,13 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = "0.2.63"
+wasm-bindgen = {version = "0.2.63", optional = true }
 primitive-types = {default-features = false, version = '0.7.2'}
-
 
 [profile.release]
 opt-level = "s"
+
+[features]
+default = ["std"]
+wasm = ["wasm-bindgen"]
+std = []

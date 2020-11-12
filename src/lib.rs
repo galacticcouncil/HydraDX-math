@@ -1,24 +1,9 @@
-use wasm_bindgen::prelude::*;
+#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod amm;
 
-fn convert_to_u128(s: &str) -> u128 {
-    match s.parse::<u128>() {
-        Ok(v) => v,
-        Err(_) => 0,
-    }
-}
+#[cfg(feature = "wasm")]
+mod wasm;
 
-#[wasm_bindgen]
-pub fn get_spot_price(s: String, b: String, a: String) -> String {
-    let sell_reserve = convert_to_u128(&s);
-    let buy_reserve = convert_to_u128(&b);
-    let amount = convert_to_u128(&a);
-
-    let result = amm::calculate_spot_price(sell_reserve, buy_reserve, amount);
-
-    match result {
-        Some(val) => val.to_string().chars().collect::<String>(),
-        None => "0".chars().collect::<String>(),
-    }
-}
+#[cfg(feature = "wasm")]
+wasm_api!();
