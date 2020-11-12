@@ -1,4 +1,4 @@
-import * as wasm from "hydra-dx-utils";
+import * as wasm from "hack-hydra-dx-math";
 
 let f = function(){
 

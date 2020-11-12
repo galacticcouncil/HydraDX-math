@@ -34,11 +34,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hack-hydra-dx-math"
+version = "0.1.0"
+dependencies = [
+ "hydra-dx-utils",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "hydra-dx-utils"
 version = "0.1.0"
 dependencies = [
  "primitive-types",
- "wasm-bindgen",
 ]
 
 [[package]]

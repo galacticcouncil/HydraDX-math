@@ -1,5 +1,5 @@
 [package]
-name = "hydra-dx-utils"
+name = "hack-hydra-dx-math"
 version = "0.1.0"
 authors = ["Martin Hloska <martin.hloska@topmonks.com>"]
 edition = "2018"
@@ -8,13 +8,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen = {version = "0.2.63", optional = true }
-primitive-types = {default-features = false, version = '0.7.2'}
+wasm-bindgen = {version = "0.2.63"}
+hydra-dx-utils = { path = "utils/", version = "0.1.0"}
 
 [profile.release]
 opt-level = "s"
-
-[features]
-default = ["std"]
-wasm = ["wasm-bindgen"]
-std = []

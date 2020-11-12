@@ -16,7 +16,7 @@ macro_rules! wasm_api {
             let buy_reserve = convert_to_u128(&b);
             let amount = convert_to_u128(&a);
 
-            let result = amm::calculate_spot_price(sell_reserve, buy_reserve, amount);
+            let result = calculate_spot_price(sell_reserve, buy_reserve, amount);
 
             match result {
                 Some(val) => val.to_string().chars().collect::<String>(),

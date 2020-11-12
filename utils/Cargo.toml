@@ -1,0 +1,12 @@
+[package]
+name = "hydra-dx-utils"
+version = "0.1.0"
+authors = ["Martin Hloska <martin.hloska@topmonks.com>"]
+edition = "2018"
+
+[dependencies]
+primitive-types = {default-features = false, version = '0.7.2'}
+
+[features]
+default = ["std"]
+std = []

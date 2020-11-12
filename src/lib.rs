@@ -1,9 +1,5 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+use hydra_dx_utils::calculate_spot_price;
 
-pub mod amm;
-
-#[cfg(feature = "wasm")]
 mod wasm;
 
-#[cfg(feature = "wasm")]
 wasm_api!();

@@ -7,7 +7,7 @@ Install wasm-pack
 
 Build
 
-`wasm-pack build --dev -- --features wasm`
+`wasm-pack build --dev`
 
 
 Run example
