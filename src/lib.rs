@@ -1,5 +1,4 @@
-use hydra_dx_utils::calculate_spot_price;
+#![cfg_attr(not(feature = "std"), no_std)]
 
-mod wasm;
-
-wasm_api!();
+pub mod amm;
+pub use amm::calculate_spot_price;
