@@ -7,6 +7,14 @@ pub type HighPrecisionBalance = U256;
 pub type LowPrecisionBalance = u128;
 pub type Balance = u128;
 
+/// Calculating spot price given reserve of selling asset and reserve of buying asset.
+/// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
+///
+/// - `sell_reserve` - reserve amount of selling asset
+/// - `buy_reserve` - reserve amount of buying asset
+/// - `amount` - amount
+///
+/// Returns None in case of error
 pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
     let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
     let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
@@ -21,6 +29,14 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
     spot_price_lp.ok()
 }
 
+/// Calculating selling price given reserve of selling asset and reserve of buying asset.
+/// Formula : BUY_RESERVE * AMOUNT / (SELL_RESERVE + AMOUNT )
+///
+/// - `sell_reserve` - reserve amount of selling asset
+/// - `buy_reserve` - reserve amount of buying asset
+/// - `sell_amount` - amount
+///
+/// Returns None in case of error
 pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Option<Balance> {
     let sell_amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(sell_amount);
     let buy_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(buy_reserve);
@@ -39,6 +55,14 @@ pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_am
     }
 }
 
+/// Calculating buying price given reserve of selling asset and reserve of buying asset.
+/// Formula : SELL_RESERVE * AMOUNT / (BUY_RESERVE - AMOUNT )
+///
+/// - `sell_reserve` - reserve amount of selling asset
+/// - `buy_reserve` - reserve amount of buying asset
+/// - `_amount` - buy amount
+///
+/// Returns None in case of error
 pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
     if amount <= buy_reserve {
         return None;
