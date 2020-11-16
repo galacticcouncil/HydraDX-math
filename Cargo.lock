@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydra-dx-utils"
+name = "hydra-dx-math"
 version = "0.1.0"
 dependencies = [
  "primitive-types",
