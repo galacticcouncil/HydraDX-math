@@ -64,7 +64,7 @@ pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_am
 ///
 /// Returns None in case of error
 pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
-    if amount <= buy_reserve {
+    if amount > buy_reserve {
         return None;
     }
 
