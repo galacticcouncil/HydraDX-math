@@ -83,3 +83,56 @@ pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: 
         None => None,
     }
 }
+
+pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Option<Balance> {
+    let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
+    let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
+    let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+
+    let b_required_hp = amount_hp
+        .checked_mul(b_reserve_hp)
+        .expect("Cannot overflow")
+        .checked_div(a_reserve_hp)
+        .expect("Cannot panic as reserve cannot be 0"); //TODO: cant rely on this here atm!
+
+    let b_required_lp: Result<Balance, &'static str> = Balance::try_from(b_required_hp);
+
+    b_required_lp.ok()
+}
+
+pub fn calculate_liquidity_out(
+    asset_a_reserve: Balance,
+    asset_b_reserve: Balance,
+    amount: Balance,
+    total_liquidity: Balance,
+) -> Option<(Balance, Balance)> {
+    let a_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_a_reserve);
+    let b_reserve_hp: HighPrecisionBalance = HighPrecisionBalance::from(asset_b_reserve);
+    let amount_hp: HighPrecisionBalance = HighPrecisionBalance::from(amount);
+    let liquidity_hp: HighPrecisionBalance = HighPrecisionBalance::from(total_liquidity);
+    let remove_amount_a_hp = amount_hp
+        .checked_mul(a_reserve_hp)
+        .expect("Cannot overflow")
+        .checked_div(liquidity_hp)
+        .expect("Cannot panic as liquidity cannot be 0"); //TODO: cant rely on this here atm!
+    let remove_amount_a_lp: Result<LowPrecisionBalance, &'static str> =
+        LowPrecisionBalance::try_from(remove_amount_a_hp);
+    if remove_amount_a_lp.is_err() {
+        return None;
+    }
+    let remove_amount_a = remove_amount_a_lp.unwrap();
+
+    let remove_amount_b_hp = b_reserve_hp
+        .checked_mul(amount_hp)
+        .expect("Cannot overflow")
+        .checked_div(liquidity_hp)
+        .expect("Cannot panic as liquidity cannot be 0"); //TODO: cant rely on this here atm!
+    let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> =
+        LowPrecisionBalance::try_from(remove_amount_b_hp);
+    if remove_amount_a_lp.is_err() {
+        return None;
+    }
+    let remove_amount_b = remove_amount_b_lp.unwrap();
+
+    Some((remove_amount_a, remove_amount_b))
+}
