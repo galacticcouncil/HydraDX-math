@@ -127,9 +127,11 @@ pub fn calculate_liquidity_out(
         .expect("Cannot overflow")
         .checked_div(liquidity_hp)
         .expect("Cannot panic as liquidity cannot be 0"); //TODO: cant rely on this here atm!
+
     let remove_amount_b_lp: Result<LowPrecisionBalance, &'static str> =
         LowPrecisionBalance::try_from(remove_amount_b_hp);
-    if remove_amount_a_lp.is_err() {
+
+    if remove_amount_b_lp.is_err() {
         return None;
     }
     let remove_amount_b = remove_amount_b_lp.unwrap();
