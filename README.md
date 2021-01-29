@@ -1,4 +1,4 @@
-# hack.hydraDX-math-helpers
+# hydraDX-math-helpers
 
 Install wasm-pack
 
