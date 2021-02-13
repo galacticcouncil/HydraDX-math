@@ -111,6 +111,7 @@ pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: 
     }
 }
 
+// TODO what is being calculated?
 /// Calculating ?
 /// Formula : AMOUNT * ASSET_B_RESERVE / ASSET_A_RESERVE
 ///
@@ -133,6 +134,7 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
     to_u128!(b_required_hp)
 }
 
+// TODO what is being calculated?
 /// Calculating ?
 /// Formula A: AMOUNT * ASSET_A_RESERVE / TOTAL_LIQUIDITY
 /// Formula B: AMOUNT * ASSET_B_RESERVE / TOTAL_LIQUIDITY
