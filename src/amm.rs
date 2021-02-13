@@ -67,7 +67,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / (SELL_RESERVE + AMOUNT )
+/// Formula : BUY_RESERVE * SELL_AMOUNT / (SELL_RESERVE + SELL_AMOUNT )
 ///
 /// - `sell_reserve` - reserve amount of selling asset
 /// - `buy_reserve` - reserve amount of buying asset
@@ -111,6 +111,14 @@ pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: 
     }
 }
 
+/// Calculating ?
+/// Formula : AMOUNT * ASSET_B_RESERVE / ASSET_A_RESERVE
+///
+/// - `asset_a_reserve` - reserve amount of asset a
+/// - `asset_b_reserve` - reserve amount of asset b
+/// - `amount` - buy amount
+///
+/// Returns None in case of error
 pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Option<Balance> {
     ensure!(asset_a_reserve != 0);
 
@@ -125,6 +133,15 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
     to_u128!(b_required_hp)
 }
 
+/// Calculating ?
+/// Formula A: AMOUNT * ASSET_A_RESERVE / TOTAL_LIQUIDITY
+/// Formula B: AMOUNT * ASSET_B_RESERVE / TOTAL_LIQUIDITY
+///
+/// - `asset_a_reserve` - reserve amount of asset a
+/// - `asset_b_reserve` - reserve amount of asset b
+/// - `amount` - buy amount
+///
+/// Returns None in case of error
 pub fn calculate_liquidity_out(
     asset_a_reserve: Balance,
     asset_b_reserve: Balance,
