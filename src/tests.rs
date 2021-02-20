@@ -2,7 +2,10 @@
 fn spot_price_should_work() {
     let cases = vec![
         (1000, 2000, 500, Some(1000), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
+        (1, 1, 1, Some(1), "Easy case"),
+        (0, 1, 1, None, "Zero sell_reserve"),
+        (1, 0, 1, Some(0), "Zero buy_reserve"),
+        (1, 1, 0, Some(0), "Zero amount"),
         (1, u128::MAX, u128::MAX, None, "Overflow weights"),
     ];
 
@@ -16,15 +19,24 @@ fn spot_price_should_work() {
     }
 }
 
+
 #[test]
 fn sell_price_should_work() {
     let cases = vec![
         (1000, 2000, 500, Some(667), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
-        (0, 1, 0, None, "Zero sell reserve and amount"),
-        (1, 0, 0, Some(1), "Zero buy reserve and amount"),
-        (0, 0, u128::MAX, Some(1), "Zero buy reserve and sell reserve"),
         (0, u128::MAX, u128::MAX, None, "Zero sell reserve"),
+
+        // OLD TESTS
+        //(0, 0, 0, None, "Zero reserves and weights"),
+        //(0, 1, 0, None, "Zero sell reserve and amount"),
+        //(1, 0, 0, Some(1), "Zero buy reserve and amount"),
+        //(0, 0, u128::MAX, Some(1), "Zero buy reserve and sell reserve"),
+
+        // NEW TESTS
+        (0, 0, 0, Some(0), "Zero reserves and weights"),
+        (0, 1, 0, Some(0), "Zero sell reserve and amount"),
+        (1, 0, 0, Some(0), "Zero buy reserve and amount"),
+        (0, 0, u128::MAX, Some(0), "Zero buy reserve and sell reserve"),
     ];
 
     for case in cases {

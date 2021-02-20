@@ -56,6 +56,10 @@ macro_rules! to_u128 {
 pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
     ensure!(sell_reserve != 0);
 
+    if amount == 0 || buy_reserve == 0 {
+        return to_u128!(0)
+    }
+
     let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, buy_reserve, sell_reserve);
 
     let spot_price_hp = buy_reserve_hp
@@ -75,6 +79,10 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 ///
 /// Returns None in case of error
 pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Option<Balance> {
+    if buy_reserve == 0 || sell_amount == 0 {
+        return to_u128!(0)
+    }
+
     let (sell_amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(sell_amount, buy_reserve, sell_reserve);
 
     let numerator = buy_reserve_hp.checked_mul(sell_amount_hp)?;
