@@ -2,5 +2,6 @@
 
 pub mod amm;
 mod tests;
+mod proptests;
 
 pub use amm::*;
