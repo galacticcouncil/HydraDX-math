@@ -85,7 +85,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hydra-dx-math"
+name = "hack-hydra-dx-math"
 version = "0.1.0"
 dependencies = [
  "primitive-types",
