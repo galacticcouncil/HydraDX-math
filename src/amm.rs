@@ -67,46 +67,45 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / (SELL_RESERVE + AMOUNT )
+/// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
 /// - `sell_reserve` - reserve amount of selling asset
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `sell_amount` - amount
 ///
 /// Returns None in case of error
-pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Option<Balance> {
-    let (sell_amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(sell_amount, buy_reserve, sell_reserve);
+pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_in: Balance) -> Option<Balance> {
+    let (in_reserve_hp, out_reserve_hp,amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
-    let numerator = buy_reserve_hp.checked_mul(sell_amount_hp)?;
-    let denominator = sell_reserve_hp.checked_add(sell_amount_hp)?;
+    let numerator = out_reserve_hp.checked_mul(amount_in_hp)?;
+    let denominator = in_reserve_hp.checked_add(amount_in_hp)?;
+    let amount_out_hp = numerator.checked_div(denominator)?;
 
-    let sale_price_hp = numerator.checked_div(denominator)?;
-
-    match to_u128!(sale_price_hp) {
-        Some(sale_price) => round_up!(sale_price),
+    match to_u128!(amount_out_hp) {
+        Some(amount_out) => round_up!(amount_out),
         None => None,
     }
 }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
-/// Formula : SELL_RESERVE * AMOUNT / (BUY_RESERVE - AMOUNT )
+/// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
 /// - `sell_reserve` - reserve amount of selling asset
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `amount` - buy amount
 ///
 /// Returns None in case of error
-pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
-    ensure!(amount <= buy_reserve);
+pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_out: Balance) -> Option<Balance> {
+    ensure!(amount_out <= out_reserve);
 
-    let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, buy_reserve, sell_reserve);
+    let (out_reserve_hp, in_reserve_hp, amount_out_hp) = to_u256!(out_reserve, in_reserve, amount_out);
 
-    let numerator = sell_reserve_hp.checked_mul(amount_hp)?;
-    let denominator = buy_reserve_hp.checked_sub(amount_hp)?;
-    let buy_price_hp = numerator.checked_div(denominator)?;
+    let numerator = in_reserve_hp.checked_mul(amount_out_hp)?;
+    let denominator = out_reserve_hp.checked_sub(amount_out_hp)?;
+    let amount_in_hp = numerator.checked_div(denominator)?;
 
-    match to_u128!(buy_price_hp) {
-        Some(buy_price) => round_up!(buy_price),
+    match to_u128!(amount_in_hp) {
+        Some(amount_in) => round_up!(amount_in),
         None => None,
     }
 }

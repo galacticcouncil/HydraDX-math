@@ -24,7 +24,7 @@ fn sell_price_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_sell_price(case.0, case.1, case.2),
+            crate::amm::calculate_out_given_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -33,16 +33,16 @@ fn sell_price_should_work() {
 }
 
 #[test]
-fn buy_price_should_work() {
+fn in_given_out_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(334), "Easy case"),
+        (2000, 1000, 500, Some(334), "Easy case"),
         (0, 0, 0, None, "Zero reserves and weights"),
         (0, 10, 1000, None, "amount cannot be > buy reserve"),
     ];
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_buy_price(case.0, case.1, case.2),
+            crate::amm::calculate_in_given_out(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
