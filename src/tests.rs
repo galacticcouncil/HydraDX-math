@@ -27,6 +27,7 @@ fn sell_price_should_work() {
     let cases = vec![
         (1000, 2000, 500, Some(667), "Easy case"),
         (0, 0, 0, None, "Zero reserves and weights"),
+        (1, 1, 0, Some(1), "Zero reserves and weights"),
     ];
 
     for case in cases {
