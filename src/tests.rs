@@ -1,4 +1,4 @@
-use crate::MathError::{DenominatorIsZero, ResultOverflow};
+use crate::MathError::{DenominatorIsZero, ResultOverflow, InsufficientBuyReserve};
 
 #[test]
 fn spot_price_should_work() {
@@ -25,9 +25,10 @@ fn spot_price_should_work() {
 #[test]
 fn sell_price_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(667), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
-        (1, 1, 0, Some(1), "Zero reserves and weights"),
+        (1000, 2000, 500, Ok(667), "Easy case"),
+        (0, 0, 0, Err(DenominatorIsZero), "Zero reserves and weights"),
+        (1, 1, 0, Ok(1), "Zero reserves and weights"),
+        (1, u128::MAX, u128::MAX, Ok(340282366920938463463374607431768211455), "Proptest #buy_price boundary"),
     ];
 
     for case in cases {
@@ -43,9 +44,9 @@ fn sell_price_should_work() {
 #[test]
 fn buy_price_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(334), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
-        (0, 10, 1000, None, "amount cannot be > buy reserve"),
+        (1000, 2000, 500, Ok(334), "Easy case"),
+        (0, 0, 0, Err(DenominatorIsZero), "Zero reserves and weights"),
+        (0, 10, 1000, Err(InsufficientBuyReserve), "amount cannot be > buy reserve"),
     ];
 
     for case in cases {
@@ -61,9 +62,9 @@ fn buy_price_should_work() {
 #[test]
 fn add_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(1000), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
-        (110, 0, 100, Some(0), "asset b and amount are zero"),
+        (1000, 2000, 500, Ok(1000), "Easy case"),
+        (0, 0, 0, Err(DenominatorIsZero), "Zero reserves and weights"),
+        (110, 0, 100, Ok(0), "asset b and amount are zero"),
     ];
 
     for case in cases {
@@ -79,9 +80,9 @@ fn add_liquidity_should_work() {
 #[test]
 fn remove_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, 2500, Some((200, 400)), "Easy case"),
-        (0, 0, 0, 0, None, "Zero reserves and weights"),
-        (110, 0, 0, 100, Some((0,0)), "Not sure"),
+        (1000, 2000, 500, 2500, Ok((200, 400)), "Easy case"),
+        (0, 0, 0, 0, Err(DenominatorIsZero), "Zero reserves and weights"),
+        (110, 0, 0, 100, Ok((0,0)), "Not sure"),
     ];
 
     for case in cases {
