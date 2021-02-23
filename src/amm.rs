@@ -1,5 +1,6 @@
 use core::convert::TryFrom;
 use primitive_types::U256;
+use crate::MathError::{DenominatorIsZero, ResultOverflow};
 
 type Balance = u128;
 
@@ -45,6 +46,13 @@ macro_rules! to_u128 {
     };
 }
 
+#[derive(PartialEq)]
+#[derive(Debug)]
+pub enum MathError {
+    DenominatorIsZero,
+    ResultOverflow
+}
+
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
 ///
@@ -52,18 +60,30 @@ macro_rules! to_u128 {
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `amount` - amount
 ///
-/// Returns None in case of error
-pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
-    ensure!(sell_reserve != 0);
+/// Returns MathError in case of error
+pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
+    if sell_reserve == 0 {
+        return Err(DenominatorIsZero);
+    }
+
+    if amount == 0 || buy_reserve == 0 {
+        return Ok(0u128)
+    }
 
     let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, buy_reserve, sell_reserve);
 
     let spot_price_hp = buy_reserve_hp
         .checked_mul(amount_hp)
         .expect("Cannot overflow")
-        .checked_div(sell_reserve_hp)?;
+        .checked_div(sell_reserve_hp)
+        .expect("Cannot panic as reserve cannot be 0");
 
-    to_u128!(spot_price_hp)
+    let result = to_u128!(spot_price_hp);
+    if result.is_none() {
+        return Err(ResultOverflow);
+    }
+
+    Ok(result.unwrap())
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
