@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::MathError::{ZeroInReserve, Overflow, InsufficientOutReserve};
 
 #[test]
