@@ -34,7 +34,7 @@ macro_rules! to_u128 {
     };
 }
 
-/// Calculating spot price given reserve of selling asset and reserve of buying asset.
+/// Calculate spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
 ///
 /// - `sell_reserve` - reserve amount of selling asset
@@ -55,7 +55,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
     to_u128!(spot_price_hp)
 }
 
-/// Calculating selling price given reserve of selling asset and reserve of buying asset.
+/// Calculate amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -76,7 +76,7 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
     }
 }
 
-/// Calculating buying price given reserve of selling asset and reserve of buying asset.
+/// Calculate amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
 /// - `in_reserve` - reserve amount of selling asset
