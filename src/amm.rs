@@ -23,21 +23,10 @@ macro_rules! round_up {
     };
 }
 
-//TODO: Help wanted! Please make this macro so it would accept arbitrary number of args and return tuple of same length
-// Currently explicitly covers only cases needed in this module.
 macro_rules! to_u256 {
-    ($x:expr) => {
-        U256::from($x)
-    };
-    ($x:expr, $y:expr ) => {
-        (to_u256!($x), to_u256!($y))
-    };
-    ($x:expr, $y:expr, $z:expr ) => {
-        (to_u256!($x), to_u256!($y), to_u256!($z))
-    };
-    ($x:expr, $y:expr, $z:expr, $d:expr ) => {
-        (to_u256!($x), to_u256!($y), to_u256!($z), to_u256!($d))
-    };
+    ($($x:expr),+) => (
+        {($(U256::from($x)),+)}
+    );
 }
 
 macro_rules! to_u128 {
