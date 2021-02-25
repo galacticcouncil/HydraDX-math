@@ -35,17 +35,17 @@ macro_rules! to_u128 {
 }
 
 /// Calculate spot price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
+/// Formula : OUT_RESERVE * AMOUNT / IN_RESERVE
 ///
 /// - `sell_reserve` - reserve amount of selling asset
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `amount` - amount
 ///
 /// Returns None in case of error
-pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
-    ensure!(sell_reserve != 0);
+pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: Balance) -> Option<Balance> {
+    ensure!(in_reserve != 0);
 
-    let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, buy_reserve, sell_reserve);
+    let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, out_reserve, in_reserve);
 
     let spot_price_hp = buy_reserve_hp
         .checked_mul(amount_hp)
