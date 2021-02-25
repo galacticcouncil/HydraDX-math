@@ -16,7 +16,7 @@ fn spot_price_should_work() {
 }
 
 #[test]
-fn sell_price_should_work() {
+fn out_given_in_should_work() {
     let cases = vec![
         (1000, 2000, 500, Some(667), "Easy case"),
         (0, 0, 0, None, "Zero reserves and weights"),

@@ -69,9 +69,9 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
 /// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
-/// - `sell_reserve` - reserve amount of selling asset
-/// - `buy_reserve` - reserve amount of buying asset
-/// - `sell_amount` - amount
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `amount_in` - amount
 ///
 /// Returns None in case of error
 pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_in: Balance) -> Option<Balance> {
@@ -90,9 +90,9 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
 /// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
-/// - `sell_reserve` - reserve amount of selling asset
-/// - `buy_reserve` - reserve amount of buying asset
-/// - `amount` - buy amount
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `amount_out` - buy amount
 ///
 /// Returns None in case of error
 pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_out: Balance) -> Option<Balance> {
