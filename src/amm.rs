@@ -29,9 +29,9 @@ macro_rules! to_u256 {
     );
 }
 
-macro_rules! to_u128 {
+macro_rules! to_balance {
     ($x:expr) => {
-        u128::try_from($x).ok()
+        Balance::try_from($x).ok()
     };
 }
 
@@ -55,7 +55,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
     ensure!(sell_reserve != 0, ZeroInReserve);
 
     if amount == 0 || buy_reserve == 0 {
-        return Ok(0u128);
+        return Ok(to_balance!(0).unwrap());
     }
 
     let (sell_reserve_hp, buy_reserve_hp, amount_hp) = to_u256!(sell_reserve, buy_reserve, amount);
@@ -64,7 +64,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
         .checked_mul(amount_hp).ok_or(Overflow).unwrap()
         .checked_div(sell_reserve_hp).ok_or(Overflow).unwrap();
 
-    to_u128!(spot_price_hp).ok_or(Overflow)
+    to_balance!(spot_price_hp).ok_or(Overflow)
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
@@ -84,7 +84,7 @@ pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_am
     let numerator = buy_reserve_hp.checked_mul(sell_amount_hp).ok_or(Overflow).unwrap();
     let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
-    let result = to_u128!(sale_price_hp).ok_or(Overflow).ok();
+    let result = to_balance!(sale_price_hp).ok_or(Overflow).ok();
     round_up!(result.unwrap()).ok_or(Overflow)
 }
 
@@ -106,7 +106,7 @@ pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: 
     ensure!(!denominator.is_zero(), ZeroInReserve);
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
-    let result = to_u128!(buy_price_hp).ok_or(Overflow).ok();
+    let result = to_balance!(buy_price_hp).ok_or(Overflow).ok();
     round_up!(result.unwrap()).ok_or(Overflow)
 }
 
@@ -119,7 +119,7 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
         .checked_mul(b_reserve_hp).ok_or(Overflow).unwrap()
         .checked_div(a_reserve_hp).ok_or(Overflow).unwrap();
 
-    to_u128!(b_required_hp).ok_or(Overflow)
+    to_balance!(b_required_hp).ok_or(Overflow)
 }
 
 pub fn calculate_liquidity_out(
@@ -137,13 +137,13 @@ pub fn calculate_liquidity_out(
         .checked_mul(a_reserve_hp).ok_or(Overflow).unwrap()
         .checked_div(liquidity_hp).ok_or(Overflow).unwrap();
 
-    let remove_amount_a = to_u128!(remove_amount_a_hp).ok_or(Overflow);
+    let remove_amount_a = to_balance!(remove_amount_a_hp).ok_or(Overflow);
 
     let remove_amount_b_hp = b_reserve_hp
         .checked_mul(amount_hp).ok_or(Overflow).unwrap()
         .checked_div(liquidity_hp).ok_or(Overflow).unwrap();
 
-    let remove_amount_b = to_u128!(remove_amount_b_hp).ok_or(Overflow);
+    let remove_amount_b = to_balance!(remove_amount_b_hp).ok_or(Overflow);
 
     Ok((remove_amount_a.unwrap(), remove_amount_b.unwrap()))
 }
