@@ -49,7 +49,7 @@ macro_rules! to_u128 {
 /// ```
 /// let result = crate::hydra_dx_math::calculate_spot_price(1000, 2000, 500);
 ///
-/// assert_eq!(1000, result);
+/// assert_eq!(1000, result.unwrap());
 /// ```
 ///
 /// Returns None in case of error
