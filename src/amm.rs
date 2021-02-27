@@ -75,7 +75,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `sell_amount` - amount
 ///
-/// Returns None in case of error</p>
+/// Returns None in case of error
 pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Option<Balance> {
     let (sell_amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(sell_amount, buy_reserve, sell_reserve);
 
