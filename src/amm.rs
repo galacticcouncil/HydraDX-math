@@ -1,6 +1,7 @@
 use core::convert::TryFrom;
 use primitive_types::U256;
 
+
 type Balance = u128;
 
 const FIXED_ROUND_UP: Balance = 1;
@@ -41,9 +42,21 @@ macro_rules! to_u128 {
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `amount` - amount
 ///
+/// # Examples
+///
+/// Basic usage:
+///
+/// ```
+/// let result = crate::hydra_dx_math::calculate_spot_price(1000, 2000, 500);
+///
+/// assert_eq!(1000, result);
+/// ```
+///
 /// Returns None in case of error
 pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Option<Balance> {
     ensure!(sell_reserve != 0);
+
+
 
     let (amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(amount, buy_reserve, sell_reserve);
 
@@ -62,7 +75,7 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 /// - `buy_reserve` - reserve amount of buying asset
 /// - `sell_amount` - amount
 ///
-/// Returns None in case of error
+/// Returns None in case of error</p>
 pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Option<Balance> {
     let (sell_amount_hp, buy_reserve_hp, sell_reserve_hp) = to_u256!(sell_amount, buy_reserve, sell_reserve);
 
