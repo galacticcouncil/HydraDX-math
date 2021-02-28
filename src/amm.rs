@@ -19,7 +19,7 @@ macro_rules! ensure {
 
 macro_rules! round_up {
     ($e:expr) => {
-        $e.checked_add(FIXED_ROUND_UP)
+        $e.checked_add(FIXED_ROUND_UP).ok_or(Overflow)
     };
 }
 
@@ -78,14 +78,14 @@ pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount:
 pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Result<Balance, MathError> {
     let (sell_reserve_hp, buy_reserve_hp, sell_amount_hp) = to_u256!(sell_reserve, buy_reserve, sell_amount);
 
-    let denominator = sell_reserve_hp.checked_add(sell_amount_hp).expect("cannot");
+    let denominator = sell_reserve_hp.checked_add(sell_amount_hp).unwrap();
     ensure!(!denominator.is_zero(), ZeroInReserve);
 
     let numerator = buy_reserve_hp.checked_mul(sell_amount_hp).ok_or(Overflow).unwrap();
     let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
     let result = to_balance!(sale_price_hp).ok();
-    round_up!(result.unwrap()).ok_or(Overflow)
+    round_up!(result.unwrap())
 }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
@@ -107,7 +107,7 @@ pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: 
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
     let result = to_balance!(buy_price_hp).ok();
-    round_up!(result.unwrap()).ok_or(Overflow)
+    round_up!(result.unwrap())
 }
 
 pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
