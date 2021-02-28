@@ -19,3 +19,10 @@ Build
 Run example
 
 `cd demo && npm install && npm run start`
+
+
+## Contributions
+
+Contributions are welcome!
+
+If you want to contribute or request a feature, please read our [Contributing guide](https://hydradx.io/).
