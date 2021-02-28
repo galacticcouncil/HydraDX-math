@@ -1,6 +1,7 @@
 # hydraDX-math-helpers
 
 ![example workflow](https://github.com/RoboRambo/HydraDX-math/actions/workflows/tests.yml/badge.svg)
+![GitHub contributors](https://img.shields.io/github/contributors/RoboRambo/HydraDX-math)
 
 Install wasm-pack
 
