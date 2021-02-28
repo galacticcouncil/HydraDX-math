@@ -43,66 +43,66 @@ pub enum MathError {
     InsufficientOutReserve,
 }
 
-/// Calculating spot price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
+/// Calculate spot price given reserve of selling asset and reserve of buying asset.
+/// Formula : OUT_RESERVE * AMOUNT / IN_RESERVE
 ///
-/// - `sell_reserve` - reserve amount of selling asset
-/// - `buy_reserve` - reserve amount of buying asset
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
 /// - `amount` - amount
 ///
 /// Returns MathError in case of error
-pub fn calculate_spot_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
-    ensure!(sell_reserve != 0, ZeroInReserve);
+pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
+    ensure!(in_reserve != 0, ZeroInReserve);
 
-    if amount == 0 || buy_reserve == 0 {
+    if amount == 0 || out_reserve == 0 {
         return to_balance!(0);
     }
 
-    let (sell_reserve_hp, buy_reserve_hp, amount_hp) = to_u256!(sell_reserve, buy_reserve, amount);
+    let (amount_hp, out_reserve_hp, in_reserve_hp) = to_u256!(amount, out_reserve, in_reserve);
 
-    let spot_price_hp = buy_reserve_hp
+    let spot_price_hp = out_reserve_hp
         .checked_mul(amount_hp).ok_or(Overflow).unwrap()
-        .checked_div(sell_reserve_hp).ok_or(Overflow).unwrap();
+        .checked_div(in_reserve_hp).ok_or(Overflow).unwrap();
 
     to_balance!(spot_price_hp)
 }
 
-/// Calculating selling price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / (SELL_RESERVE + AMOUNT )
+/// Calculate amount to be received from the pool given the amount to be sent to the pool and both reserves.
+/// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
-/// - `sell_reserve` - reserve amount of selling asset
-/// - `buy_reserve` - reserve amount of buying asset
-/// - `sell_amount` - amount
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `amount_in` - amount
 ///
 /// Returns MathError in case of error
-pub fn calculate_sell_price(sell_reserve: Balance, buy_reserve: Balance, sell_amount: Balance) -> Result<Balance, MathError> {
-    let (sell_reserve_hp, buy_reserve_hp, sell_amount_hp) = to_u256!(sell_reserve, buy_reserve, sell_amount);
+pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_in: Balance) -> Result<Balance, MathError> {
+    let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
-    let denominator = sell_reserve_hp.checked_add(sell_amount_hp).unwrap();
+    let denominator = in_reserve_hp.checked_add(amount_in).unwrap();
     ensure!(!denominator.is_zero(), ZeroInReserve);
 
-    let numerator = buy_reserve_hp.checked_mul(sell_amount_hp).ok_or(Overflow).unwrap();
+    let numerator = out_reserve_hp.checked_mul(amount_in_hp).ok_or(Overflow).unwrap();
     let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
     let result = to_balance!(sale_price_hp).ok();
     round_up!(result.unwrap())
 }
 
-/// Calculating buying price given reserve of selling asset and reserve of buying asset.
-/// Formula : SELL_RESERVE * AMOUNT / (BUY_RESERVE - AMOUNT)
+/// Calculate amount to be sent to the pool given the amount to be received from the pool and both reserves.
+/// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
-/// - `sell_reserve` - reserve amount of selling asset
-/// - `buy_reserve` - reserve amount of buying asset
-/// - `amount` - buy amount
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `amount_out` - buy amount
 ///
 /// Returns None in case of error
-pub fn calculate_buy_price(sell_reserve: Balance, buy_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
-    ensure!(amount <= buy_reserve, InsufficientOutReserve);
+pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_out: Balance) -> Result<Balance, MathError> {
+    ensure!(amount <= out_reserve, InsufficientOutReserve);
 
-    let (sell_reserve_hp, buy_reserve_hp, amount_hp) = to_u256!(sell_reserve, buy_reserve, amount);
+    let (out_reserve_hp, in_reserve_hp, amount_out_hp) = to_u256!(out_reserve, in_reserve, amount_out);
 
-    let numerator = sell_reserve_hp.checked_mul(amount_hp).ok_or(Overflow).unwrap();
-    let denominator = buy_reserve_hp.checked_sub(amount_hp).ok_or(Overflow).unwrap();
+    let numerator = in_reserve_hp.checked_mul(amount_out_hp).ok_or(Overflow).unwrap();
+    let denominator = out_reserve_hp.checked_sub(amount_out_hp).ok_or(Overflow).unwrap();
     ensure!(!denominator.is_zero(), ZeroInReserve);
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow).unwrap();
 
