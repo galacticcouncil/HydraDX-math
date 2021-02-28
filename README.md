@@ -1,6 +1,7 @@
 # hydraDX-math-helpers
 
 ![GitHub](https://img.shields.io/github/license/RoboRambo/HydraDX-math)
+![Discord](https://img.shields.io/discord/744493635764224071)
 ![example workflow](https://github.com/RoboRambo/HydraDX-math/actions/workflows/tests.yml/badge.svg)
 ![GitHub contributors](https://img.shields.io/github/contributors/RoboRambo/HydraDX-math)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/RoboRambo/HydraDX-math)
