@@ -107,17 +107,9 @@ pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
 
     let result = to_balance!(buy_price_hp).ok();
-    round_up!(result.unwrap())
+    round_up!(result.ok_or(Overflow)?)
 }
 
-/// Calculating required amount of asset b given asset a.
-/// Formula : AMOUNT * ASSET_B_RESERVE / ASSET_A_RESERVE
-///
-/// - `asset_a_reserve` - reserve amount of asset a
-/// - `asset_b_reserve` - reserve amount of asset b
-/// - `amount` - buy amount
-///
-/// Returns MathError in case of error
 pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
     ensure!(asset_a_reserve != 0, ZeroInReserve);
 
@@ -130,15 +122,6 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
     to_balance!(b_required_hp)
 }
 
-/// Calculating amount of assets returned when removing liquidity.
-/// Formula A: AMOUNT * ASSET_A_RESERVE / TOTAL_LIQUIDITY
-/// Formula B: AMOUNT * ASSET_B_RESERVE / TOTAL_LIQUIDITY
-///
-/// - `asset_a_reserve` - reserve amount of asset a
-/// - `asset_b_reserve` - reserve amount of asset b
-/// - `amount` - buy amount
-///
-/// Returns MathError in case of error
 pub fn calculate_liquidity_out(
     asset_a_reserve: Balance,
     asset_b_reserve: Balance,
