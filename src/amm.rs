@@ -43,7 +43,7 @@ pub enum MathError {
     InsufficientOutReserve,
 }
 
-/// Calculating spot price given reserve of selling asset and reserve of buying asset.
+/// Calculate spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : OUT_RESERVE * AMOUNT / IN_RESERVE
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -67,7 +67,7 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
     to_balance!(spot_price_hp)
 }
 
-/// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
+/// Calculate amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -88,7 +88,7 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
     round_up!(result.ok_or(Overflow)?)
 }
 
-/// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
+/// Calculate amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
 /// - `in_reserve` - reserve amount of selling asset
