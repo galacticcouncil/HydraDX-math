@@ -95,7 +95,7 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
 /// - `out_reserve` - reserve amount of buying asset
 /// - `amount_out` - buy amount
 ///
-/// Returns None in case of error
+/// Returns MathError in case of error
 pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_out: Balance) -> Result<Balance, MathError> {
     ensure!(amount_out <= out_reserve, InsufficientOutReserve);
 
