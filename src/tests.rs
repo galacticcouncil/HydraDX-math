@@ -1,12 +1,16 @@
+#![allow(unused_imports)]
+use crate::MathError::{ZeroInReserve, Overflow, InsufficientOutReserve};
+
 #[test]
 fn spot_price_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(1000), "Easy case"),
-        (1, 1, 1, Some(1), "Easy case"),
-        (0, 1, 1, None, "Zero sell_reserve"),
-        (1, 0, 1, Some(0), "Zero buy_reserve"),
-        (1, 1, 0, Some(0), "Zero amount"),
-        (1, u128::MAX, u128::MAX, None, "Overflow weights"),
+        (1000, 2000, 500, Ok(1000), "Easy case"),
+        (1, 1, 1, Ok(1), "Easy case"),
+        (0, 1, 1, Err(ZeroInReserve), "Zero sell_reserve"),
+        (1, 0, 1, Ok(0), "Zero buy_reserve"),
+        (1, 1, 0, Ok(0), "Zero amount"),
+        (u128::MAX, u128::MAX-1, 1, Ok(0), "Truncated result"),
+        (1, u128::MAX, u128::MAX, Err(Overflow), "Overflow weights"),
     ];
 
     for case in cases {
@@ -19,20 +23,11 @@ fn spot_price_should_work() {
     }
 }
 
-
 #[test]
-fn sell_price_should_work() {
+fn out_given_in_should_work() {
     let cases = vec![
         (1000, 2000, 500, Some(667), "Easy case"),
         (0, u128::MAX, u128::MAX, None, "Zero sell reserve"),
-
-        // OLD TESTS
-        //(0, 0, 0, None, "Zero reserves and weights"),
-        //(0, 1, 0, None, "Zero sell reserve and amount"),
-        //(1, 0, 0, Some(1), "Zero buy reserve and amount"),
-        //(0, 0, u128::MAX, Some(1), "Zero buy reserve and sell reserve"),
-
-        // NEW TESTS
         (0, 0, 0, Some(0), "Zero reserves and weights"),
         (0, 1, 0, Some(0), "Zero sell reserve and amount"),
         (1, 0, 0, Some(0), "Zero buy reserve and amount"),
@@ -41,7 +36,7 @@ fn sell_price_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_sell_price(case.0, case.1, case.2),
+            crate::amm::calculate_out_given_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -50,18 +45,18 @@ fn sell_price_should_work() {
 }
 
 #[test]
-fn buy_price_should_work() {
+fn in_given_out_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(334), "Easy case"),
-        (0, 0, 0, None, "Zero reserves and weights"),
-        (0, 10, 1000, None, "amount cannot be > buy reserve"),
+        (1000, 2000, 500, Ok(334), "Easy case"),
+        (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
+        (0, 10, 1000, Err(InsufficientOutReserve), "amount cannot be > buy reserve"),
         (0, u128::MAX, u128::MAX, None, "div by zero"),
         (u128::MAX, u128::MAX, u128::MAX-1, None, "Overflow weights"),
     ];
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_buy_price(case.0, case.1, case.2),
+            crate::amm::calculate_in_given_out(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -72,10 +67,11 @@ fn buy_price_should_work() {
 #[test]
 fn add_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Some(1000), "Easy case"),
-        (100, 100, 0, Some(0), "amount is zero"),
-        (110, 0, 100, Some(0), "asset b is zero"),
-        (0, 110, 100, None, "asset a is zero"),
+        (1000, 2000, 500, Ok(1000), "Easy case"),
+        (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
+        (100, 100, 0, Ok(0), "amount is zero"),
+        (110, 0, 100, Ok(0), "asset b is zero"),
+        (0, 110, 100, Ok(0), "asset a is zero"),
         (1, u128::MAX, u128::MAX, None, "asset b and amount are zero"),
     ];
 
@@ -92,11 +88,11 @@ fn add_liquidity_should_work() {
 #[test]
 fn remove_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, 2500, Some((200, 400)), "Easy case"),
-        (100, 100, 100, 0, None, "total liquidity is zero"),
-        (0, 0, 0, 100, Some((0,0)), "amount is zero"),
-        (0, 110, 100, 100, Some((0,110)), "remove amount a is zero"),
-        (110, 0, 100, 100, Some((110,0)), "remove amount b is zero"),
+        (1000, 2000, 500, 2500, Ok((200, 400)), "Easy case"),
+        (100, 100, 100, 0, Err(ZeroInReserve), "total liquidity is zero"),
+        (0, 0, 0, 100, Ok((0,0)), "amount is zero"),
+        (0, 110, 100, 100, Ok((0,110)), "remove amount a is zero"),
+        (110, 0, 100, 100, Ok((110,0)), "remove amount b is zero"),
         (u128::MAX, 0, u128::MAX, 1, None, "Formula a overflow"),
         (0, u128::MAX, u128::MAX, 1, None, "Formula b overflow"),
     ];
