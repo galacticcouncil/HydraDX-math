@@ -107,7 +107,7 @@ pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
 
     let result = to_balance!(buy_price_hp).ok();
-    round_up!(result.unwrap())
+    round_up!(result.ok_or(Overflow)?)
 }
 
 /// Calculating required amount of asset b given asset a.
@@ -154,13 +154,13 @@ pub fn calculate_liquidity_out(
         .checked_mul(a_reserve_hp).ok_or(Overflow)?
         .checked_div(liquidity_hp).ok_or(Overflow)?;
 
-    let remove_amount_a = to_balance!(remove_amount_a_hp);
+    let remove_amount_a = to_balance!(remove_amount_a_hp)?;
 
     let remove_amount_b_hp = b_reserve_hp
         .checked_mul(amount_hp).ok_or(Overflow)?
         .checked_div(liquidity_hp).ok_or(Overflow)?;
 
-    let remove_amount_b = to_balance!(remove_amount_b_hp);
+    let remove_amount_b = to_balance!(remove_amount_b_hp)?;
 
-    Ok((remove_amount_a?, remove_amount_b?))
+    Ok((remove_amount_a, remove_amount_b))
 }
