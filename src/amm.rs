@@ -115,7 +115,7 @@ pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_
 ///
 /// - `asset_a_reserve` - reserve amount of asset a
 /// - `asset_b_reserve` - reserve amount of asset b
-/// - `amount` - buy amount
+/// - `amount` - liquidity amount
 ///
 /// Returns MathError in case of error
 pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
@@ -136,7 +136,7 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
 ///
 /// - `asset_a_reserve` - reserve amount of asset a
 /// - `asset_b_reserve` - reserve amount of asset b
-/// - `amount` - buy amount
+/// - `amount` - liquidity amount
 ///
 /// Returns MathError in case of error
 pub fn calculate_liquidity_out(
