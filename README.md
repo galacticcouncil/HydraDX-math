@@ -1,15 +1,6 @@
 # hydraDX-math-helpers
 
-Install wasm-pack
+![example workflow](https://github.com/galacticcouncil/HydraDX-math/actions/workflows/tests.yml/badge.svg)
+![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/galacticcouncil/HydraDX-math)
 
-`curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh`
-
-
-Build
-
-`wasm-pack build --dev`
-
-
-Run example
-
-`cd demo && npm install && npm run start`
+A collection of utilities to make performing liquidity pool calculations more convenient.
