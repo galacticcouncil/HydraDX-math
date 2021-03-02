@@ -67,7 +67,7 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
     to_balance!(spot_price_hp)
 }
 
-/// Calculate amount to be received from the pool given the amount to be sent to the pool and both reserves.
+/// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// Formula : OUT_RESERVE * AMOUNT_IN / (IN_RESERVE + AMOUNT_IN)
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -88,7 +88,7 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
     round_up!(result.ok_or(Overflow)?)
 }
 
-/// Calculate amount to be sent to the pool given the amount to be received from the pool and both reserves.
+/// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -110,6 +110,14 @@ pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_
     round_up!(result.unwrap())
 }
 
+/// Calculating required amount of asset b given asset a.
+/// Formula : AMOUNT * ASSET_B_RESERVE / ASSET_A_RESERVE
+///
+/// - `asset_a_reserve` - reserve amount of asset a
+/// - `asset_b_reserve` - reserve amount of asset b
+/// - `amount` - buy amount
+///
+/// Returns MathError in case of error
 pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
     ensure!(asset_a_reserve != 0, ZeroInReserve);
 
@@ -122,6 +130,15 @@ pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance
     to_balance!(b_required_hp)
 }
 
+/// Calculating amount of assets returned when removing liquidity.
+/// Formula A: AMOUNT * ASSET_A_RESERVE / TOTAL_LIQUIDITY
+/// Formula B: AMOUNT * ASSET_B_RESERVE / TOTAL_LIQUIDITY
+///
+/// - `asset_a_reserve` - reserve amount of asset a
+/// - `asset_b_reserve` - reserve amount of asset b
+/// - `amount` - buy amount
+///
+/// Returns MathError in case of error
 pub fn calculate_liquidity_out(
     asset_a_reserve: Balance,
     asset_b_reserve: Balance,
