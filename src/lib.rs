@@ -5,10 +5,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// !! Insert Description here. !!
-// --snip--
 pub mod amm;
-
 mod tests;
 
 pub use amm::*;
