@@ -27,9 +27,11 @@ fn spot_price_should_work() {
 fn out_given_in_should_work() {
     let cases = vec![
         (1000, 2000, 500, Ok(667), "Easy case"),
+        (0, u128::MAX, u128::MAX, Err(Overflow), "Zero sell reserve"),
         (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
-        (1, 1, 0, Ok(1), "Zero reserves and weights"),
-        (1, u128::MAX, u128::MAX, Ok(340282366920938463463374607431768211455), "Proptest #buy_price boundary"),
+        (0, 1, 0, Err(ZeroInReserve), "Zero sell reserve and amount"),
+        (1, 0, 0, Ok(1), "Zero buy reserve and amount"),
+        (0, 0, u128::MAX, Ok(1), "Zero buy reserve and sell reserve"),
     ];
 
     for case in cases {
@@ -48,6 +50,8 @@ fn in_given_out_should_work() {
         (2000, 1000, 500, Ok(334), "Easy case"),
         (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
         (0, 10, 1000, Err(InsufficientOutReserve), "amount cannot be > buy reserve"),
+        (0, u128::MAX, u128::MAX, Err(InsufficientOutReserve), "div by zero"),
+        (u128::MAX, u128::MAX, u128::MAX-1, Err(Overflow), "Overflow weights"),
     ];
 
     for case in cases {
@@ -64,8 +68,10 @@ fn in_given_out_should_work() {
 fn add_liquidity_should_work() {
     let cases = vec![
         (1000, 2000, 500, Ok(1000), "Easy case"),
-        (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
-        (110, 0, 100, Ok(0), "asset b and amount are zero"),
+        (100, 100, 0, Ok(0), "amount is zero"),
+        (110, 0, 100, Ok(0), "asset b is zero"),
+        (0, 110, 100, Err(ZeroInReserve), "asset a is zero"),
+        (1, u128::MAX, u128::MAX, Err(Overflow), "asset b and amount are zero"),
     ];
 
     for case in cases {
@@ -82,8 +88,12 @@ fn add_liquidity_should_work() {
 fn remove_liquidity_should_work() {
     let cases = vec![
         (1000, 2000, 500, 2500, Ok((200, 400)), "Easy case"),
-        (0, 0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
-        (110, 0, 0, 100, Ok((0,0)), "Not sure"),
+        (100, 100, 100, 0, Err(ZeroInReserve), "total liquidity is zero"),
+        (0, 0, 0, 100, Ok((0,0)), "amount is zero"),
+        (0, 110, 100, 100, Ok((0,110)), "remove amount a is zero"),
+        (110, 0, 100, 100, Ok((110,0)), "remove amount b is zero"),
+        (u128::MAX, 0, u128::MAX, 1, Err(Overflow), "Formula a overflow"),
+        (0, u128::MAX, u128::MAX, 1, Err(Overflow), "Formula b overflow"),
     ];
 
     for case in cases {
