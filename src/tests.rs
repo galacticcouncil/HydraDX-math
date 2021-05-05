@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use crate::MathError::{ZeroInReserve, Overflow, InsufficientOutReserve};
+use crate::MathError::{InsufficientOutReserve, Overflow, ZeroInReserve};
 
 #[test]
 fn spot_price_should_work() {
@@ -9,7 +9,7 @@ fn spot_price_should_work() {
         (0, 1, 1, Err(ZeroInReserve), "Zero sell_reserve"),
         (1, 0, 1, Ok(0), "Zero buy_reserve"),
         (1, 1, 0, Ok(0), "Zero amount"),
-        (u128::MAX, u128::MAX-1, 1, Ok(0), "Truncated result"),
+        (u128::MAX, u128::MAX - 1, 1, Ok(0), "Truncated result"),
         (1, u128::MAX, u128::MAX, Err(Overflow), "Overflow weights"),
     ];
 
@@ -49,9 +49,15 @@ fn in_given_out_should_work() {
     let cases = vec![
         (2000, 1000, 500, Ok(334), "Easy case"),
         (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
-        (0, 10, 1000, Err(InsufficientOutReserve), "amount cannot be > buy reserve"),
+        (
+            0,
+            10,
+            1000,
+            Err(InsufficientOutReserve),
+            "amount cannot be > buy reserve",
+        ),
         (0, u128::MAX, u128::MAX, Err(InsufficientOutReserve), "div by zero"),
-        (u128::MAX, u128::MAX, u128::MAX-1, Err(Overflow), "Overflow weights"),
+        (u128::MAX, u128::MAX, u128::MAX - 1, Err(Overflow), "Overflow weights"),
     ];
 
     for case in cases {
@@ -89,9 +95,9 @@ fn remove_liquidity_should_work() {
     let cases = vec![
         (1000, 2000, 500, 2500, Ok((200, 400)), "Easy case"),
         (100, 100, 100, 0, Err(ZeroInReserve), "total liquidity is zero"),
-        (0, 0, 0, 100, Ok((0,0)), "amount is zero"),
-        (0, 110, 100, 100, Ok((0,110)), "remove amount a is zero"),
-        (110, 0, 100, 100, Ok((110,0)), "remove amount b is zero"),
+        (0, 0, 0, 100, Ok((0, 0)), "amount is zero"),
+        (0, 110, 100, 100, Ok((0, 110)), "remove amount a is zero"),
+        (110, 0, 100, 100, Ok((110, 0)), "remove amount b is zero"),
         (u128::MAX, 0, u128::MAX, 1, Err(Overflow), "Formula a overflow"),
         (0, u128::MAX, u128::MAX, 1, Err(Overflow), "Formula b overflow"),
     ];

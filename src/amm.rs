@@ -1,47 +1,13 @@
+use crate::{
+    ensure, round_up, to_balance, to_u256, MathError,
+    MathError::{InsufficientOutReserve, Overflow, ZeroInReserve},
+};
 use core::convert::TryFrom;
 use primitive_types::U256;
-use crate::MathError::{ZeroInReserve, Overflow, InsufficientOutReserve};
 
 type Balance = u128;
 
 const FIXED_ROUND_UP: Balance = 1;
-
-macro_rules! ensure {
-    ($e:expr, $f:expr) => {
-        match $e {
-            true => (),
-            false => {
-                return Err($f);
-            }
-        }
-    };
-}
-
-macro_rules! round_up {
-    ($e:expr) => {
-        $e.checked_add(FIXED_ROUND_UP).ok_or(Overflow)
-    };
-}
-
-macro_rules! to_u256 {
-    ($($x:expr),+) => (
-        {($(U256::from($x)),+)}
-    );
-}
-
-macro_rules! to_balance {
-    ($x:expr) => {
-        Balance::try_from($x).map_err(|_| Overflow)
-    };
-}
-
-#[derive(PartialEq)]
-#[derive(Debug)]
-pub enum MathError {
-    ZeroInReserve,
-    Overflow,
-    InsufficientOutReserve,
-}
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : OUT_RESERVE * AMOUNT / IN_RESERVE
@@ -61,8 +27,10 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
     let (amount_hp, out_reserve_hp, in_reserve_hp) = to_u256!(amount, out_reserve, in_reserve);
 
     let spot_price_hp = out_reserve_hp
-        .checked_mul(amount_hp).ok_or(Overflow)?
-        .checked_div(in_reserve_hp).ok_or(Overflow)?;
+        .checked_mul(amount_hp)
+        .ok_or(Overflow)?
+        .checked_div(in_reserve_hp)
+        .ok_or(Overflow)?;
 
     to_balance!(spot_price_hp)
 }
@@ -75,7 +43,11 @@ pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: B
 /// - `amount_in` - amount
 ///
 /// Returns MathError in case of error
-pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_in: Balance) -> Result<Balance, MathError> {
+pub fn calculate_out_given_in(
+    in_reserve: Balance,
+    out_reserve: Balance,
+    amount_in: Balance,
+) -> Result<Balance, MathError> {
     let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
     let denominator = in_reserve_hp.checked_add(amount_in_hp).ok_or(Overflow)?;
@@ -96,7 +68,11 @@ pub fn calculate_out_given_in(in_reserve: Balance, out_reserve: Balance, amount_
 /// - `amount_out` - buy amount
 ///
 /// Returns MathError in case of error
-pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_out: Balance) -> Result<Balance, MathError> {
+pub fn calculate_in_given_out(
+    out_reserve: Balance,
+    in_reserve: Balance,
+    amount_out: Balance,
+) -> Result<Balance, MathError> {
     ensure!(amount_out <= out_reserve, InsufficientOutReserve);
 
     let (out_reserve_hp, in_reserve_hp, amount_out_hp) = to_u256!(out_reserve, in_reserve, amount_out);
@@ -118,14 +94,20 @@ pub fn calculate_in_given_out(out_reserve: Balance, in_reserve: Balance, amount_
 /// - `amount` - liquidity amount
 ///
 /// Returns MathError in case of error
-pub fn calculate_liquidity_in(asset_a_reserve: Balance, asset_b_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
+pub fn calculate_liquidity_in(
+    asset_a_reserve: Balance,
+    asset_b_reserve: Balance,
+    amount: Balance,
+) -> Result<Balance, MathError> {
     ensure!(asset_a_reserve != 0, ZeroInReserve);
 
     let (a_reserve_hp, b_reserve_hp, amount_hp) = to_u256!(asset_a_reserve, asset_b_reserve, amount);
 
     let b_required_hp = amount_hp
-        .checked_mul(b_reserve_hp).ok_or(Overflow)?
-        .checked_div(a_reserve_hp).ok_or(Overflow)?;
+        .checked_mul(b_reserve_hp)
+        .ok_or(Overflow)?
+        .checked_div(a_reserve_hp)
+        .ok_or(Overflow)?;
 
     to_balance!(b_required_hp)
 }
@@ -151,14 +133,18 @@ pub fn calculate_liquidity_out(
         to_u256!(asset_a_reserve, asset_b_reserve, amount, total_liquidity);
 
     let remove_amount_a_hp = amount_hp
-        .checked_mul(a_reserve_hp).ok_or(Overflow)?
-        .checked_div(liquidity_hp).ok_or(Overflow)?;
+        .checked_mul(a_reserve_hp)
+        .ok_or(Overflow)?
+        .checked_div(liquidity_hp)
+        .ok_or(Overflow)?;
 
     let remove_amount_a = to_balance!(remove_amount_a_hp)?;
 
     let remove_amount_b_hp = b_reserve_hp
-        .checked_mul(amount_hp).ok_or(Overflow)?
-        .checked_div(liquidity_hp).ok_or(Overflow)?;
+        .checked_mul(amount_hp)
+        .ok_or(Overflow)?
+        .checked_div(liquidity_hp)
+        .ok_or(Overflow)?;
 
     let remove_amount_b = to_balance!(remove_amount_b_hp)?;
 

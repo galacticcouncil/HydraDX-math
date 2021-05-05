@@ -5,6 +5,7 @@ authors = ['GalacticCouncil']
 edition = "2018"
 
 [dependencies]
+lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 primitive-types = {default-features = false, version = '0.7.2'}
 
 [features]
