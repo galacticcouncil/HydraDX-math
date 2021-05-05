@@ -1,3 +1,6 @@
+
+#![allow(clippy::clippy::module_inception)]
+
 mod lbp;
 mod traits;
 mod types;
