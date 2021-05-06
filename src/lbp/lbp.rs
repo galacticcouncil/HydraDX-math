@@ -1,5 +1,5 @@
 use primitive_types::U256;
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 use crate::{
     ensure, to_balance, to_u256, MathError,
