@@ -2,13 +2,13 @@ use core::convert::TryFrom;
 use primitive_types::U256;
 
 use crate::{
-    ensure, to_balance, to_u256, MathError,
+    ensure, to_balance, to_u256, to_lbp_weight, MathError,
     MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
 };
 
 use crate::lbp::traits::BinomMath;
-use crate::lbp::types::{Balance, LBPWeight};
-use std::convert::TryInto;
+use crate::lbp::types::Balance;
+pub use crate::lbp::types::LBPWeight;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -148,5 +148,5 @@ pub fn calculate_linear_weights<BlockNumber: sp_arithmetic::traits::AtLeast32Bit
         .checked_div(dx.into())
         .ok_or(Overflow)?;
 
-    result.try_into().map_err(|_| Overflow)
+    to_lbp_weight!(result)
 }

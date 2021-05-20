@@ -49,6 +49,13 @@ macro_rules! to_balance {
     };
 }
 
+#[macro_export]
+macro_rules! to_lbp_weight {
+    ($x:expr) => {
+        LBPWeight::try_from($x).map_err(|_| Overflow)
+    };
+}
+
 #[derive(PartialEq, Debug)]
 pub enum MathError {
     ZeroInReserve,
