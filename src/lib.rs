@@ -55,4 +55,5 @@ pub enum MathError {
     Overflow,
     InsufficientOutReserve,
     ZeroOutWeight,
+    ZeroDuration,
 }

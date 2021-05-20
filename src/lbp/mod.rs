@@ -1,5 +1,5 @@
 
-#![allow(clippy::clippy::module_inception)]
+#![allow(clippy::module_inception)]
 
 mod lbp;
 mod traits;

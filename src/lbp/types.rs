@@ -3,6 +3,7 @@ use primitive_types::U256;
 
 pub type Balance = u128;
 type Balance256 = U256;
+pub type LBPWeight = u128;
 
 lazy_static! {
     static ref BONEHP: Balance256 = Balance256::from(<Balance256 as BinomMath>::ONE);

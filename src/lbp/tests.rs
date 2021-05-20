@@ -1,6 +1,6 @@
 use crate::lbp::lbp;
 
-use crate::MathError::{Overflow, ZeroInReserve, ZeroOutWeight};
+use crate::MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight};
 
 #[test]
 fn spot_price_should_work() {
@@ -70,6 +70,142 @@ fn in_give_out_should_work() {
     for case in cases {
         assert_eq!(
             lbp::calculate_in_given_out(case.0, case.1, case.2, case.3, case.4),
+            case.5,
+            "{}",
+            case.6
+        );
+    }
+}
+
+#[test]
+fn linear_weights_should_work() {
+    let u32_cases = vec![
+        (100u32, 200u32, 1_000u128, 2_000u128, 170u32, Ok(1_700), "Easy case"),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            1_000u128,
+            170u32,
+            Ok(1_300),
+            "Easy decreasing case",
+        ),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            2_000u128,
+            170u32,
+            Ok(2_000),
+            "Easy constant case",
+        ),
+        (
+            100u32,
+            200u32,
+            1_000u128,
+            2_000u128,
+            100u32,
+            Ok(1_000),
+            "Initial weight",
+        ),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            1_000u128,
+            100u32,
+            Ok(2_000),
+            "Initial decreasing weight",
+        ),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            2_000u128,
+            100u32,
+            Ok(2_000),
+            "Initial constant weight",
+        ),
+        (100u32, 200u32, 1_000u128, 2_000u128, 200u32, Ok(2_000), "Final weight"),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            1_000u128,
+            200u32,
+            Ok(1_000),
+            "Final decreasing weight",
+        ),
+        (
+            100u32,
+            200u32,
+            2_000u128,
+            2_000u128,
+            200u32,
+            Ok(2_000),
+            "Final constant weight",
+        ),
+        (
+            200u32,
+            100u32,
+            1_000u128,
+            2_000u128,
+            170u32,
+            Err(Overflow),
+            "Invalid interval",
+        ),
+        (
+            100u32,
+            100u32,
+            1_000u128,
+            2_000u128,
+            100u32,
+            Err(ZeroDuration),
+            "Invalid interval",
+        ),
+        (
+            100u32,
+            200u32,
+            1_000u128,
+            2_000u128,
+            10u32,
+            Err(Overflow),
+            "Out of bound",
+        ),
+        (
+            100u32,
+            200u32,
+            1_000u128,
+            2_000u128,
+            210u32,
+            Err(Overflow),
+            "Out of bound",
+        ),
+    ];
+    let u64_cases = vec![
+        (100u64, 200u64, 1_000u128, 2_000u128, 170u64, Ok(1_700), "Easy case"),
+        (
+            100u64,
+            u64::MAX,
+            1_000u128,
+            2_000u128,
+            200u64,
+            Err(Overflow),
+            "Interval too long",
+        ),
+    ];
+
+    for case in u32_cases {
+        assert_eq!(
+            lbp::calculate_linear_weights(case.0, case.1, case.2, case.3, case.4),
+            case.5,
+            "{}",
+            case.6
+        );
+    }
+    for case in u64_cases {
+        assert_eq!(
+            lbp::calculate_linear_weights(case.0, case.1, case.2, case.3, case.4),
             case.5,
             "{}",
             case.6

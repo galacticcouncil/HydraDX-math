@@ -1,13 +1,14 @@
-use primitive_types::U256;
 use core::convert::TryFrom;
+use primitive_types::U256;
 
 use crate::{
     ensure, to_balance, to_u256, MathError,
-    MathError::{Overflow, ZeroInReserve, ZeroOutWeight},
+    MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
 };
 
 use crate::lbp::traits::BinomMath;
-use crate::lbp::types::Balance;
+use crate::lbp::types::{Balance, LBPWeight};
+use std::convert::TryInto;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -112,4 +113,40 @@ pub fn calculate_in_given_out(
     let r = in_reserve.hmul(y2).ok_or(Overflow)?;
 
     to_balance!(r)
+}
+
+/// Calculating weight at any given block in an interval using linear interpolation.
+///
+/// - `start_x` - beginning of an interval
+/// - `end_x` - end of an interval
+/// - `start_y` - initial weight
+/// - `end_y` - final weight
+/// - `at` - block number at which to calculate the weight
+pub fn calculate_linear_weights<BlockNumber: sp_arithmetic::traits::AtLeast32BitUnsigned>(
+    start_x: BlockNumber,
+    end_x: BlockNumber,
+    start_y: LBPWeight,
+    end_y: LBPWeight,
+    at: BlockNumber,
+) -> Result<LBPWeight, MathError> {
+    let d1 = end_x.checked_sub(&at).ok_or(Overflow)?;
+    let d2 = at.checked_sub(&start_x).ok_or(Overflow)?;
+    let dx = end_x.checked_sub(&start_x).ok_or(Overflow)?;
+
+    let dx: u32 = dx.try_into().map_err(|_| Overflow)?;
+    // if dx fits into u32, d1 and d2 fit into u128
+    let d1: u128 = d1.try_into().map_err(|_| Overflow)?;
+    let d2: u128 = d2.try_into().map_err(|_| Overflow)?;
+
+    ensure!(dx != 0, ZeroDuration);
+
+    let (start_y, end_y, d1, d2) = to_u256!(start_y, end_y, d1, d2);
+
+    let left_part = start_y.checked_mul(d1).ok_or(Overflow)?;
+    let right_part = end_y.checked_mul(d2).ok_or(Overflow)?;
+    let result = (left_part.checked_add(right_part).ok_or(Overflow)?)
+        .checked_div(dx.into())
+        .ok_or(Overflow)?;
+
+    result.try_into().map_err(|_| Overflow)
 }
