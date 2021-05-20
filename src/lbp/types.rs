@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use crate::lbp::traits::BinomMath;
 use primitive_types::U256;
 
