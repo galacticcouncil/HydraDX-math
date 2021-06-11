@@ -8,7 +8,10 @@ edition = "2018"
 lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 primitive-types = {default-features = false, version = '0.7.2'}
 sp-arithmetic = {default-features = false, version = '3.0.0'}
+primitives = {default-features = false, version = '4.2.0', git = "https://github.com/galacticcouncil/HydraDX-node"}
 
 [features]
 default = ["std"]
-std = []
+std = [
+    "primitives/std"
+]
