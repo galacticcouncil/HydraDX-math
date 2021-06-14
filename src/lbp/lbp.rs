@@ -1,4 +1,4 @@
-use core::convert::TryFrom;
+use core::convert::{TryInto, TryFrom};
 use primitive_types::U256;
 
 use crate::{
@@ -9,7 +9,6 @@ use crate::{
 use crate::lbp::traits::BinomMath;
 use crate::lbp::types::Balance;
 pub use crate::lbp::types::LBPWeight;
-use std::convert::TryInto;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
