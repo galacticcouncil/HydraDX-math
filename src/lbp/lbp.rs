@@ -1,8 +1,8 @@
-use core::convert::TryFrom;
+use core::convert::{TryInto, TryFrom};
 use primitive_types::U256;
 
 use crate::{
-    ensure, to_balance, to_u256, to_lbp_weight, MathError,
+    ensure, to_balance, to_lbp_weight, to_u256, MathError,
     MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
 };
 
@@ -122,7 +122,7 @@ pub fn calculate_in_given_out(
 /// - `start_y` - initial weight
 /// - `end_y` - final weight
 /// - `at` - block number at which to calculate the weight
-pub fn calculate_linear_weights<BlockNumber: sp_arithmetic::traits::AtLeast32BitUnsigned>(
+pub fn calculate_linear_weights<BlockNumber: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
     start_x: BlockNumber,
     end_x: BlockNumber,
     start_y: LBPWeight,
