@@ -63,5 +63,4 @@ pub enum MathError {
     InsufficientOutReserve,
     ZeroOutWeight,
     ZeroDuration,
-    FeeAmountInvalid,
 }

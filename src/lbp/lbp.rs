@@ -1,16 +1,14 @@
 use core::convert::TryFrom;
 use primitive_types::U256;
-use primitives::fee::{Fee, WithFee};
 
 use crate::{
-    ensure, to_balance, to_lbp_weight, to_u256, MathError,
+    ensure, to_balance, to_u256, to_lbp_weight, MathError,
     MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
 };
 
 use crate::lbp::traits::BinomMath;
 use crate::lbp::types::Balance;
 pub use crate::lbp::types::LBPWeight;
-use crate::MathError::FeeAmountInvalid;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -20,7 +18,6 @@ use crate::MathError::FeeAmountInvalid;
 /// - `in_weight` - pool weight of selling asset
 /// - `out_Weight` - pool weight of buying asset
 /// - `amount` - amount
-/// - `fee` - swap fee
 ///
 /// Returns None in case of error
 pub fn calculate_spot_price(
@@ -29,13 +26,12 @@ pub fn calculate_spot_price(
     in_weight: Balance,
     out_weight: Balance,
     amount: Balance,
-    fee: Fee,
-) -> Result<(Balance, Balance), MathError> {
+) -> Result<Balance, MathError> {
     // If any is 0 - let's not progress any further.
     ensure!(in_reserve != 0, ZeroInReserve);
 
     if amount == 0 || out_reserve == 0 {
-        return Ok((0, 0));
+        return to_balance!(0);
     }
 
     let (amount, out_reserve, in_reserve, out_weight, in_weight) =
@@ -49,12 +45,7 @@ pub fn calculate_spot_price(
         .checked_div(in_reserve.checked_mul(out_weight).expect("Cannot overflow"))
         .ok_or(Overflow)?;
 
-    let amount_out_with_fee = to_balance!(spot_price)?;
-
-    let fee_amount = amount_out_with_fee.just_fee(fee).ok_or(FeeAmountInvalid)?;
-    let amount_out = amount_out_with_fee.checked_sub(fee_amount).ok_or(Overflow)?;
-
-    Ok((amount_out, fee_amount))
+    to_balance!(spot_price)
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
@@ -65,7 +56,6 @@ pub fn calculate_spot_price(
 /// - `in_weight` - pool weight of selling asset
 /// - `out_weight` - pool weight of buying asset
 /// - `amount` - amount
-/// - `fee` - swap fee
 ///
 /// Returns None in case of error
 pub fn calculate_out_given_in(
@@ -74,8 +64,7 @@ pub fn calculate_out_given_in(
     in_weight: Balance,
     out_weight: Balance,
     amount: Balance,
-    fee: Fee,
-) -> Result<(Balance, Balance), MathError> {
+) -> Result<Balance, MathError> {
     ensure!(out_weight != 0, ZeroOutWeight);
 
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
@@ -91,13 +80,9 @@ pub fn calculate_out_given_in(
 
     let x4 = x3.hsubr_one().ok_or(Overflow)?;
 
-    let result = out_reserve.hmul(x4).ok_or(Overflow)?;
-    let amount_out_with_fee = to_balance!(result)?;
+    let r = out_reserve.hmul(x4).ok_or(Overflow)?;
 
-    let fee_amount = amount_out_with_fee.just_fee(fee).ok_or(FeeAmountInvalid)?;
-    let amount_out = amount_out_with_fee.checked_sub(fee_amount).ok_or(Overflow)?;
-
-    Ok((amount_out, fee_amount))
+    to_balance!(r)
 }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
@@ -108,7 +93,6 @@ pub fn calculate_out_given_in(
 /// - `in_weight` - pool weight of selling asset
 /// - `out_weight` - pool weight of buying asset
 /// - `amount` - buy amount
-/// - `fee` - swap fee
 ///
 /// Returns None in case of error
 pub fn calculate_in_given_out(
@@ -117,8 +101,7 @@ pub fn calculate_in_given_out(
     in_weight: Balance,
     out_weight: Balance,
     amount: Balance,
-    fee: Fee,
-) -> Result<(Balance, Balance), MathError> {
+) -> Result<Balance, MathError> {
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_u256!(in_weight, out_weight, amount, in_reserve, out_reserve);
 
@@ -129,12 +112,7 @@ pub fn calculate_in_given_out(
     let y2 = y1.hsub_one().ok_or(Overflow)?;
     let r = in_reserve.hmul(y2).ok_or(Overflow)?;
 
-    let result = to_balance!(r)?;
-    let amount_in_without_fee = to_balance!(result)?;
-
-    let fee_amount = amount_in_without_fee.just_fee(fee).ok_or(FeeAmountInvalid)?;
-
-    Ok((amount_in_without_fee, fee_amount))
+    to_balance!(r)
 }
 
 /// Calculating weight at any given block in an interval using linear interpolation.
