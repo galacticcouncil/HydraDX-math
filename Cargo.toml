@@ -6,10 +6,12 @@ license = 'Apache-2.0'
 name = "hydra-dx-math"
 description = "A collection of utilities to make performing liquidity pool calculations more convenient."
 repository = 'https://github.com/galacticcouncil/hydradx-math'
-version = "1.0.0"
+version = "2.0.0"
 
 [dependencies]
 primitive-types = {default-features = false, version = '0.8.0'}
+lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
+num-traits = {default-features = false, version = "0.2.14"}
 
 [features]
 default = ["std"]
