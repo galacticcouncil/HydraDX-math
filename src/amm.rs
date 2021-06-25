@@ -56,8 +56,7 @@ pub fn calculate_out_given_in(
     let numerator = out_reserve_hp.checked_mul(amount_in_hp).ok_or(Overflow)?;
     let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
 
-    let result = to_balance!(sale_price_hp).ok();
-    round_up!(result.ok_or(Overflow)?)
+    to_balance!(sale_price_hp)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
@@ -73,6 +72,9 @@ pub fn calculate_in_given_out(
     in_reserve: Balance,
     amount_out: Balance,
 ) -> Result<Balance, MathError> {
+    if amount_out == 0 {
+        return Ok(0)
+    };
     ensure!(amount_out <= out_reserve, InsufficientOutReserve);
 
     let (out_reserve_hp, in_reserve_hp, amount_out_hp) = to_u256!(out_reserve, in_reserve, amount_out);
