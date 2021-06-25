@@ -15,7 +15,7 @@ fn spot_price_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_spot_price(case.0, case.1, case.2),
+            crate::xyk::calculate_spot_price(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -36,7 +36,7 @@ fn out_given_in_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_out_given_in(case.0, case.1, case.2),
+            crate::xyk::calculate_out_given_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -64,7 +64,7 @@ fn in_given_out_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_in_given_out(case.0, case.1, case.2),
+            crate::xyk::calculate_in_given_out(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -84,7 +84,7 @@ fn add_liquidity_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_liquidity_in(case.0, case.1, case.2),
+            crate::xyk::calculate_liquidity_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -106,7 +106,7 @@ fn remove_liquidity_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_liquidity_out(case.0, case.1, case.2, case.3),
+            crate::xyk::calculate_liquidity_out(case.0, case.1, case.2, case.3),
             case.4,
             "{}",
             case.5
