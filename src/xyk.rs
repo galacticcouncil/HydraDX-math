@@ -48,6 +48,10 @@ pub fn calculate_out_given_in(
     out_reserve: Balance,
     amount_in: Balance,
 ) -> Result<Balance, MathError> {
+    if amount_in == 0 {
+        return Ok(0)
+    };
+
     let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
     let denominator = in_reserve_hp.checked_add(amount_in_hp).ok_or(Overflow)?;
