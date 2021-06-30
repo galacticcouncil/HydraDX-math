@@ -15,7 +15,7 @@ fn spot_price_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_spot_price(case.0, case.1, case.2),
+            crate::xyk::calculate_spot_price(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -26,17 +26,18 @@ fn spot_price_should_work() {
 #[test]
 fn out_given_in_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Ok(667), "Easy case"),
-        (0, u128::MAX, u128::MAX, Err(Overflow), "Zero sell reserve"),
-        (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
-        (0, 1, 0, Err(ZeroInReserve), "Zero sell reserve and amount"),
-        (1, 0, 0, Ok(1), "Zero buy reserve and amount"),
-        (0, 0, u128::MAX, Ok(1), "Zero buy reserve and sell reserve"),
+        (1000, 2000, 500, Ok(666), "Easy case"),
+        (1000, 1000, 0, Ok(0), "Zero amount in"),
+        (0, u128::MAX, u128::MAX, Ok(u128::MAX), "Zero sell reserve"),
+        (0, 0, 0, Ok(0), "Zero reserves and weights"),
+        (0, 1, 0, Ok(0), "Zero sell reserve and amount"),
+        (1, 0, 0, Ok(0), "Zero buy reserve and amount"),
+        (0, 0, u128::MAX, Ok(0), "Zero buy reserve and sell reserve"),
     ];
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_out_given_in(case.0, case.1, case.2),
+            crate::xyk::calculate_out_given_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -48,7 +49,10 @@ fn out_given_in_should_work() {
 fn in_given_out_should_work() {
     let cases = vec![
         (2000, 1000, 500, Ok(334), "Easy case"),
-        (0, 0, 0, Err(ZeroInReserve), "Zero reserves and weights"),
+        (1000, 1000, 0, Ok(0), "Zero amount out"),
+        (0, 0, 0, Ok(0), "Zero reserves and weights"),
+        (0, 1, 0, Ok(0), "Zero buy reserve and amount"),
+        (1000, 1000, 1000, Err(ZeroInReserve), "Zero reserves and weights"),
         (
             0,
             10,
@@ -62,7 +66,7 @@ fn in_given_out_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_in_given_out(case.0, case.1, case.2),
+            crate::xyk::calculate_in_given_out(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -82,7 +86,7 @@ fn add_liquidity_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_liquidity_in(case.0, case.1, case.2),
+            crate::xyk::calculate_liquidity_in(case.0, case.1, case.2),
             case.3,
             "{}",
             case.4
@@ -104,7 +108,7 @@ fn remove_liquidity_should_work() {
 
     for case in cases {
         assert_eq!(
-            crate::amm::calculate_liquidity_out(case.0, case.1, case.2, case.3),
+            crate::xyk::calculate_liquidity_out(case.0, case.1, case.2, case.3),
             case.4,
             "{}",
             case.5

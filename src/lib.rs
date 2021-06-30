@@ -8,10 +8,10 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod amm;
+pub mod xyk;
 pub mod lbp;
 
-pub use amm::*;
+pub use xyk::*;
 
 #[cfg(test)]
 mod tests;
