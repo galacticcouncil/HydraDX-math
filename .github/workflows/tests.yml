@@ -24,7 +24,14 @@ jobs:
         run: rustup component add clippy
       - name: Run clippy
         run: cargo clippy --release -- -D warnings
-      - name: Tests
-        run: time cargo test --all --release --locked
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Test && Generate code coverage
+        run: cargo tarpaulin --release --all-features --workspace --locked  --ignore-tests -o Xml -o lcov
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          # token:                ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: true
       - name: Build release
-        run: time cargo build --release 
+        run: time cargo build --release --locked --quiet
