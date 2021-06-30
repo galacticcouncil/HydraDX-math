@@ -16,7 +16,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-02-12
+          toolchain: nightly-2021-05-01
           target: wasm32-unknown-unknown
           override: true
           default: true
@@ -24,7 +24,14 @@ jobs:
         run: rustup component add clippy
       - name: Run clippy
         run: cargo clippy --release -- -D warnings
-      - name: Tests
-        run: time cargo test --all --release --locked
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Test && Generate code coverage
+        run: cargo tarpaulin --release --all-features --workspace --locked  --ignore-tests -o Xml -o lcov
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v1
+        with:
+          # token:                ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: true
       - name: Build release
-        run: time cargo build --release 
+        run: time cargo build --release --locked --quiet
