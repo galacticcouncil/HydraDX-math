@@ -49,7 +49,7 @@ pub fn calculate_out_given_in(
     amount_in: Balance,
 ) -> Result<Balance, MathError> {
     if amount_in == 0 {
-        return Ok(0)
+        return Ok(0);
     };
 
     let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
@@ -77,7 +77,7 @@ pub fn calculate_in_given_out(
     amount_out: Balance,
 ) -> Result<Balance, MathError> {
     if amount_out == 0 {
-        return Ok(0)
+        return Ok(0);
     };
     ensure!(amount_out <= out_reserve, InsufficientOutReserve);
 

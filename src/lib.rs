@@ -8,13 +8,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod xyk;
 pub mod lbp;
+pub mod xyk;
 
 pub use xyk::*;
 
+mod math;
 #[cfg(test)]
 mod tests;
+mod types;
 
 #[macro_export]
 macro_rules! ensure {
@@ -52,7 +54,7 @@ macro_rules! to_balance {
 #[macro_export]
 macro_rules! to_lbp_weight {
     ($x:expr) => {
-        LBPWeight::try_from($x).map_err(|_| Overflow)
+        Weight::try_from($x).map_err(|_| Overflow)
     };
 }
 

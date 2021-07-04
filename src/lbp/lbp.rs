@@ -1,4 +1,4 @@
-use core::convert::{TryInto, TryFrom};
+use core::convert::{TryFrom, TryInto};
 use primitive_types::U256;
 
 use crate::{
@@ -6,9 +6,10 @@ use crate::{
     MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
 };
 
-use crate::lbp::traits::BinomMath;
-use crate::lbp::types::Balance;
-pub use crate::lbp::types::LBPWeight;
+use crate::math::p12;
+use crate::types::Balance;
+
+pub type Weight = Balance;
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -49,7 +50,6 @@ pub fn calculate_spot_price(
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
-/// Formula : BUY_RESERVE * AMOUNT / (SELL_RESERVE + AMOUNT )
 ///
 /// - `in_reserve` - reserve amount of selling asset
 /// - `out_reserve` - reserve amount of buying asset
@@ -70,17 +70,15 @@ pub fn calculate_out_given_in(
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_u256!(in_weight, out_weight, amount, in_reserve, out_reserve);
 
-    let weight_ratio = in_weight.hdiv(out_weight).ok_or(Overflow)?;
+    let weight_ratio = p12::div(in_weight, out_weight).ok_or(Overflow)?;
 
-    let y = in_reserve
-        .hdiv(in_reserve.hadd(amount).ok_or(Overflow)?)
-        .ok_or(Overflow)?;
+    let ir = p12::div(in_reserve, in_reserve.checked_add(amount).ok_or(Overflow)?).ok_or(Overflow)?;
 
-    let x3 = y.hpow(weight_ratio).ok_or(Overflow)?;
+    let ir = p12::pow(ir, weight_ratio).ok_or(Overflow)?;
 
-    let x4 = x3.hsubr_one().ok_or(Overflow)?;
+    let ir = p12::ONE.checked_sub(ir).ok_or(Overflow)?;
 
-    let r = out_reserve.hmul(x4).ok_or(Overflow)?;
+    let r = p12::mul(out_reserve, ir).ok_or(Overflow)?;
 
     to_balance!(r)
 }
@@ -105,12 +103,12 @@ pub fn calculate_in_given_out(
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_u256!(in_weight, out_weight, amount, in_reserve, out_reserve);
 
-    let weight_ratio = out_weight.hdiv(in_weight).ok_or(Overflow)?;
-    let diff = out_reserve.hsub(amount).ok_or(Overflow)?;
-    let y = out_reserve.hdiv(diff).ok_or(Overflow)?;
-    let y1 = y.hpow(weight_ratio).ok_or(Overflow)?;
-    let y2 = y1.hsub_one().ok_or(Overflow)?;
-    let r = in_reserve.hmul(y2).ok_or(Overflow)?;
+    let weight_ratio = p12::div(out_weight, in_weight).ok_or(Overflow)?;
+    let diff = out_reserve.checked_sub(amount).ok_or(Overflow)?;
+    let y = p12::div(out_reserve, diff).ok_or(Overflow)?;
+    let y1 = p12::pow(y, weight_ratio).ok_or(Overflow)?;
+    let y2 = y1.checked_sub(*p12::ONE).ok_or(Overflow)?;
+    let r = p12::mul(in_reserve, y2).ok_or(Overflow)?;
 
     to_balance!(r)
 }
@@ -125,10 +123,10 @@ pub fn calculate_in_given_out(
 pub fn calculate_linear_weights<BlockNumber: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
     start_x: BlockNumber,
     end_x: BlockNumber,
-    start_y: LBPWeight,
-    end_y: LBPWeight,
+    start_y: Weight,
+    end_y: Weight,
     at: BlockNumber,
-) -> Result<LBPWeight, MathError> {
+) -> Result<Weight, MathError> {
     let d1 = end_x.checked_sub(&at).ok_or(Overflow)?;
     let d2 = at.checked_sub(&start_x).ok_or(Overflow)?;
     let dx = end_x.checked_sub(&start_x).ok_or(Overflow)?;
