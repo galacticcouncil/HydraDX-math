@@ -5,9 +5,12 @@ pub mod p12 {
 
     type Inner = Balance256;
 
+    const POW_PRECISION: u128 = 100_000_000_u128;
+
     lazy_static! {
         static ref HYDRA_PRECISION: Inner = Inner::from(1_000_000_000_000u128);
         pub static ref ONE: Inner = *HYDRA_PRECISION;
+        static ref MAX_POW_BASE: Inner = Inner::from(2) * *ONE - 1;
     }
 
     pub fn div(num: Inner, denom: Inner) -> Option<Inner> {
@@ -19,7 +22,10 @@ pub mod p12 {
     }
 
     pub fn pow(operand: Inner, exp: Inner) -> Option<Inner> {
-        const POW_PRECISION: u128 = 100_000_000_u128;
+        if operand > *MAX_POW_BASE {
+            return None;
+        }
+
         let zero = Inner::zero();
 
         let whole = floor(exp);
@@ -66,6 +72,7 @@ pub mod p12 {
 
         Some(z)
     }
+
     fn sub_sign(a: Inner, b: Inner) -> (Inner, bool) {
         if a >= b {
             (a - b, false)
@@ -148,21 +155,42 @@ pub mod p12 {
         }
     }
     #[test]
+    fn p12_powi_works() {
+        let cases = vec![
+            (Inner::from(0) * *ONE, Inner::from(2), Some(Inner::from(0))),
+            (Inner::from(1) * *ONE, Inner::from(2), Some(Inner::from(1) * *ONE)),
+            (Inner::from(2) * *ONE, Inner::from(2), Some(Inner::from(4) * *ONE)),
+            (Inner::from(2) * *ONE, Inner::from(3), Some(Inner::from(8) * *ONE)),
+        ];
+        for case in cases {
+            assert_eq!(powi(case.0, case.1), case.2);
+        }
+    }
+    #[test]
     fn p12_pow_works() {
         let cases = vec![
             (
-                Inner::from(100) * *ONE,
+                Inner::from(19) * *ONE / 10,
                 Inner::from(2) * *ONE,
-                Some(Inner::from(10000u128) * *ONE),
+                Some(Inner::from(3610000000000u128)),
             ),
             (
+                Inner::from(2) * *ONE - 1,
                 Inner::from(2) * *ONE,
-                Inner::from(2) * *ONE,
-                Some(Inner::from(4000000000000u128)),
+                Some(Inner::from(3999999999996u128)),
             ),
-            (Inner::from(200) * *ONE, Inner::from(0) * *ONE, Some(*ONE)),
-            //(Inner::from(100) * *ONE, Inner::from(1) * *ONE + Inner::from(200_000_000_000u128) , Some(Inner::from(213221000000000000u128))),
-            //(Inner::from(100) * *ONE, *ONE / 2, Some(Inner::from(213221000000000000u128))),
+            (Inner::from(2) * *ONE, Inner::from(2) * *ONE, None),
+            (
+                Inner::from(2) * *ONE - 1,
+                Inner::from(1) * *ONE / 2,
+                Some(Inner::from(1414163788428u128)),
+            ),
+            (
+                Inner::from(2) * *ONE - 1,
+                Inner::from(5) * *ONE + Inner::from(400_000_000_000u128),
+                Some(Inner::from(42222660085046u128)),
+            ),
+            (Inner::from(1) * *ONE, Inner::from(0) * *ONE, Some(*ONE)),
         ];
 
         for case in cases {

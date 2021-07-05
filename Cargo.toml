@@ -13,8 +13,6 @@ primitive-types = {default-features = false, version = '0.8.0'}
 lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 num-traits = {default-features = false, version = "0.2.14"}
 
-sp-arithmetic = "3.0.0"
-
 [features]
 default = ["std"]
 std = []

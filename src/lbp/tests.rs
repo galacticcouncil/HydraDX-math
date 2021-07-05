@@ -46,7 +46,7 @@ fn out_given_in_should_work() {
             Ok(170141183460469231731687303715884105728),
             "max",
         ),
-        //(1, 0, 1, 1, 0, Err(Overflow), "Zero out reserve and amount"), TOODO: check this why it does not overflow anymore
+        (1, 0, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
         (0, 0, 1, 1, u128::MAX, Ok(0), "Zero buy reserve and sell reserve"),
     ];
 
