@@ -46,8 +46,8 @@ fn out_given_in_should_work() {
             Ok(170141183460469231731687303715884105728),
             "max",
         ),
-        (1, 0, 1, 1, 0, Err(Overflow), "Zero out reserve and amount"),
-        (0, 0, 1, 1, u128::MAX, Ok(1), "Zero buy reserve and sell reserve"),
+        (1, 0, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
+        (0, 0, 1, 1, u128::MAX, Ok(0), "Zero buy reserve and sell reserve"),
     ];
 
     for case in cases {
@@ -61,9 +61,37 @@ fn out_given_in_should_work() {
 }
 
 #[test]
-fn in_give_out_should_work() {
+fn in_given_out_should_work() {
+    let prec: u128 = 1_000_000_000_000u128;
     let cases = vec![
         (1000, 2000, 500, 500, 100, Ok(53), "Easy case"),
+        (
+            100 * prec,
+            20 * prec,
+            50 * prec,
+            100 * prec,
+            prec,
+            Ok(10803324099600),
+            "Easy case",
+        ),
+        (
+            100 * prec,
+            20 * prec,
+            100 * prec,
+            50 * prec,
+            prec,
+            Ok(2597864120100),
+            "Easy case",
+        ),
+        (
+            100 * prec,
+            340 * prec,
+            100 * prec,
+            1200 * prec,
+            2 * prec,
+            Ok(7336295198400),
+            "Easy case",
+        ),
         (0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
     ];
 
