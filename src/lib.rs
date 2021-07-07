@@ -17,6 +17,7 @@ mod math;
 #[cfg(test)]
 mod tests;
 mod types;
+mod experimental;
 
 #[macro_export]
 macro_rules! ensure {
