@@ -23,6 +23,7 @@ approx = "0.3.0"
 [features]
 default = ["std"]
 std = []
+p12 = ['lazy_static/spin_no_std']
 
 [[bench]]
 name = "benchmarks"

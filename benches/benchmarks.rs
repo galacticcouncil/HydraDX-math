@@ -1,13 +1,18 @@
-use criterion::{black_box, criterion_group, criterion_main, Bencher, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use fixed::traits::{FixedUnsigned, ToFixed};
 use fixed::types::U89F39 as FixedBalance;
-use hydra_dx_math::p12::p12::pow as pow12;
-use hydra_dx_math::p12::p12::Balance256;
-use hydra_dx_math::to_u256;
+
 use hydra_dx_math::transcendental::pow;
+
+#[cfg(feature = "p12")]
+use hydra_dx_math::p12::p12::{Balance256, pow as pow12};
+#[cfg(feature = "p12")]
 use hydra_dx_math::types::Balance;
+#[cfg(feature = "p12")]
 use hydra_dx_math::types::HYDRA_ONE;
+#[cfg(feature = "p12")]
+use std::convert::TryInto;
 
 use num_traits::{One, Zero};
 use rand::distributions::uniform::SampleUniform;
@@ -16,11 +21,10 @@ use rand::{
     Rng,
 };
 use rand_xoshiro::{rand_core::SeedableRng, Xoshiro256Plus};
-use std::convert::TryInto;
 use std::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 
 const SEED: u64 = 42_069;
-const DATASET_SIZE: usize = 100;
+const DATASET_SIZE: usize = 10;
 
 fn gen_non_zero<T, R>(rng: &mut R, min: &T, max: &T) -> T
 where
@@ -47,6 +51,7 @@ where
         .collect()
 }
 
+#[cfg(feature = "p12")]
 fn convert_from_fixed<F>(value: F) -> Option<Balance256>
 where
     F: FixedUnsigned,
@@ -60,31 +65,6 @@ where
     Some(Balance256::from(r))
 }
 
-fn bench_pow12<F>(c: &mut Criterion)
-where
-    F: FixedUnsigned,
-    F::Bits:
-        Zero + One + PartialEq + SampleUniform + Shr + ShrAssign + ShlAssign + ToFixed + Copy + AddAssign + BitOrAssign,
-    Standard: Distribution<F::Bits>,
-{
-    let bits_dataset: Vec<(F::Bits, F::Bits)> =
-        gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(2).to_bits());
-
-    let fixed_dataset: Vec<(Balance256, Balance256)> = bits_dataset
-        .into_iter()
-        .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
-        .map(|(l, r)| (convert_from_fixed(l).unwrap(), convert_from_fixed(r).unwrap()))
-        .collect();
-
-    c.bench_function("pow12", |b| {
-        b.iter(|| {
-            for (o, e) in &fixed_dataset {
-                pow12(black_box(*o), black_box(*e)).unwrap();
-            }
-        })
-    });
-}
-
 fn bench_pow<F>(c: &mut Criterion)
 where
     F: FixedUnsigned,
@@ -95,7 +75,7 @@ where
     let bits_dataset: Vec<(F::Bits, F::Bits)> =
         gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(2).to_bits());
 
-    let fixed_dataset: Vec<(F, F)> = bits_dataset
+    let fixed_dataset: Vec<(F, F)> = bits_dataset.clone()
         .into_iter()
         .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
         .collect();
@@ -107,7 +87,23 @@ where
             }
         })
     });
+
+    #[cfg(feature = "p12")]
+    let balance_dataset: Vec<(Balance256, Balance256)> = bits_dataset
+        .into_iter()
+        .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
+        .map(|(l, r)| (convert_from_fixed(l).unwrap(), convert_from_fixed(r).unwrap()))
+        .collect();
+
+    #[cfg(feature = "p12")]
+    c.bench_function("pow12", |b| {
+        b.iter(|| {
+            for (o, e) in &balance_dataset{
+                pow12(black_box(*o), black_box(*e)).unwrap();
+            }
+        })
+    });
 }
 
-criterion_group!(benches, bench_pow<FixedBalance>, bench_pow12<FixedBalance>);
+criterion_group!(benches, bench_pow<FixedBalance>);
 criterion_main!(benches);

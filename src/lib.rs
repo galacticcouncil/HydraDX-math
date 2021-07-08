@@ -5,6 +5,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "p12")]
 #[macro_use]
 extern crate lazy_static;
 
@@ -12,7 +13,9 @@ pub mod lbp;
 pub mod transcendental;
 pub mod xyk;
 
+#[cfg(feature = "p12")]
 pub mod p12;
+
 #[cfg(test)]
 mod tests;
 pub mod types;
