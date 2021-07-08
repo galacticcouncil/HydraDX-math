@@ -162,25 +162,28 @@ where
 }
 
 #[cfg(test)]
-use fixed::types::U64F64;
+mod tests {
+    use fixed::types::U64F64;
+    use crate::types::FixedBalance;
 
-#[test]
-fn powi_works() {
-    type S = U64F64;
-    type D = U64F64;
+    use super::{powi, pow};
 
-    assert_eq!(powi(S::from_num(2), 2), Ok(D::from_num(4)));
-}
+    #[test]
+    fn powi_works() {
+        type S = U64F64;
+        type D = U64F64;
 
-#[cfg(test)]
-use crate::types::FixedBalance;
+        assert_eq!(powi(S::from_num(2), 2), Ok(D::from_num(4)));
+    }
 
-#[test]
-fn pow_works() {
-    type S = FixedBalance;
-    type D = FixedBalance;
-    assert_eq!(
-        pow(S::from_num(22.1234), S::from_num(2.1)),
-        Ok(D::from_num(667.097035126091))
-    );
+
+    #[test]
+    fn pow_works() {
+        type S = FixedBalance;
+        type D = FixedBalance;
+        assert_eq!(
+            pow(S::from_num(22.1234), S::from_num(2.1)),
+            Ok(D::from_num(667.097035126091))
+        );
+    }
 }

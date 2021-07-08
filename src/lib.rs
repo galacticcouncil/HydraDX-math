@@ -7,12 +7,10 @@
 
 pub mod lbp;
 pub mod xyk;
-
-pub use xyk::*;
+pub mod transcendental;
 
 #[cfg(test)]
 mod tests;
-mod transcendental;
 mod types;
 
 #[macro_export]
