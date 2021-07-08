@@ -1,5 +1,7 @@
 /// Implementation of division, multiplication and pow functionality using only integer
 /// arithmetic and respecting Hydra's token precision of 12 decimals.
+
+#[deprecated(since="3.2.0", note="please use `transcendental` implementation")]
 pub mod p12 {
     use primitive_types::U256;
 

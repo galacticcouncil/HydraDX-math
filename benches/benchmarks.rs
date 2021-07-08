@@ -20,7 +20,7 @@ use std::convert::TryInto;
 use std::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 
 const SEED: u64 = 42_069;
-const DATASET_SIZE: usize = 10;
+const DATASET_SIZE: usize = 100;
 
 fn gen_non_zero<T, R>(rng: &mut R, min: &T, max: &T) -> T
 where
