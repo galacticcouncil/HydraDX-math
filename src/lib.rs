@@ -13,11 +13,11 @@ pub mod xyk;
 
 pub use xyk::*;
 
+mod experimental;
 mod math;
 #[cfg(test)]
 mod tests;
 mod types;
-mod experimental;
 
 #[macro_export]
 macro_rules! ensure {
@@ -61,9 +61,9 @@ macro_rules! to_lbp_weight {
 
 #[derive(PartialEq, Debug)]
 pub enum MathError {
-    ZeroInReserve,
     Overflow,
     InsufficientOutReserve,
-    ZeroOutWeight,
+    ZeroWeight,
+    ZeroReserve,
     ZeroDuration,
 }

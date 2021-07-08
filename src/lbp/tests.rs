@@ -1,13 +1,13 @@
 use crate::lbp::lbp;
 
-use crate::MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight};
+use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
 
 #[test]
 fn spot_price_should_work() {
     let cases = vec![
         (1000, 2000, 500, 500, 100, Ok(200), "Easy case"),
-        (0, 0, 0, 0, 100, Err(ZeroInReserve), "Zero reserves and weights"),
-        (0, 1, 1, 1, 1, Err(ZeroInReserve), "Zero sell_reserve"),
+        (0, 0, 0, 0, 100, Err(ZeroReserve), "Zero reserves and weights"),
+        (0, 1, 1, 1, 1, Err(ZeroReserve), "Zero sell_reserve"),
         (1, 0, 1, 1, 1, Ok(0), "Zero buy_reserve"),
         (1, 1, 0, 1, 1, Ok(0), "Zero amount"),
         (u128::MAX, u128::MAX - 1, 1, 1, 1, Ok(0), "Truncated result"),
@@ -35,19 +35,27 @@ fn spot_price_should_work() {
 #[test]
 fn out_given_in_should_work() {
     let cases = vec![
-        (1000, 2000, 500, 500, 100, Ok(182), "Easy case"),
-        (0, 0, 0, 0, 100, Err(ZeroOutWeight), "Zero reserves and weights"),
+        (1000, 2000, 500, 500, 100, Ok(178), "Easy case"),
+        (0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
         (
             u128::MAX,
             u128::MAX,
             u128::MAX,
             u128::MAX,
             u128::MAX,
-            Ok(170141183460469231731687303715884105728),
+            Ok(170141183460469231731687303715884105726),
             "max",
         ),
-        (1, 0, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
-        (0, 0, 1, 1, u128::MAX, Ok(0), "Zero buy reserve and sell reserve"),
+        (1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
+        (
+            0,
+            0,
+            1,
+            1,
+            u128::MAX,
+            Err(ZeroReserve),
+            "Zero buy reserve and sell reserve",
+        ),
     ];
 
     for case in cases {
@@ -64,14 +72,14 @@ fn out_given_in_should_work() {
 fn in_given_out_should_work() {
     let prec: u128 = 1_000_000_000_000u128;
     let cases = vec![
-        (1000, 2000, 500, 500, 100, Ok(53), "Easy case"),
+        (1000, 2000, 500, 500, 100, Ok(50), "Easy case"),
         (
             100 * prec,
             20 * prec,
             50 * prec,
             100 * prec,
             prec,
-            Ok(10803324099600),
+            Ok(10803324420521),
             "Easy case",
         ),
         (
@@ -80,7 +88,7 @@ fn in_given_out_should_work() {
             100 * prec,
             50 * prec,
             prec,
-            Ok(2597864120100),
+            Ok(2597835282540),
             "Easy case",
         ),
         (
@@ -89,7 +97,7 @@ fn in_given_out_should_work() {
             100 * prec,
             1200 * prec,
             2 * prec,
-            Ok(7336295198400),
+            Ok(7336295409550),
             "Easy case",
         ),
         (0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),

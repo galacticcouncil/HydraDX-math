@@ -1,12 +1,12 @@
 #![allow(unused_imports)]
-use crate::MathError::{InsufficientOutReserve, Overflow, ZeroInReserve};
+use crate::MathError::{InsufficientOutReserve, Overflow, ZeroReserve};
 
 #[test]
 fn spot_price_should_work() {
     let cases = vec![
         (1000, 2000, 500, Ok(1000), "Easy case"),
         (1, 1, 1, Ok(1), "Easy case"),
-        (0, 1, 1, Err(ZeroInReserve), "Zero sell_reserve"),
+        (0, 1, 1, Err(ZeroReserve), "Zero sell_reserve"),
         (1, 0, 1, Ok(0), "Zero buy_reserve"),
         (1, 1, 0, Ok(0), "Zero amount"),
         (u128::MAX, u128::MAX - 1, 1, Ok(0), "Truncated result"),
@@ -52,7 +52,7 @@ fn in_given_out_should_work() {
         (1000, 1000, 0, Ok(0), "Zero amount out"),
         (0, 0, 0, Ok(0), "Zero reserves and weights"),
         (0, 1, 0, Ok(0), "Zero buy reserve and amount"),
-        (1000, 1000, 1000, Err(ZeroInReserve), "Zero reserves and weights"),
+        (1000, 1000, 1000, Err(ZeroReserve), "Zero reserves and weights"),
         (
             0,
             10,
@@ -80,7 +80,7 @@ fn add_liquidity_should_work() {
         (1000, 2000, 500, Ok(1000), "Easy case"),
         (100, 100, 0, Ok(0), "amount is zero"),
         (110, 0, 100, Ok(0), "asset b is zero"),
-        (0, 110, 100, Err(ZeroInReserve), "asset a is zero"),
+        (0, 110, 100, Err(ZeroReserve), "asset a is zero"),
         (1, u128::MAX, u128::MAX, Err(Overflow), "asset b and amount are zero"),
     ];
 
@@ -98,7 +98,7 @@ fn add_liquidity_should_work() {
 fn remove_liquidity_should_work() {
     let cases = vec![
         (1000, 2000, 500, 2500, Ok((200, 400)), "Easy case"),
-        (100, 100, 100, 0, Err(ZeroInReserve), "total liquidity is zero"),
+        (100, 100, 100, 0, Err(ZeroReserve), "total liquidity is zero"),
         (0, 0, 0, 100, Ok((0, 0)), "amount is zero"),
         (0, 110, 100, 100, Ok((0, 110)), "remove amount a is zero"),
         (110, 0, 100, 100, Ok((110, 0)), "remove amount b is zero"),
