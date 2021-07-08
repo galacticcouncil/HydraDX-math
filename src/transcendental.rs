@@ -131,17 +131,10 @@ where
 
     let (r, neg) = ln::<S, D>(operand)?;
 
-    let r = if let Some(r) = r.checked_mul(exponent.into()) {
-        r
-    } else {
-        return Err(());
-    };
-    let result: D = if let Ok(r) = exp(r, neg) {
-        r
-    } else {
-        return Err(());
-    };
-    let (result, oflw) = result.overflowing_to_num::<D>();
+    let r: D = r.checked_mul(exponent.into()).ok_or(())?;
+    let r: D = exp(r, neg)?;
+
+    let (result, oflw) = r.overflowing_to_num::<D>();
     if oflw {
         return Err(());
     };
