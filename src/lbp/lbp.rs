@@ -57,14 +57,14 @@ fn convert_to_fixed(value: Balance) -> FixedBalance {
 
     let f = value.checked_div(HYDRA_ONE).unwrap();
     let r = value - (f.checked_mul(HYDRA_ONE).unwrap());
-    return FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE);
+    FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
 }
 
 fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
     let w: Balance = value.int().to_num();
     let frac = value.frac();
-    let frac: Balance = frac.checked_mul_int(1_000_000_000_000u128)?.int().to_num();
-    let r = w.checked_mul(1_000_000_000_000u128)?.checked_add(frac)?;
+    let frac: Balance = frac.checked_mul_int(HYDRA_ONE)?.int().to_num();
+    let r = w.checked_mul(HYDRA_ONE)?.checked_add(frac)?;
     Some(r)
 }
 

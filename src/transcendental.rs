@@ -62,7 +62,7 @@ where
         //let inverse = D::from_num(1).checked_div(operand).unwrap();
         //return Ok(-log2_inner::<D, D>(inverse));
     };
-    return Ok(log2_inner::<D, D>(operand));
+    Ok(log2_inner::<D, D>(operand))
 }
 
 /// natural logarithm
@@ -86,7 +86,7 @@ where
     if operand.is_zero() {
         return Ok(D::from_num(1));
     };
-    if operand == S::from_num(1){
+    if operand == S::from_num(1) {
         //TODO: make this as const somewhere
         let e = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
         return Ok(D::from(e));

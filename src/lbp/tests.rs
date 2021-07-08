@@ -1,5 +1,6 @@
 use crate::lbp::lbp;
 
+use crate::types::HYDRA_ONE;
 use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
 
 #[test]
@@ -70,7 +71,7 @@ fn out_given_in_should_work() {
 
 #[test]
 fn in_given_out_should_work() {
-    let prec: u128 = 1_000_000_000_000u128;
+    let prec: u128 = HYDRA_ONE;
     let cases = vec![
         (1000, 2000, 500, 500, 100, Ok(50), "Easy case"),
         (
