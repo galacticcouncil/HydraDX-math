@@ -7,9 +7,8 @@ use crate::{
 };
 
 use core::convert::From;
-use fixed::traits::Fixed;
 
-use crate::types::{Balance, FixedBalance};
+use crate::types::{Balance, FixedBalance, HYDRA_ONE};
 
 pub type Weight = Balance;
 
@@ -56,9 +55,9 @@ fn convert_to_fixed(value: Balance) -> FixedBalance {
         return FixedBalance::from_num(1);
     }
 
-    let f = value.checked_div(1_000_000_000_000).unwrap();
-    let r = value - (f.checked_mul(1_000_000_000_000).unwrap());
-    return FixedBalance::from_num(f) + (FixedBalance::from_num(r) / 1_000_000_000_000);
+    let f = value.checked_div(HYDRA_ONE).unwrap();
+    let r = value - (f.checked_mul(HYDRA_ONE).unwrap());
+    return FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE);
 }
 
 fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {

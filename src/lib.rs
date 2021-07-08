@@ -5,9 +5,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod lbp;
 pub mod xyk;
 

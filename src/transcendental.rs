@@ -3,36 +3,6 @@ use fixed::traits::FixedUnsigned;
 use fixed::traits::ToFixed;
 use std::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 
-const PRECISION: u128 = 1_000_000_000_000u128;
-
-/// power with integer exponent
-pub fn powi<S, D>(operand: S, exponent: u32) -> Result<D, ()>
-where
-    S: FixedUnsigned,
-    D: FixedUnsigned + From<S>,
-{
-    if operand == S::from_num(0) {
-        return Ok(D::from_num(0));
-    };
-    if exponent == 0 {
-        return Ok(D::from_num(1));
-    };
-    if exponent == 1 {
-        return Ok(D::from(operand));
-    };
-    let operand = D::from(operand);
-    let mut r = operand;
-
-    for _idx in 1..exponent {
-        r = if let Some(r) = r.checked_mul(operand) {
-            r
-        } else {
-            return Err(());
-        };
-    }
-    Ok(r)
-}
-
 /// right-shift with rounding
 fn rs<T>(operand: T) -> T
 where
@@ -49,25 +19,24 @@ where
     D: FixedUnsigned,
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
 {
-    let ONE = D::from_num(1);
-    let TWO = D::from_num(2);
+    let two = D::from_num(2);
     let mut x = operand;
     let mut result = D::from_num(0).to_bits();
     let lsb = (D::from_num(1) >> D::FRAC_NBITS).to_bits();
 
-    while x >= TWO {
+    while x >= two {
         result += lsb;
         x = rs(x);
     }
 
-    if x == ONE {
+    if x == D::from_num(1) {
         return D::from_num(result);
     };
 
     for _i in (0..D::FRAC_NBITS).rev() {
         x *= x;
         result <<= lsb;
-        if x >= TWO {
+        if x >= two {
             result |= lsb;
             x = rs(x);
         }
@@ -114,15 +83,13 @@ where
     S: FixedUnsigned + PartialOrd<D>,
     D: FixedUnsigned + PartialOrd<S> + From<S>,
 {
-    let E = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
-
-    let ZERO = S::from_num(0);
-    let ONE = S::from_num(1);
-    if operand == ZERO {
+    if operand.is_zero() {
         return Ok(D::from_num(1));
     };
-    if operand == ONE {
-        return Ok(D::from(E));
+    if operand == S::from_num(1){
+        //TODO: make this as const somewhere
+        let e = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
+        return Ok(D::from(e));
     };
 
     let operand = D::from(operand);
@@ -157,7 +124,7 @@ where
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign + Shr + ShrAssign,
 {
-    if operand == S::from_num(0) {
+    if operand.is_zero() {
         return Ok(D::from_num(0));
     };
     if exponent == S::from_num(0) {
@@ -184,6 +151,35 @@ where
     Ok(result)
 }
 
+/// power with integer exponent
+pub fn powi<S, D>(operand: S, exponent: u32) -> Result<D, ()>
+where
+    S: FixedUnsigned,
+    D: FixedUnsigned + From<S>,
+{
+    if operand == S::from_num(0) {
+        return Ok(D::from_num(0));
+    };
+    if exponent == 0 {
+        return Ok(D::from_num(1));
+    };
+    if exponent == 1 {
+        return Ok(D::from(operand));
+    };
+    let operand = D::from(operand);
+    let mut r = operand;
+
+    for _idx in 1..exponent {
+        r = if let Some(r) = r.checked_mul(operand) {
+            r
+        } else {
+            return Err(());
+        };
+    }
+    Ok(r)
+}
+
+#[cfg(test)]
 use fixed::types::U64F64;
 
 #[test]
