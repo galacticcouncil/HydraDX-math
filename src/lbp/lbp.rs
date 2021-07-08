@@ -6,8 +6,10 @@ use crate::{
     MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight},
 };
 
-use crate::math::p12;
-use crate::types::Balance;
+use core::convert::From;
+use fixed::traits::Fixed;
+
+use crate::types::{Balance, FixedBalance};
 
 pub type Weight = Balance;
 
@@ -67,10 +69,6 @@ fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
     Some(r)
 }
 
-use crate::experimental::experimental::FixedBalance;
-use core::convert::From;
-use fixed::traits::Fixed;
-
 #[macro_export]
 macro_rules! to_fixed_balance{
     ($($x:expr),+) => (
@@ -115,7 +113,7 @@ pub fn calculate_out_given_in(
     //let ir = in_reserve.checked_div(in_reserve.checked_add(amount).ok_or(Overflow)?).ok_or(Overflow)?;
     let ir = one / (one + (amount / in_reserve));
 
-    let ir = crate::experimental::experimental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
+    let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
     let ir = FixedBalance::from_num(1).checked_sub(ir).ok_or(Overflow)?;
 
@@ -147,7 +145,7 @@ pub fn calculate_in_given_out(
     let weight_ratio = out_weight.checked_div(in_weight).ok_or(Overflow)?;
     let diff = out_reserve.checked_sub(amount).ok_or(Overflow)?;
     let y = out_reserve.checked_div(diff).ok_or(Overflow)?;
-    let y1: FixedBalance = crate::experimental::experimental::pow(y, weight_ratio).map_err(|_| Overflow)?;
+    let y1: FixedBalance = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
     let y2 = y1.checked_sub(FixedBalance::from_num(1u128)).ok_or(Overflow)?;
     let r = in_reserve.checked_mul(y2).ok_or(Overflow)?;
 

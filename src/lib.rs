@@ -13,10 +13,9 @@ pub mod xyk;
 
 pub use xyk::*;
 
-mod experimental;
-mod math;
 #[cfg(test)]
 mod tests;
+mod transcendental;
 mod types;
 
 #[macro_export]
