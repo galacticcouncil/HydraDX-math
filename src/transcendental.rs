@@ -1,3 +1,5 @@
+#![allow(clippy::result_unit_err)]
+
 use core::convert::From;
 use fixed::traits::FixedUnsigned;
 use fixed::traits::ToFixed;

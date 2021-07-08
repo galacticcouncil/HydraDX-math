@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 /// Implementation of division, multiplication and pow functionality using only integer
 /// arithmetic and respecting Hydra's token precision of 12 decimals.
 
