@@ -54,8 +54,8 @@ where
         Zero + One + PartialEq + SampleUniform + Shr + ShrAssign + ShlAssign + ToFixed + Copy + AddAssign + BitOrAssign,
 {
     let w: Balance = value.int().to_num();
-    let frac = value.frac();
-    let frac: Balance = frac.checked_mul_int(F::from_num(HYDRA_ONE).to_bits())?.int().to_num();
+    let frac: Balance = value.frac().checked_mul(F::from_num(HYDRA_ONE))?.to_num();
+
     let r = w.checked_mul(HYDRA_ONE)?.checked_add(frac)?;
     Some(Balance256::from(r))
 }
@@ -68,7 +68,7 @@ where
     Standard: Distribution<F::Bits>,
 {
     let bits_dataset: Vec<(F::Bits, F::Bits)> =
-        gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(10).to_bits());
+        gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(2).to_bits());
 
     let fixed_dataset: Vec<(Balance256, Balance256)> = bits_dataset
         .into_iter()
@@ -79,7 +79,7 @@ where
     c.bench_function("pow12", |b| {
         b.iter(|| {
             for (o, e) in &fixed_dataset {
-                pow12(black_box(*o), black_box(*e));
+                pow12(black_box(*o), black_box(*e)).unwrap();
             }
         })
     });
@@ -93,16 +93,17 @@ where
     Standard: Distribution<F::Bits>,
 {
     let bits_dataset: Vec<(F::Bits, F::Bits)> =
-        gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(10).to_bits());
+        gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(2).to_bits());
 
     let fixed_dataset: Vec<(F, F)> = bits_dataset
         .into_iter()
         .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
         .collect();
+
     c.bench_function("pow", |b| {
         b.iter(|| {
             for (o, e) in &fixed_dataset {
-                pow::<F, F>(black_box(*o), black_box(*e));
+                pow::<F, F>(black_box(*o), black_box(*e)).unwrap();
             }
         })
     });
