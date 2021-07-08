@@ -5,13 +5,17 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod lbp;
-pub mod xyk;
-pub mod transcendental;
+#[macro_use]
+extern crate lazy_static;
 
+pub mod lbp;
+pub mod transcendental;
+pub mod xyk;
+
+pub mod p12;
 #[cfg(test)]
 mod tests;
-mod types;
+pub mod types;
 
 #[macro_export]
 macro_rules! ensure {

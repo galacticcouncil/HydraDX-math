@@ -45,7 +45,7 @@ where
 }
 
 /// base 2 logarithm
-pub fn log2<S, D>(operand: S) -> Result<D, ()>
+pub fn log2<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
     D: FixedUnsigned + From<S>,
@@ -57,16 +57,14 @@ where
 
     let operand = D::from(operand);
     if operand < D::from_num(1) {
-        //TODO: handle this. IT needs to handle negative result but we deal only with unsigned type.
-        panic!("Does not handle yet this case");
-        //let inverse = D::from_num(1).checked_div(operand).unwrap();
-        //return Ok(-log2_inner::<D, D>(inverse));
+        let inverse = D::from_num(1).checked_div(operand).unwrap();
+        return Ok((log2_inner::<D, D>(inverse), true));
     };
-    Ok(log2_inner::<D, D>(operand))
+    Ok((log2_inner::<D, D>(operand), false))
 }
 
 /// natural logarithm
-pub fn ln<S, D>(operand: S) -> Result<D, ()>
+pub fn ln<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
     D: FixedUnsigned + From<S>,
@@ -74,11 +72,12 @@ where
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShrAssign + Shr,
 {
     let log2_e = S::from_str("1.442695").map_err(|_| ())?;
-    Ok(log2::<S, D>(operand)? / D::from(log2_e))
+    let log_result = log2::<S, D>(operand)?;
+    Ok((log_result.0 / D::from(log2_e), log_result.1))
 }
 
 /// exponential function e^(operand)
-pub fn exp<S, D>(operand: S) -> Result<D, ()>
+pub fn exp<S, D>(operand: S, neg: bool) -> Result<D, ()>
 where
     S: FixedUnsigned + PartialOrd<D>,
     D: FixedUnsigned + PartialOrd<S> + From<S>,
@@ -93,14 +92,22 @@ where
     };
 
     let operand = D::from(operand);
-    let result = operand + D::from_num(1);
+    let mut result = operand + D::from_num(1);
     let mut term = operand;
 
-    let result = (2..D::FRAC_NBITS).try_fold(result, |acc, i| -> Result<D, ()> {
+    result = (2..D::FRAC_NBITS).try_fold(result, |acc, i| -> Result<D, ()> {
         term = term.checked_mul(operand).ok_or(())?;
         term = term.checked_div(D::from_num(i)).ok_or(())?;
         acc.checked_add(term).ok_or(())
     })?;
+
+    if neg {
+        result = if let Some(r) = D::from_num(1).checked_div(result) {
+            r
+        } else {
+            return Err(());
+        };
+    }
 
     Ok(result)
 }
@@ -122,12 +129,14 @@ where
         return Ok(D::from(operand));
     };
 
-    let r = if let Some(r) = ln::<S, D>(operand)?.checked_mul(exponent.into()) {
+    let (r, neg) = ln::<S, D>(operand)?;
+
+    let r = if let Some(r) = r.checked_mul(exponent.into()) {
         r
     } else {
         return Err(());
     };
-    let result: D = if let Ok(r) = exp(r) {
+    let result: D = if let Ok(r) = exp(r, neg) {
         r
     } else {
         return Err(());
@@ -163,10 +172,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use fixed::types::U64F64;
     use crate::types::FixedBalance;
+    use fixed::types::U64F64;
 
-    use super::{powi, pow};
+    use super::{pow, powi};
 
     #[test]
     fn powi_works() {
@@ -176,7 +185,6 @@ mod tests {
         assert_eq!(powi(S::from_num(2), 2), Ok(D::from_num(4)));
     }
 
-
     #[test]
     fn pow_works() {
         type S = FixedBalance;
@@ -184,6 +192,11 @@ mod tests {
         assert_eq!(
             pow(S::from_num(22.1234), S::from_num(2.1)),
             Ok(D::from_num(667.097035126091))
+        );
+
+        assert_eq!(
+            pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
+            Ok(D::from_num(0.978604513883))
         );
     }
 }
