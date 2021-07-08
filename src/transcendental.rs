@@ -93,27 +93,15 @@ where
     };
 
     let operand = D::from(operand);
-    let mut result = operand + D::from_num(1);
+    let result = operand + D::from_num(1);
     let mut term = operand;
 
-    for i in 2..D::FRAC_NBITS {
-        term = if let Some(r) = term.checked_mul(operand) {
-            r
-        } else {
-            return Err(());
-        };
-        term = if let Some(r) = term.checked_div(D::from_num(i)) {
-            r
-        } else {
-            return Err(());
-        };
+    let result = (2..D::FRAC_NBITS).try_fold(result, |acc, i| -> Result<D, ()> {
+        term = term.checked_mul(operand).ok_or(())?;
+        term = term.checked_div(D::from_num(i)).ok_or(())?;
+        acc.checked_add(term).ok_or(())
+    })?;
 
-        result = if let Some(r) = result.checked_add(term) {
-            r
-        } else {
-            return Err(());
-        };
-    }
     Ok(result)
 }
 
@@ -167,16 +155,10 @@ where
         return Ok(D::from(operand));
     };
     let operand = D::from(operand);
-    let mut r = operand;
 
-    for _idx in 1..exponent {
-        r = if let Some(r) = r.checked_mul(operand) {
-            r
-        } else {
-            return Err(());
-        };
-    }
-    Ok(r)
+    let r = (1..exponent).try_fold(operand, |acc, _| acc.checked_mul(operand));
+
+    r.ok_or(())
 }
 
 #[cfg(test)]
