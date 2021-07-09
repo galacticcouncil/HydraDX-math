@@ -166,8 +166,48 @@ mod tests {
     use crate::types::FixedBalance;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
+    use std::str::FromStr;
 
-    use super::{pow, powi};
+    use super::{exp, log2, pow, powi};
+
+    #[test]
+    fn exp_works() {
+        type S = U64F64;
+        type D = U64F64;
+
+        let e = S::from_str("2.718281828459045235360287471352662497757").unwrap();
+
+        let zero = S::from_num(0);
+        let one = S::from_num(1);
+        let two = S::from_num(2);
+
+        assert_eq!(exp::<S, D>(zero, false), Ok(D::from_num(one)));
+        assert_eq!(exp::<S, D>(one, false), Ok(D::from_num(e)));
+        assert_eq!(
+            exp::<S, D>(two, false),
+            Ok(D::from_str("7.3890560989306502265").unwrap())
+        );
+        assert_eq!(
+            exp::<S, D>(two, true),
+            Ok(D::from_str("0.13533528323661269186").unwrap())
+        );
+    }
+
+    #[test]
+    fn log2_works() {
+        type S = U64F64;
+        type D = U64F64;
+
+        let zero = S::from_num(0);
+        let one = S::from_num(1);
+        let two = S::from_num(2);
+        let four = S::from_num(4);
+
+        assert_eq!(log2::<S, D>(zero), Err(()));
+
+        assert_eq!(log2(two), Ok((D::from_num(one), false)));
+        assert_eq!(log2(one / four), Ok((D::from_num(two), true)));
+    }
 
     #[test]
     fn powi_works() {
