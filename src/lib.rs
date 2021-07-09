@@ -9,6 +9,10 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(test)]
+#[macro_use]
+extern crate approx;
+
 pub mod lbp;
 pub mod transcendental;
 pub mod xyk;

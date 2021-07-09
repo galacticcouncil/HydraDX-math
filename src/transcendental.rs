@@ -164,6 +164,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::FixedBalance;
+    use fixed::traits::LossyInto;
     use fixed::types::U64F64;
 
     use super::{pow, powi};
@@ -190,6 +191,26 @@ mod tests {
     fn pow_works() {
         type S = FixedBalance;
         type D = FixedBalance;
+        let zero = S::from_num(0);
+        let one = S::from_num(1);
+        let two = S::from_num(2);
+        let three = S::from_num(3);
+        let four = S::from_num(4);
+
+        assert_eq!(pow::<S, D>(two, zero), Ok(one.into()));
+        assert_eq!(pow::<S, D>(zero, two), Ok(zero.into()));
+
+        let result: f64 = pow::<S, D>(two, three).unwrap().lossy_into();
+        assert_relative_eq!(result, 8.0, epsilon = 1.0e-6);
+
+        let result: f64 = pow::<S, D>(one / four, two).unwrap().lossy_into();
+        assert_relative_eq!(result, 0.0625, epsilon = 1.0e-6);
+
+        assert_eq!(pow::<S, D>(two, one), Ok(two.into()));
+
+        let result: f64 = pow::<S, D>(one / four, one / two).unwrap().lossy_into();
+        assert_relative_eq!(result, 0.5, epsilon = 1.0e-6);
+
         assert_eq!(
             pow(S::from_num(22.1234), S::from_num(2.1)),
             Ok(D::from_num(667.097035126091))
