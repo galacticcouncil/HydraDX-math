@@ -104,11 +104,7 @@ where
     })?;
 
     if neg {
-        result = if let Some(r) = D::from_num(1).checked_div(result) {
-            r
-        } else {
-            return Err(());
-        };
+        result = D::from_num(1).checked_div(result).ok_or(())?;
     }
 
     Ok(result)
@@ -177,6 +173,16 @@ mod tests {
         type S = U64F64;
         type D = U64F64;
 
+        let zero = S::from_num(0);
+        let one = S::from_num(1);
+        let two = S::from_num(2);
+        let four = S::from_num(4);
+
+        assert_eq!(powi(two, 0), Ok(D::from_num(one)));
+        assert_eq!(powi(zero, 2), Ok(D::from_num(zero)));
+        assert_eq!(powi(two, 1), Ok(D::from_num(2)));
+        assert_eq!(powi(two, 3), Ok(D::from_num(8)));
+        assert_eq!(powi(one / four, 2), Ok(D::from_num(0.0625)));
         assert_eq!(powi(S::from_num(2), 2), Ok(D::from_num(4)));
     }
 
