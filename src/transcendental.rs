@@ -211,6 +211,8 @@ mod tests {
 
         assert_eq!(log2(two), Ok((D::from_num(one), false)));
         assert_eq!(log2(one / four), Ok((D::from_num(two), true)));
+        assert_eq!(log2(S::from_num(0.5)), Ok((D::from_num(one), true)));
+        assert_eq!(log2(S::from_num(1.0/0.5)), Ok((D::from_num(one), false)));
     }
 
     #[test]
