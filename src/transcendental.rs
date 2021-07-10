@@ -47,6 +47,8 @@ where
 }
 
 /// base 2 logarithm
+///
+/// Returns tuple(D,bool) where bool indicates whether D is negative. This happens when operand is < 1.
 pub fn log2<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
@@ -66,6 +68,7 @@ where
 }
 
 /// natural logarithm
+/// Returns tuple(D,bool) where bool indicates whether D is negative. This happens when operand is < 1.
 pub fn ln<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
@@ -79,6 +82,7 @@ where
 }
 
 /// exponential function e^(operand)
+/// neg - bool indicates that operand is negative value.
 pub fn exp<S, D>(operand: S, neg: bool) -> Result<D, ()>
 where
     S: FixedUnsigned + PartialOrd<D>,
