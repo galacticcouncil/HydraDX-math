@@ -5,6 +5,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(all(not(feature = "std"), test))]
+extern crate std;
+
 #[cfg(feature = "p12")]
 #[macro_use]
 extern crate lazy_static;
@@ -78,7 +81,7 @@ mod conversion_tests {
     use super::MathError::Overflow;
     use crate::lbp::Weight;
     use crate::types::Balance;
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     const FIXED_ROUND_UP: Balance = 1;
 

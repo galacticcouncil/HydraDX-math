@@ -1,9 +1,9 @@
 #![allow(clippy::result_unit_err)]
 
 use core::convert::From;
+use core::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 use fixed::traits::FixedUnsigned;
 use fixed::traits::ToFixed;
-use std::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 
 /// right-shift with rounding
 fn rs<T>(operand: T) -> T
@@ -168,9 +168,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::FixedBalance;
+    use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
-    use std::str::FromStr;
 
     use super::{exp, log2, pow, powi};
 
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(log2(two), Ok((D::from_num(one), false)));
         assert_eq!(log2(one / four), Ok((D::from_num(two), true)));
         assert_eq!(log2(S::from_num(0.5)), Ok((D::from_num(one), true)));
-        assert_eq!(log2(S::from_num(1.0/0.5)), Ok((D::from_num(one), false)));
+        assert_eq!(log2(S::from_num(1.0 / 0.5)), Ok((D::from_num(one), false)));
     }
 
     #[test]

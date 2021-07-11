@@ -3,6 +3,8 @@ use crate::lbp::lbp;
 use crate::types::HYDRA_ONE;
 use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
 
+use std::vec;
+
 #[test]
 fn spot_price_should_work() {
     let cases = vec![

@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 use crate::MathError::{InsufficientOutReserve, Overflow, ZeroReserve};
 
+use std::vec;
+
 #[test]
 fn spot_price_should_work() {
     let cases = vec![
