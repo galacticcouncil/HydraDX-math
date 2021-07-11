@@ -1,9 +1,14 @@
+#![allow(clippy::all)]
+
 /// Implementation of division, multiplication and pow functionality using only integer
 /// arithmetic and respecting Hydra's token precision of 12 decimals.
-pub mod p12 {
-    use crate::types::Balance256;
 
-    type Inner = Balance256;
+#[deprecated(since = "3.2.0", note = "please use `transcendental` implementation")]
+pub mod p12 {
+    use primitive_types::U256;
+
+    pub type Balance256 = U256;
+    type Inner = U256;
 
     const POW_PRECISION: u128 = 100_000_000_u128;
 

@@ -1,6 +1,6 @@
 use crate::{
     ensure, round_up, to_balance, to_u256, MathError,
-    MathError::{InsufficientOutReserve, Overflow, ZeroInReserve},
+    MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
 use core::convert::TryFrom;
 use primitive_types::U256;
@@ -18,7 +18,7 @@ const FIXED_ROUND_UP: Balance = 1;
 ///
 /// Returns MathError in case of error
 pub fn calculate_spot_price(in_reserve: Balance, out_reserve: Balance, amount: Balance) -> Result<Balance, MathError> {
-    ensure!(in_reserve != 0, ZeroInReserve);
+    ensure!(in_reserve != 0, ZeroReserve);
 
     if amount == 0 || out_reserve == 0 {
         return to_balance!(0);
@@ -55,7 +55,7 @@ pub fn calculate_out_given_in(
     let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
     let denominator = in_reserve_hp.checked_add(amount_in_hp).ok_or(Overflow)?;
-    ensure!(!denominator.is_zero(), ZeroInReserve);
+    ensure!(!denominator.is_zero(), ZeroReserve);
 
     let numerator = out_reserve_hp.checked_mul(amount_in_hp).ok_or(Overflow)?;
     let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
@@ -85,7 +85,7 @@ pub fn calculate_in_given_out(
 
     let numerator = in_reserve_hp.checked_mul(amount_out_hp).ok_or(Overflow)?;
     let denominator = out_reserve_hp.checked_sub(amount_out_hp).ok_or(Overflow)?;
-    ensure!(!denominator.is_zero(), ZeroInReserve);
+    ensure!(!denominator.is_zero(), ZeroReserve);
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
 
     let result = to_balance!(buy_price_hp).ok();
@@ -105,7 +105,7 @@ pub fn calculate_liquidity_in(
     asset_b_reserve: Balance,
     amount: Balance,
 ) -> Result<Balance, MathError> {
-    ensure!(asset_a_reserve != 0, ZeroInReserve);
+    ensure!(asset_a_reserve != 0, ZeroReserve);
 
     let (a_reserve_hp, b_reserve_hp, amount_hp) = to_u256!(asset_a_reserve, asset_b_reserve, amount);
 
@@ -133,7 +133,7 @@ pub fn calculate_liquidity_out(
     amount: Balance,
     total_liquidity: Balance,
 ) -> Result<(Balance, Balance), MathError> {
-    ensure!(total_liquidity != 0, ZeroInReserve);
+    ensure!(total_liquidity != 0, ZeroReserve);
 
     let (a_reserve_hp, b_reserve_hp, amount_hp, liquidity_hp) =
         to_u256!(asset_a_reserve, asset_b_reserve, amount, total_liquidity);

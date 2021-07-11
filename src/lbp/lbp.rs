@@ -3,11 +3,12 @@ use primitive_types::U256;
 
 use crate::{
     ensure, to_balance, to_lbp_weight, to_u256, MathError,
-    MathError::{Overflow, ZeroDuration, ZeroInReserve, ZeroOutWeight},
+    MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight},
 };
 
-use crate::math::p12;
-use crate::types::Balance;
+use core::convert::From;
+
+use crate::types::{Balance, FixedBalance, HYDRA_ONE};
 
 pub type Weight = Balance;
 
@@ -29,7 +30,7 @@ pub fn calculate_spot_price(
     amount: Balance,
 ) -> Result<Balance, MathError> {
     // If any is 0 - let's not progress any further.
-    ensure!(in_reserve != 0, ZeroInReserve);
+    ensure!(in_reserve != 0, ZeroReserve);
 
     if amount == 0 || out_reserve == 0 {
         return to_balance!(0);
@@ -49,6 +50,38 @@ pub fn calculate_spot_price(
     to_balance!(spot_price)
 }
 
+fn convert_to_fixed(value: Balance) -> FixedBalance {
+    if value == Balance::from(1u32) {
+        return FixedBalance::from_num(1);
+    }
+
+    let f = value.checked_div(HYDRA_ONE).unwrap();
+    let r = value - (f.checked_mul(HYDRA_ONE).unwrap());
+    FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
+}
+
+fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
+    let w: Balance = value.int().to_num();
+    let frac = value.frac();
+    let frac: Balance = frac.checked_mul_int(HYDRA_ONE)?.int().to_num();
+    let r = w.checked_mul(HYDRA_ONE)?.checked_add(frac)?;
+    Some(r)
+}
+
+#[macro_export]
+macro_rules! to_fixed_balance{
+    ($($x:expr),+) => (
+        {($(convert_to_fixed($x)),+)}
+    );
+}
+
+#[macro_export]
+macro_rules! to_balance_from_fixed {
+    ($x:expr) => {
+        convert_from_fixed($x).ok_or(Overflow)
+    };
+}
+
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
 ///
 /// - `in_reserve` - reserve amount of selling asset
@@ -65,22 +98,27 @@ pub fn calculate_out_given_in(
     out_weight: Balance,
     amount: Balance,
 ) -> Result<Balance, MathError> {
-    ensure!(out_weight != 0, ZeroOutWeight);
+    ensure!(out_weight != 0, ZeroWeight);
+    ensure!(in_weight != 0, ZeroWeight);
+    ensure!(out_reserve != 0, ZeroReserve);
+    ensure!(in_reserve != 0, ZeroWeight);
 
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-        to_u256!(in_weight, out_weight, amount, in_reserve, out_reserve);
+        to_fixed_balance!(in_weight, out_weight, amount, in_reserve, out_reserve);
 
-    let weight_ratio = p12::div(in_weight, out_weight).ok_or(Overflow)?;
+    let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
 
-    let ir = p12::div(in_reserve, in_reserve.checked_add(amount).ok_or(Overflow)?).ok_or(Overflow)?;
+    let one = FixedBalance::from_num(1);
+    //let ir = in_reserve.checked_div(in_reserve.checked_add(amount).ok_or(Overflow)?).ok_or(Overflow)?;
+    let ir = one / (one + (amount / in_reserve));
 
-    let ir = p12::pow(ir, weight_ratio).ok_or(Overflow)?;
+    let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
-    let ir = p12::ONE.checked_sub(ir).ok_or(Overflow)?;
+    let ir = FixedBalance::from_num(1).checked_sub(ir).ok_or(Overflow)?;
 
-    let r = p12::mul(out_reserve, ir).ok_or(Overflow)?;
+    let r = out_reserve.checked_mul(ir).ok_or(Overflow)?;
 
-    to_balance!(r)
+    to_balance_from_fixed!(r)
 }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
@@ -101,16 +139,16 @@ pub fn calculate_in_given_out(
     amount: Balance,
 ) -> Result<Balance, MathError> {
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-        to_u256!(in_weight, out_weight, amount, in_reserve, out_reserve);
+        to_fixed_balance!(in_weight, out_weight, amount, in_reserve, out_reserve);
 
-    let weight_ratio = p12::div(out_weight, in_weight).ok_or(Overflow)?;
+    let weight_ratio = out_weight.checked_div(in_weight).ok_or(Overflow)?;
     let diff = out_reserve.checked_sub(amount).ok_or(Overflow)?;
-    let y = p12::div(out_reserve, diff).ok_or(Overflow)?;
-    let y1 = p12::pow(y, weight_ratio).ok_or(Overflow)?;
-    let y2 = y1.checked_sub(*p12::ONE).ok_or(Overflow)?;
-    let r = p12::mul(in_reserve, y2).ok_or(Overflow)?;
+    let y = out_reserve.checked_div(diff).ok_or(Overflow)?;
+    let y1: FixedBalance = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
+    let y2 = y1.checked_sub(FixedBalance::from_num(1u128)).ok_or(Overflow)?;
+    let r = in_reserve.checked_mul(y2).ok_or(Overflow)?;
 
-    to_balance!(r)
+    to_balance_from_fixed!(r)
 }
 
 /// Calculating weight at any given block in an interval using linear interpolation.

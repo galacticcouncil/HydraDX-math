@@ -5,18 +5,24 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "p12")]
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(test)]
+#[macro_use]
+extern crate approx;
+
 pub mod lbp;
+pub mod transcendental;
 pub mod xyk;
 
-pub use xyk::*;
+#[cfg(feature = "p12")]
+pub mod p12;
 
-mod math;
 #[cfg(test)]
 mod tests;
-mod types;
+pub mod types;
 
 #[macro_export]
 macro_rules! ensure {
@@ -60,9 +66,27 @@ macro_rules! to_lbp_weight {
 
 #[derive(PartialEq, Debug)]
 pub enum MathError {
-    ZeroInReserve,
     Overflow,
     InsufficientOutReserve,
-    ZeroOutWeight,
+    ZeroWeight,
+    ZeroReserve,
     ZeroDuration,
+}
+
+#[cfg(test)]
+mod conversion_tests {
+    use super::MathError::Overflow;
+    use crate::lbp::Weight;
+    use crate::types::Balance;
+    use std::convert::TryFrom;
+
+    const FIXED_ROUND_UP: Balance = 1;
+
+    #[test]
+    fn test_conversion() {
+        let one: u32 = 1;
+        assert_eq!(to_balance!(one), Ok(Balance::from(1u128)));
+        assert_eq!(to_lbp_weight!(one), Ok(Balance::from(1u128)));
+        assert_eq!(round_up!(Balance::from(one)), Ok(Balance::from(2u128)));
+    }
 }
