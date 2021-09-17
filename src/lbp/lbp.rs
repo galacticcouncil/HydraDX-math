@@ -44,7 +44,7 @@ pub fn calculate_spot_price(
         .ok_or(Overflow)?
         .checked_mul(in_weight)
         .ok_or(Overflow)?
-        .checked_div(in_reserve.checked_mul(out_weight).expect("Cannot overflow"))
+        .checked_div(in_reserve.checked_mul(out_weight).ok_or(Overflow)?)
         .ok_or(Overflow)?;
 
     to_balance!(spot_price)
@@ -55,6 +55,7 @@ fn convert_to_fixed(value: Balance) -> FixedBalance {
         return FixedBalance::from_num(1);
     }
 
+    // Unwrap is safer here
     let f = value.checked_div(HYDRA_ONE).unwrap();
     let r = value - (f.checked_mul(HYDRA_ONE).unwrap());
     FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
@@ -109,8 +110,12 @@ pub fn calculate_out_given_in(
     let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
 
     let one = FixedBalance::from_num(1);
-    //let ir = in_reserve.checked_div(in_reserve.checked_add(amount).ok_or(Overflow)?).ok_or(Overflow)?;
-    let ir = one / (one + (amount / in_reserve));
+    let ir = one
+        .checked_div(
+            one.checked_add((amount.checked_div(in_reserve)).ok_or(Overflow)?)
+                .ok_or(Overflow)?,
+        )
+        .ok_or(Overflow)?;
 
     let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 

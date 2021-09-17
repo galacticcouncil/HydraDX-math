@@ -61,7 +61,7 @@ where
 
     let operand = D::from(operand);
     if operand < D::from_num(1) {
-        let inverse = D::from_num(1).checked_div(operand).unwrap();
+        let inverse = D::from_num(1).checked_div(operand).unwrap(); // Unwrap is safe because operand is always > 0
         return Ok((log2_inner::<D, D>(inverse), true));
     };
     Ok((log2_inner::<D, D>(operand), false))
