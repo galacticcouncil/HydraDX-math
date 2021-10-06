@@ -1,6 +1,6 @@
 use crate::lbp::lbp;
 
-use crate::types::HYDRA_ONE;
+use crate::types::{HYDRA_ONE, LBPWeight, Balance};
 use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
 
 use std::vec;
@@ -13,13 +13,13 @@ fn spot_price_should_work() {
         (0, 1, 1, 1, 1, Err(ZeroReserve), "Zero sell_reserve"),
         (1, 0, 1, 1, 1, Ok(0), "Zero buy_reserve"),
         (1, 1, 0, 1, 1, Ok(0), "Zero amount"),
-        (u128::MAX, u128::MAX - 1, 1, 1, 1, Ok(0), "Truncated result"),
+        (Balance::MAX, Balance::MAX - 1, 1, 1, 1, Ok(0), "Truncated result"),
         (
             1,
-            u128::MAX,
-            u128::MAX,
-            u128::MAX,
-            u128::MAX,
+            Balance::MAX,
+            LBPWeight::MAX,
+            LBPWeight::MAX,
+            Balance::MAX,
             Err(Overflow),
             "Overflow weights",
         ),
@@ -41,11 +41,11 @@ fn out_given_in_should_work() {
         (1000, 2000, 500, 500, 100, Ok(178), "Easy case"),
         (0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
         (
-            u128::MAX,
-            u128::MAX,
-            u128::MAX,
-            u128::MAX,
-            u128::MAX,
+            Balance::MAX,
+            Balance::MAX,
+            LBPWeight::MAX,
+            LBPWeight::MAX,
+            Balance::MAX,
             Ok(170141183460469231731687303715884105726),
             "max",
         ),
@@ -55,7 +55,7 @@ fn out_given_in_should_work() {
             0,
             1,
             1,
-            u128::MAX,
+            Balance::MAX,
             Err(ZeroReserve),
             "Zero buy reserve and sell reserve",
         ),
@@ -79,8 +79,8 @@ fn in_given_out_should_work() {
         (
             100 * prec,
             20 * prec,
-            50 * prec,
-            100 * prec,
+            5_000_000,
+            10_000_000,
             prec,
             Ok(10803324420521),
             "Easy case",
@@ -88,8 +88,8 @@ fn in_given_out_should_work() {
         (
             100 * prec,
             20 * prec,
-            100 * prec,
-            50 * prec,
+            10_000_000,
+            5_000_000,
             prec,
             Ok(2597835282540),
             "Easy case",
@@ -97,10 +97,10 @@ fn in_given_out_should_work() {
         (
             100 * prec,
             340 * prec,
-            100 * prec,
-            1200 * prec,
+            10_000_000,
+            120__000_000,
             2 * prec,
-            Ok(7336295409550),
+            Ok(7336295524874),
             "Easy case",
         ),
         (0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
@@ -119,12 +119,12 @@ fn in_given_out_should_work() {
 #[test]
 fn linear_weights_should_work() {
     let u32_cases = vec![
-        (100u32, 200u32, 1_000u128, 2_000u128, 170u32, Ok(1_700), "Easy case"),
+        (100u32, 200u32, 1_000u32, 2_000u32, 170u32, Ok(1_700), "Easy case"),
         (
             100u32,
             200u32,
-            2_000u128,
-            1_000u128,
+            2_000u32,
+            1_000u32,
             170u32,
             Ok(1_300),
             "Easy decreasing case",
@@ -132,8 +132,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            2_000u128,
-            2_000u128,
+            2_000u32,
+            2_000u32,
             170u32,
             Ok(2_000),
             "Easy constant case",
@@ -141,8 +141,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             100u32,
             Ok(1_000),
             "Initial weight",
@@ -150,8 +150,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            2_000u128,
-            1_000u128,
+            2_000u32,
+            1_000u32,
             100u32,
             Ok(2_000),
             "Initial decreasing weight",
@@ -159,18 +159,18 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            2_000u128,
-            2_000u128,
+            2_000u32,
+            2_000u32,
             100u32,
             Ok(2_000),
             "Initial constant weight",
         ),
-        (100u32, 200u32, 1_000u128, 2_000u128, 200u32, Ok(2_000), "Final weight"),
+        (100u32, 200u32, 1_000u32, 2_000u32, 200u32, Ok(2_000), "Final weight"),
         (
             100u32,
             200u32,
-            2_000u128,
-            1_000u128,
+            2_000u32,
+            1_000u32,
             200u32,
             Ok(1_000),
             "Final decreasing weight",
@@ -178,8 +178,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            2_000u128,
-            2_000u128,
+            2_000u32,
+            2_000u32,
             200u32,
             Ok(2_000),
             "Final constant weight",
@@ -187,8 +187,8 @@ fn linear_weights_should_work() {
         (
             200u32,
             100u32,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             170u32,
             Err(Overflow),
             "Invalid interval",
@@ -196,8 +196,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             100u32,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             100u32,
             Err(ZeroDuration),
             "Invalid interval",
@@ -205,8 +205,8 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             10u32,
             Err(Overflow),
             "Out of bound",
@@ -214,20 +214,20 @@ fn linear_weights_should_work() {
         (
             100u32,
             200u32,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             210u32,
             Err(Overflow),
             "Out of bound",
         ),
     ];
     let u64_cases = vec![
-        (100u64, 200u64, 1_000u128, 2_000u128, 170u64, Ok(1_700), "Easy case"),
+        (100u64, 200u64, 1_000u32, 2_000u32, 170u64, Ok(1_700), "Easy case"),
         (
             100u64,
             u64::MAX,
-            1_000u128,
-            2_000u128,
+            1_000u32,
+            2_000u32,
             200u64,
             Err(Overflow),
             "Interval too long",
