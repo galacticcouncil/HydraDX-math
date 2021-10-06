@@ -23,8 +23,8 @@ use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 pub fn calculate_spot_price(
     in_reserve: Balance,
     out_reserve: Balance,
-    in_weight: Balance,
-    out_weight: Balance,
+    in_weight: LBPWeight,
+    out_weight: LBPWeight,
     amount: Balance,
 ) -> Result<Balance, MathError> {
     // If any is 0 - let's not progress any further.
@@ -93,8 +93,8 @@ macro_rules! to_balance_from_fixed {
 pub fn calculate_out_given_in(
     in_reserve: Balance,
     out_reserve: Balance,
-    in_weight: Balance,
-    out_weight: Balance,
+    in_weight: LBPWeight,
+    out_weight: LBPWeight,
     amount: Balance,
 ) -> Result<Balance, MathError> {
     ensure!(out_weight != 0, ZeroWeight);
@@ -103,7 +103,7 @@ pub fn calculate_out_given_in(
     ensure!(in_reserve != 0, ZeroWeight);
 
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-        to_fixed_balance!(in_weight, out_weight, amount, in_reserve, out_reserve);
+        to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
 
     let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
 
@@ -137,12 +137,12 @@ pub fn calculate_out_given_in(
 pub fn calculate_in_given_out(
     in_reserve: Balance,
     out_reserve: Balance,
-    in_weight: Balance,
-    out_weight: Balance,
+    in_weight: LBPWeight,
+    out_weight: LBPWeight,
     amount: Balance,
 ) -> Result<Balance, MathError> {
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
-        to_fixed_balance!(in_weight, out_weight, amount, in_reserve, out_reserve);
+        to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
 
     let weight_ratio = out_weight.checked_div(in_weight).ok_or(Overflow)?;
     let diff = out_reserve.checked_sub(amount).ok_or(Overflow)?;

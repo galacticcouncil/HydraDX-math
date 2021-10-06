@@ -79,7 +79,7 @@ pub enum MathError {
 #[cfg(test)]
 mod conversion_tests {
     use super::MathError::Overflow;
-    use crate::lbp::Weight;
+    use crate::types::LBPWeight;
     use crate::types::Balance;
     use core::convert::TryFrom;
 
@@ -89,7 +89,7 @@ mod conversion_tests {
     fn test_conversion() {
         let one: u32 = 1;
         assert_eq!(to_balance!(one), Ok(Balance::from(1u128)));
-        assert_eq!(to_lbp_weight!(one), Ok(Balance::from(1u128)));
+        assert_eq!(to_lbp_weight!(one), Ok(LBPWeight::from(1u32)));
         assert_eq!(round_up!(Balance::from(one)), Ok(Balance::from(2u128)));
     }
 }
