@@ -63,7 +63,7 @@ macro_rules! to_balance {
 #[macro_export]
 macro_rules! to_lbp_weight {
     ($x:expr) => {
-        Weight::try_from($x).map_err(|_| Overflow)
+        LBPWeight::try_from($x).map_err(|_| Overflow)
     };
 }
 

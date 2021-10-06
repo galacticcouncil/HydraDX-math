@@ -8,9 +8,7 @@ use crate::{
 
 use core::convert::From;
 
-use crate::types::{Balance, FixedBalance, HYDRA_ONE};
-
-pub type Weight = Balance;
+use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : BUY_RESERVE * AMOUNT / SELL_RESERVE
@@ -166,10 +164,10 @@ pub fn calculate_in_given_out(
 pub fn calculate_linear_weights<BlockNumber: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
     start_x: BlockNumber,
     end_x: BlockNumber,
-    start_y: Weight,
-    end_y: Weight,
+    start_y: LBPWeight,
+    end_y: LBPWeight,
     at: BlockNumber,
-) -> Result<Weight, MathError> {
+) -> Result<LBPWeight, MathError> {
     let d1 = end_x.checked_sub(&at).ok_or(Overflow)?;
     let d2 = at.checked_sub(&start_x).ok_or(Overflow)?;
     let dx = end_x.checked_sub(&start_x).ok_or(Overflow)?;
