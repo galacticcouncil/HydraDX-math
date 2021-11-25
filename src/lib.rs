@@ -16,8 +16,10 @@ extern crate lazy_static;
 #[macro_use]
 extern crate approx;
 
+pub mod fee;
 pub mod lbp;
 pub mod transcendental;
+pub mod types;
 pub mod xyk;
 
 #[cfg(feature = "p12")]
@@ -25,7 +27,6 @@ pub mod p12;
 
 #[cfg(test)]
 mod tests;
-pub mod types;
 
 #[macro_export]
 macro_rules! ensure {
@@ -79,8 +80,8 @@ pub enum MathError {
 #[cfg(test)]
 mod conversion_tests {
     use super::MathError::Overflow;
-    use crate::types::LBPWeight;
     use crate::types::Balance;
+    use crate::types::LBPWeight;
     use core::convert::TryFrom;
 
     const FIXED_ROUND_UP: Balance = 1;

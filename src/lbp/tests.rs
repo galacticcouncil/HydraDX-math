@@ -1,6 +1,6 @@
 use crate::lbp::lbp;
 
-use crate::types::{HYDRA_ONE, LBPWeight, Balance};
+use crate::types::{Balance, LBPWeight, HYDRA_ONE};
 use crate::MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight};
 
 use std::vec;
@@ -138,15 +138,7 @@ fn linear_weights_should_work() {
             Ok(2_000),
             "Easy constant case",
         ),
-        (
-            100u32,
-            200u32,
-            1_000u32,
-            2_000u32,
-            100u32,
-            Ok(1_000),
-            "Initial weight",
-        ),
+        (100u32, 200u32, 1_000u32, 2_000u32, 100u32, Ok(1_000), "Initial weight"),
         (
             100u32,
             200u32,
@@ -202,15 +194,7 @@ fn linear_weights_should_work() {
             Err(ZeroDuration),
             "Invalid interval",
         ),
-        (
-            100u32,
-            200u32,
-            1_000u32,
-            2_000u32,
-            10u32,
-            Err(Overflow),
-            "Out of bound",
-        ),
+        (100u32, 200u32, 1_000u32, 2_000u32, 10u32, Err(Overflow), "Out of bound"),
         (
             100u32,
             200u32,
