@@ -1,4 +1,5 @@
 use crate::types::Balance;
+use num_traits::Zero;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Fee {
@@ -20,6 +21,10 @@ pub fn calculate_default_pool_trade_fee(amount: Balance) -> Option<Balance> {
 }
 
 pub fn calculate_pool_trade_fee(amount: Balance, fee: Fee) -> Option<Balance> {
+    if fee.denominator.is_zero() || fee.numerator.is_zero() {
+        return Some(0);
+    }
+
     amount
         .checked_div(fee.denominator as Balance)?
         .checked_mul(fee.numerator as Balance)
@@ -89,5 +94,13 @@ mod tests {
         };
 
         assert_eq!(calculate_pool_trade_fee(max_amount, unrealistic_fee), None);
+
+        let zero_fee = Fee {
+            numerator: 0,
+            denominator: 0,
+        };
+
+        assert_eq!(calculate_pool_trade_fee(max_amount, zero_fee), Some(0));
+        assert_eq!(calculate_pool_trade_fee(1_000, zero_fee), Some(0));
     }
 }
