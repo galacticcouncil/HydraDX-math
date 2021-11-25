@@ -7,15 +7,6 @@ pub struct Fee {
     pub denominator: u32,
 }
 
-impl Default for Fee {
-    fn default() -> Self {
-        Fee {
-            numerator: 2,
-            denominator: 1000,
-        } // 0.2%
-    }
-}
-
 impl From<(u32, u32)> for Fee {
     fn from(value: (u32, u32)) -> Self {
         Fee {
@@ -23,10 +14,6 @@ impl From<(u32, u32)> for Fee {
             denominator: value.1,
         }
     }
-}
-
-pub fn calculate_default_pool_trade_fee(amount: Balance) -> Option<Balance> {
-    calculate_pool_trade_fee(amount, Fee::default())
 }
 
 pub fn calculate_pool_trade_fee(amount: Balance, fee: Fee) -> Option<Balance> {
@@ -45,19 +32,15 @@ mod tests {
 
     #[test]
     fn fee_calculations_should_work() {
-        assert_eq!(calculate_default_pool_trade_fee(1_000), Some(2));
-        assert_eq!(calculate_default_pool_trade_fee(1_000_000_000_000), Some(2_000_000_000));
+        let default_fee = (2, 1000).into();
 
-        assert_eq!(calculate_pool_trade_fee(1_000, Fee::default()), Some(2));
+        assert_eq!(calculate_pool_trade_fee(1_000, default_fee), Some(2));
         assert_eq!(
-            calculate_pool_trade_fee(1_000_000_000_000, Fee::default()),
+            calculate_pool_trade_fee(1_000_000_000_000, default_fee),
             Some(2_000_000_000)
         );
 
-        let ten_percent_fee = Fee {
-            numerator: 1,
-            denominator: 10,
-        };
+        let ten_percent_fee = (1, 10).into();
 
         assert_eq!(calculate_pool_trade_fee(1_000, ten_percent_fee), Some(100));
         assert_eq!(
@@ -74,7 +57,7 @@ mod tests {
         let max_amount = Balance::MAX;
 
         assert_eq!(
-            calculate_pool_trade_fee(max_amount, Fee::default()),
+            calculate_pool_trade_fee(max_amount, default_fee),
             Some(680564733841876926926749214863536422)
         );
         assert_eq!(
@@ -82,10 +65,7 @@ mod tests {
             Some(34028236692093846346337460743176821145)
         );
 
-        let max_fee = Fee {
-            numerator: 1,
-            denominator: 1,
-        };
+        let max_fee = (1, 1).into();
 
         assert_eq!(calculate_pool_trade_fee(max_amount, max_fee), Some(max_amount));
         assert_eq!(calculate_pool_trade_fee(1_000, max_fee), Some(1_000));
@@ -94,12 +74,9 @@ mod tests {
         assert_eq!(calculate_pool_trade_fee(1_000, (1, 1).into()), Some(1_000));
 
         let zero_amount = 0u128;
-        assert_eq!(calculate_pool_trade_fee(zero_amount, Fee::default()), Some(0));
+        assert_eq!(calculate_pool_trade_fee(zero_amount, default_fee), Some(0));
 
-        let unrealistic_fee = Fee {
-            numerator: 1,
-            denominator: u32::MAX,
-        };
+        let unrealistic_fee = (1, u32::MAX).into();
 
         assert_eq!(
             calculate_pool_trade_fee(max_amount, unrealistic_fee),
@@ -111,18 +88,12 @@ mod tests {
             Some(79228162532711081671548469249)
         );
 
-        let unrealistic_fee = Fee {
-            numerator: u32::MAX,
-            denominator: 1,
-        };
+        let unrealistic_fee = (u32::MAX, 1).into();
 
         assert_eq!(calculate_pool_trade_fee(max_amount, unrealistic_fee), None);
         assert_eq!(calculate_pool_trade_fee(max_amount, (u32::MAX, 1).into()), None);
 
-        let zero_fee = Fee {
-            numerator: 0,
-            denominator: 0,
-        };
+        let zero_fee = (0, 0).into();
 
         assert_eq!(calculate_pool_trade_fee(max_amount, zero_fee), Some(0));
         assert_eq!(calculate_pool_trade_fee(1_000, zero_fee), Some(0));
