@@ -16,15 +16,11 @@ impl From<(u32, u32)> for Fee {
     }
 }
 
-pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32,u32)) -> Option<Balance> {
+pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32, u32)) -> Option<Balance> {
     let fee: Fee = fee.into();
 
     if fee.denominator.is_zero() || fee.numerator.is_zero() {
         return Some(0);
-    }
-
-    if amount < fee.denominator as u128 {
-        return Some(amount);
     }
 
     if fee.denominator == fee.numerator {
