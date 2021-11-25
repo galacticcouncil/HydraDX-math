@@ -23,6 +23,14 @@ pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32,u32)) -> Option<Balan
         return Some(0);
     }
 
+    if amount < fee.denominator as u128 {
+        return Some(amount);
+    }
+
+    if fee.denominator == fee.numerator {
+        return Some(amount);
+    }
+
     amount
         .checked_div(fee.denominator as Balance)?
         .checked_mul(fee.numerator as Balance)
