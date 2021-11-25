@@ -2,7 +2,7 @@ use crate::types::Balance;
 use num_traits::Zero;
 
 #[derive(Debug, Copy, Clone)]
-pub struct Fee {
+struct Fee {
     pub numerator: u32,
     pub denominator: u32,
 }
@@ -16,7 +16,9 @@ impl From<(u32, u32)> for Fee {
     }
 }
 
-pub fn calculate_pool_trade_fee(amount: Balance, fee: Fee) -> Option<Balance> {
+pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32,u32)) -> Option<Balance> {
+    let fee: Fee = fee.into();
+
     if fee.denominator.is_zero() || fee.numerator.is_zero() {
         return Some(0);
     }
