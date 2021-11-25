@@ -82,5 +82,12 @@ mod tests {
             calculate_pool_trade_fee(max_amount, unrealistic_fee),
             Some(79228162532711081671548469249)
         );
+
+        let unrealistic_fee = Fee {
+            numerator: u32::MAX,
+            denominator: 1,
+        };
+
+        assert_eq!(calculate_pool_trade_fee(max_amount, unrealistic_fee), None);
     }
 }
