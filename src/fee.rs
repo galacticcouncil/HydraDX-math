@@ -2,7 +2,7 @@ use crate::types::Balance;
 use num_traits::Zero;
 
 #[derive(Debug, Copy, Clone)]
-struct Fee {
+pub struct Fee {
     pub numerator: u32,
     pub denominator: u32,
 }
