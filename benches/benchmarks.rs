@@ -12,7 +12,6 @@ use hydra_dx_math::types::Balance;
 #[cfg(feature = "p12")]
 use hydra_dx_math::types::HYDRA_ONE;
 #[cfg(feature = "p12")]
-use std::convert::TryInto;
 
 use num_traits::{One, Zero};
 use rand::distributions::uniform::SampleUniform;

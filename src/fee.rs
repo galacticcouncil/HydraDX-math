@@ -3,6 +3,9 @@ use scale_info::TypeInfo;
 use crate::types::Balance;
 use num_traits::Zero;
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[derive(Debug, Encode, Decode, Clone, Copy, PartialEq, Eq, TypeInfo)]
 pub struct Fee {
