@@ -2,6 +2,7 @@ use crate::{
     ensure, round_up, to_balance, to_u256, MathError,
     MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
+use crate::transcendental::get_y_stableswap;
 use core::convert::TryFrom;
 use primitive_types::U256;
 
@@ -54,13 +55,11 @@ pub fn calculate_out_given_in(
 
     let (in_reserve_hp, out_reserve_hp, amount_in_hp) = to_u256!(in_reserve, out_reserve, amount_in);
 
-    let denominator = in_reserve_hp.checked_add(amount_in_hp).ok_or(Overflow)?;
-    ensure!(!denominator.is_zero(), ZeroReserve);
+    let y_stableswap = get_y_stableswap(0, 1, amount_in_hp, [in_reserve_hp, out_reserve_hp], to_u256!(200_u128)).unwrap();
 
-    let numerator = out_reserve_hp.checked_mul(amount_in_hp).ok_or(Overflow)?;
-    let sale_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
+    let amount_out = y_stableswap.checked_sub(out_reserve_hp).ok_or(Overflow)?;
 
-    to_balance!(sale_price_hp)
+    to_balance!(amount_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
