@@ -14,7 +14,7 @@ num-traits = {default-features = false, version = "0.2.14"}
 fixed = "1.9.0"
 lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 # Added because of use of the FixedU128
-sp-arithmetic = { version='4.0.0', default-features = false }
+sp-arithmetic = { version='5.0.0', default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
