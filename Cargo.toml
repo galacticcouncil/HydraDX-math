@@ -14,7 +14,12 @@ num-traits = {default-features = false, version = "0.2.14"}
 fixed = "1.9.0"
 lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 # Added because of use of the FixedU128
-sp-arithmetic = { version='5.0.0', default-features = false }
+codec = { default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.0.0" }
+serde = { features = ["derive"], optional = true, version = "1.0.101" }
+scale-info = { version = "1.0", default-features = false, features = ["derive"] }                             
+sp-arithmetic = { git = "https://github.com/paritytech//substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e" }
+
+#sp-arithmetic = { version = "4.0.0", default-features=false }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
