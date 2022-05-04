@@ -1,7 +1,175 @@
 #![allow(unused_imports)]
 use crate::MathError::{InsufficientOutReserve, Overflow, ZeroReserve};
+use crate::{to_u256, to_balance};
+use crate::stableswap::{get_d, get_y_stableswap};
+use crate::stableswap::calculate_out_given_in as stableswap_out_given_in;
+use primitive_types::U256;
+use crate::approx::assert_abs_diff_eq;
+use crate::types::Balance;
+use std::convert::TryFrom;
 
 use std::vec;
+
+#[test]
+fn get_d_should_work() {
+    let cases = vec![
+        (
+            to_u256!(10_000_000_000_000_000_u128),
+            to_u256!(10_000_000_000_000_000_u128),
+            to_u256!(100_u128),
+            "Case1"
+        ),
+        (
+            to_u256!(1_000_000_000_000_000_u128),
+            to_u256!(10_000_000_000_000_000_u128),
+            to_u256!(100_u128),
+            "Case2"
+        ),
+        (
+            to_u256!(17_000_000_000_000_000_u128),
+            to_u256!(7_000_000_000_000_u128),
+            to_u256!(300_u128),
+            "Case3"
+        ),
+    ];
+
+    let n = 2_i32;
+
+    for case in cases {
+        let a = case.2;
+        let x1 = case.0;
+        let x2 = case.1;
+        let d = get_d([x1, x2], to_u256!(n) * a).unwrap();
+        let lhs = a * to_u256!(n.pow(n as u32)) * (x1 + x2) + d;
+        let mut d_pow = to_u256!(1_u128);
+        for i in 0..((n+1) as usize) {
+            d_pow *= d;
+        }
+        let rhs = a * d * to_u256!(n.pow(n as u32)) + d_pow/(to_u256!(n.pow(n as u32)) * x1 * x2);
+        assert_eq!((lhs - rhs)/(to_u256!(10_000_u128)), to_u256!(0_u128), "{}", case.3);
+
+    }
+}
+
+#[test]
+fn get_y_stableswap_should_work() {
+    let i = 0_i128;
+    let j = 1_i128;
+    let cases = vec![
+        (
+            to_u256!(100_100_u128),
+            to_u256!(100_000_u128),
+            to_u256!(100_000_u128),
+            to_u256!(100_u128),
+            "Case1"
+        ),
+        (
+            to_u256!(1_001_000_000_000_000_u128),
+            to_u256!(1_000_000_000_000_000_u128),
+            to_u256!(10_000_000_000_000_000_u128),
+            to_u256!(100_u128),
+            "Case2"
+        ),
+        (
+            to_u256!(17_000_100_000_000_000_u128),
+            to_u256!(17_000_000_000_000_000_u128),
+            to_u256!(7_000_000_000_000_u128),
+            to_u256!(300_u128),
+            "Case3"
+        ),
+        (
+            to_u256!(16_999_900_000_000_000_u128),
+            to_u256!(17_000_000_000_000_000_u128),
+            to_u256!(7_000_000_000_000_u128),
+            to_u256!(300_u128),
+            "Case4"
+        ),
+    ];
+
+    let n = 2_i32;
+
+    for case in cases {
+        let a = case.3;
+        let x1 = case.1;
+        let x2 = case.2;
+        let delta_x1 = case.0;
+        let x1_new = x1 + delta_x1;
+        let x2_new = get_y_stableswap(i, j, delta_x1, [x1, x2], a).unwrap();
+        let d = get_d([x1, x2], to_u256!(n) * a).unwrap();
+        let lhs = a * to_u256!(n.pow(n as u32)) * (x1 + x2) + d;
+        let mut d_pow = to_u256!(1_u128);
+        for i in 0..((n+1) as usize) {
+            d_pow *= d;
+        }
+        let rhs = a * d * to_u256!(n.pow(n as u32)) + d_pow/(to_u256!(n.pow(n as u32)) * x1 * x2);
+        assert_eq!((lhs - rhs)/(to_u256!(10_000_u128)), to_u256!(0_u128), "{}", case.4);
+
+    }
+}
+
+#[test]
+fn out_given_in_stableswap_should_work() {
+    let i = 0_i128;
+    let j = 1_i128;
+    let cases = vec![
+        (
+            5_000_000_000_000_000_u128,
+            10_000_000_000_000_000_u128,
+            10_000_000_000_000_000_u128,
+            "Case1"
+        ),
+        (
+            1_000_000_000_000_u128,
+            1_000_000_000_000_000_u128,
+            10_000_000_000_000_000_u128,
+            "Case2"
+        ),
+        (
+            100_000_000_000_u128,
+            17_000_000_000_000_000_u128,
+            7_000_000_000_000_u128,
+            "Case3"
+        ),
+    ];
+
+    let n = 2_i32;
+
+    for case in cases {
+        let a = to_u256!(100_u128);
+        let x1_old = to_balance!(case.1).unwrap();
+        let x2_old = to_balance!(case.2).unwrap();
+        let delta_x1 = to_balance!(case.0).unwrap();
+        let x1 = to_u256!(x1_old.checked_add(delta_x1).unwrap());
+        let delta_x2 = stableswap_out_given_in(x1_old, x2_old, delta_x1).unwrap();
+        let x2 = to_u256!(x2_old.checked_sub(delta_x2).unwrap());
+
+        let d = get_d([to_u256!(x1_old), to_u256!(x2_old)], to_u256!(n) * a).unwrap();
+        let lhs = a * to_u256!(n.pow(n as u32)) * (x1 + x2) + d;
+        let mut d_pow = to_u256!(1_u128);
+        let d_by_x1 = d.checked_div(x1).ok_or(Overflow).unwrap();
+        let d_by_x2 = d.checked_div(x2).ok_or(Overflow).unwrap();
+        let d_squared = d.checked_mul(d).unwrap();
+        let d_squared_by_x1 = d_squared.checked_div(x1).unwrap();
+        let d_pow_by_x1 = d_squared_by_x1.checked_mul(d).unwrap();
+        let d_pow_by_prod = d_pow_by_x1.checked_div(x2).unwrap();
+        // println!("x1: {}", to_balance!(x1).unwrap().to_string());
+        // println!("x2: {}", to_balance!(x2).unwrap().to_string());
+        // println!("d: {}", to_balance!(d).unwrap().to_string());
+        // println!("d_by_x1: {}", to_balance!(d_by_x1).unwrap().to_string());
+        for i in 0..((n+1) as usize) {
+            d_pow *= d;
+        }
+        let rhs_old = a * d * to_u256!(n.pow(n as u32)) + d_pow/(to_u256!(n.pow(n as u32)) * x1 * x2);
+        let rhs = a * d * to_u256!(n.pow(n as u32)) + d_pow_by_prod/to_u256!(n.pow(n as u32));
+        if rhs > lhs {
+            assert!(lhs/(rhs - lhs) > to_u256!(1_000_000_000_000_u128))
+        }
+        else if lhs > rhs {
+            assert!(lhs/(lhs - rhs) > to_u256!(1_000_000_000_000_u128))
+        }
+
+    }
+}
 
 #[test]
 fn spot_price_should_work() {
@@ -24,6 +192,9 @@ fn spot_price_should_work() {
         );
     }
 }
+
+
+
 
 #[test]
 fn out_given_in_should_work() {

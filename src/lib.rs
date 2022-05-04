@@ -21,6 +21,7 @@ pub mod lbp;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
+pub mod stableswap;
 
 #[cfg(feature = "p12")]
 pub mod p12;
