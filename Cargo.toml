@@ -15,7 +15,7 @@ fixed = "1.9.0"
 lazy_static = {features = ['spin_no_std'], version = '1.4.0'}
 # Added because of use of the FixedU128
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive", "max-encoded-len"] }
-sp-arithmetic = { git = "https://github.com/paritytech//substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e" }
+sp-arithmetic = { git = "https://github.com/paritytech//substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
@@ -24,10 +24,8 @@ criterion = "0.3"
 approx = "0.3.0"
 
 [features]
-default = [
-]
-std = [
-]
+default = []
+std = []
 p12 = ['lazy_static/spin_no_std']
 
 [[bench]]
