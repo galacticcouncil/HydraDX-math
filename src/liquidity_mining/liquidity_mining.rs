@@ -18,8 +18,8 @@ type Balance = u128;
 ///
 /// `loyalty_multiplier = num/denom`
 
-pub fn calculate_loyalty_multiplier(
-    periods: u32,
+pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
+    periods: Period,
     initial_reward_percentage: FixedU128,
     scale_coef: u32,
 ) -> Result<FixedU128, MathError> {
