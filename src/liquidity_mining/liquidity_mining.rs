@@ -18,7 +18,7 @@ type Balance = u128;
 ///
 /// `loyalty_multiplier = num/denom`
 
-pub fn get_loyalty_multiplier(
+pub fn calculate_loyalty_multiplier(
     periods: u32,
     initial_reward_percentage: FixedU128,
     scale_coef: u32,
@@ -55,7 +55,7 @@ pub fn get_loyalty_multiplier(
 
 /// This function return `GlobalPool`'s reward per one period or error.
 /// Reward per period is capped by `max_reward_per_period`.             
-pub fn get_global_pool_reward_per_period(
+pub fn calculate_global_pool_reward_per_period(
     yield_per_period: FixedU128,
     total_pool_shares_z: Balance,
     max_reward_per_period: Balance,
@@ -67,7 +67,7 @@ pub fn get_global_pool_reward_per_period(
 }
 
 /// This function calculate and return reward per share or error.
-pub fn get_accumulated_rps(
+pub fn calculate_accumulated_rps(
     accumulated_rps_now: Balance,
     total_shares: Balance,
     reward: Balance,
@@ -80,14 +80,14 @@ pub fn get_accumulated_rps(
 }
 
 /// This function calculate and return `(user_rewards, unclaimable_rewards)`.
-pub fn get_user_reward(
+pub fn calculate_user_reward(
     accumulated_rpvs: Balance,
     valued_shares: Balance, // Value of shares at the time of entry in incentivized tokens.
     accumulated_claimed_rewards: Balance,
     accumulated_rpvs_now: Balance,
     loyalty_multiplier: FixedU128,
 ) -> Result<(Balance, Balance), MathError> {
-    let max_rewards = calc_reward(accumulated_rpvs, accumulated_rpvs_now, valued_shares)?;
+    let max_rewards = calculate_reward(accumulated_rpvs, accumulated_rpvs_now, valued_shares)?;
 
     if max_rewards == 0 {
         return Ok((0, 0));
@@ -107,20 +107,20 @@ pub fn get_user_reward(
 }
 
 /// This function calculate account's valued shares[`Balance`] or error.
-pub fn calc_valued_shares(shares: Balance, incentivized_asset_balance: Balance) -> Result<Balance, MathError> {
+pub fn calculate_valued_shares(shares: Balance, incentivized_asset_balance: Balance) -> Result<Balance, MathError> {
     shares
         .checked_mul(incentivized_asset_balance)
         .ok_or(MathError::Overflow)
 }
 
 /// This function calculate liq. pool's shares amount in `GlobalPool` or error.
-pub fn get_global_pool_shares(valued_shares: Balance, multiplier: FixedU128) -> Result<Balance, MathError> {
+pub fn calculate_global_pool_shares(valued_shares: Balance, multiplier: FixedU128) -> Result<Balance, MathError> {
     multiplier.checked_mul_int(valued_shares).ok_or(MathError::Overflow)
 }
 
 /// General formula to calculate reward. Usage depends on type of rps and shares used for
 /// calculations
-pub fn calc_reward(
+pub fn calculate_reward(
     accumulated_rps_start: Balance,
     accumulated_rps_now: Balance,
     shares: Balance,

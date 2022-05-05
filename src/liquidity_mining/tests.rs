@@ -5,7 +5,7 @@ use sp_arithmetic::FixedU128;
 use std::vec;
 
 #[test]
-fn get_loyalty_multiplier_should_work() {
+fn calculate_loyalty_multiplier_should_work() {
     let testing_values = vec![
         (
             0,
@@ -119,32 +119,32 @@ fn get_loyalty_multiplier_should_work() {
     {
         //1th curve test
         assert_eq!(
-            get_loyalty_multiplier(*periods, FixedU128::from_inner(500_000_000_000_000_000), 100).unwrap(),
+            calculate_loyalty_multiplier(*periods, FixedU128::from_inner(500_000_000_000_000_000), 100).unwrap(),
             *expected_multiplier_1
         );
 
         //2nd curve test
         assert_eq!(
-            get_loyalty_multiplier(*periods, FixedU128::from(1), 50).unwrap(),
+            calculate_loyalty_multiplier(*periods, FixedU128::from(1), 50).unwrap(),
             *expected_multiplier_2,
         );
 
         //3rd curve test
         assert_eq!(
-            get_loyalty_multiplier(*periods, FixedU128::from_inner(123_580_000_000_000_000), 23).unwrap(),
+            calculate_loyalty_multiplier(*periods, FixedU128::from_inner(123_580_000_000_000_000), 23).unwrap(),
             *expected_multiplier_3,
         );
 
         //4th curve test
         assert_eq!(
-            get_loyalty_multiplier(*periods, FixedU128::from_inner(0), 15).unwrap(),
+            calculate_loyalty_multiplier(*periods, FixedU128::from_inner(0), 15).unwrap(),
             *expected_multiplier_4,
         );
     }
 }
 
 #[test]
-fn get_reward_per_period_should_work() {
+fn calculate_reward_per_period_should_work() {
     let testing_values = vec![
         (
             FixedU128::from_inner(833_333_333_300_000), //0.000_833_333_333_3
@@ -231,14 +231,15 @@ fn get_reward_per_period_should_work() {
         testing_values.iter()
     {
         assert_eq!(
-            get_global_pool_reward_per_period(*yield_per_period, *total_pool_shares_z, *max_reward_per_period).unwrap(),
+            calculate_global_pool_reward_per_period(*yield_per_period, *total_pool_shares_z, *max_reward_per_period)
+                .unwrap(),
             *expected_reward_per_period
         );
     }
 }
 
 #[test]
-fn get_accumulated_rps_should_work() {
+fn calculate_accumulated_rps_should_work() {
     let testing_values = vec![
         (596850065_u128, 107097_u128, 58245794_u128, 596850608_u128),
         (610642940_u128, 380089_u128, 72666449_u128, 610643131_u128),
@@ -264,14 +265,14 @@ fn get_accumulated_rps_should_work() {
 
     for (accumulated_rps_now, total_shares, reward, expected_accumulated_rps) in testing_values.iter() {
         assert_eq!(
-            get_accumulated_rps(*accumulated_rps_now, *total_shares, *reward).unwrap(),
+            calculate_accumulated_rps(*accumulated_rps_now, *total_shares, *reward).unwrap(),
             *expected_accumulated_rps
         );
     }
 }
 
 #[test]
-fn get_user_reward_should_work() {
+fn calculate_user_reward_should_work() {
     let testing_values = vec![
         (
             79_u128,
@@ -538,7 +539,7 @@ fn get_user_reward_should_work() {
     ) in testing_values.iter()
     {
         assert_eq!(
-            get_user_reward(
+            calculate_user_reward(
                 *accumulated_rpvs,
                 *valued_shares,
                 *accumulated_claimed_rewards,
@@ -552,47 +553,47 @@ fn get_user_reward_should_work() {
 }
 
 #[test]
-fn calc_valued_shares_should_work() {
+fn calculate_valued_shares_should_work() {
     assert_eq!(
-        calc_valued_shares(10_000_000, 1_000_000_000_000_000_000_000).unwrap(),
+        calculate_valued_shares(10_000_000, 1_000_000_000_000_000_000_000).unwrap(),
         10_000_000_000_000_000_000_000_000_000
     );
 
-    assert_eq!(calc_valued_shares(16_874, 49_898_646).unwrap(), 841_989_752_604);
+    assert_eq!(calculate_valued_shares(16_874, 49_898_646).unwrap(), 841_989_752_604);
 
-    assert_eq!(calc_valued_shares(16_874_138_468_415_354, 0).unwrap(), 0);
+    assert_eq!(calculate_valued_shares(16_874_138_468_415_354, 0).unwrap(), 0);
 
-    assert_eq!(calc_valued_shares(0, 466_874_688_464).unwrap(), 0);
+    assert_eq!(calculate_valued_shares(0, 466_874_688_464).unwrap(), 0);
 }
 
 #[test]
-fn get_global_pool_shares_should_work() {
-    assert_eq!(get_global_pool_shares(0, FixedU128::from(0)).unwrap(), 0);
+fn calculate_global_pool_shares_should_work() {
+    assert_eq!(calculate_global_pool_shares(0, FixedU128::from(0)).unwrap(), 0);
 
-    assert_eq!(get_global_pool_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
+    assert_eq!(calculate_global_pool_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
 
     assert_eq!(
-        get_global_pool_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
+        calculate_global_pool_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
         2_641_979
     );
 
     assert_eq!(
-        get_global_pool_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
+        calculate_global_pool_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
         313_948_636_755_764
     );
 }
 
 #[test]
-fn calc_reward_should_work() {
-    assert_eq!(calc_reward(0, 1, 168_416_531).unwrap(), 168_416_531);
+fn calculate_reward_should_work() {
+    assert_eq!(calculate_reward(0, 1, 168_416_531).unwrap(), 168_416_531);
 
     assert_eq!(
-        calc_reward(684_131, 19_874_646, 9_798_646).unwrap(),
+        calculate_reward(684_131, 19_874_646, 9_798_646).unwrap(),
         188_041_063_042_690
     );
 
-    assert_eq!(calc_reward(1_688_453, 786_874_343, 58).unwrap(), 45_540_781_620);
+    assert_eq!(calculate_reward(1_688_453, 786_874_343, 58).unwrap(), 45_540_781_620);
 
     //NOTE: start and now RPS are the same
-    assert_eq!(calc_reward(1_688_453, 1_688_453, 268_413_545_346).unwrap(), 0);
+    assert_eq!(calculate_reward(1_688_453, 1_688_453, 268_413_545_346).unwrap(), 0);
 }
