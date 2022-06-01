@@ -1,35 +1,21 @@
 use crate::types::Balance;
 use num_traits::Zero;
 
-#[derive(Debug, Copy, Clone)]
-struct Fee {
-    pub numerator: u32,
-    pub denominator: u32,
-}
-
-impl From<(u32, u32)> for Fee {
-    fn from(value: (u32, u32)) -> Self {
-        Fee {
-            numerator: value.0,
-            denominator: value.1,
-        }
-    }
-}
-
 pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32, u32)) -> Option<Balance> {
-    let fee: Fee = fee.into();
+    let numerator = fee.0;
+    let denominator = fee.1;
 
-    if fee.denominator.is_zero() || fee.numerator.is_zero() {
+    if denominator.is_zero() || numerator.is_zero() {
         return Some(0);
     }
 
-    if fee.denominator == fee.numerator {
+    if denominator == numerator {
         return Some(amount);
     }
 
     amount
-        .checked_div(fee.denominator as Balance)?
-        .checked_mul(fee.numerator as Balance)
+        .checked_div(denominator as Balance)?
+        .checked_mul(numerator as Balance)
 }
 
 #[cfg(test)]
