@@ -1,7 +1,6 @@
 pub type Balance = u128;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
-/// Returns `ArithmeticError` in case of error
 pub fn calculate_out_given_in(
     reserve_in: Balance,
     reserve_out: Balance,
@@ -16,7 +15,6 @@ pub fn calculate_out_given_in(
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
-/// Returns `ArithmeticError` in case of error
 pub fn calculate_in_given_out(
     reserve_in: Balance,
     reserve_out: Balance,
