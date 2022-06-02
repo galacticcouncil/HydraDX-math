@@ -1,4 +1,4 @@
-pub type Balance = u128;
+use crate::types::Balance;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 pub fn calculate_out_given_in(
