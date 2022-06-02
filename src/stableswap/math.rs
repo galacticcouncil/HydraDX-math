@@ -72,23 +72,23 @@ pub(crate) mod two_asset_pool_math {
 
         let mut d = s_hp;
 
-        let (n_coins_hp, ann_hp, precision_hp) = to_u256!(n_coins, ann, precision);
+        let (ann_hp, precision_hp) = to_u256!(ann, precision);
 
         for _ in 0..255 {
             let d_p = xp_hp
                 .iter()
-                .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins_hp)?))?;
+                .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
             let d_prev = d;
 
             d = ann_hp
                 .checked_mul(s_hp)?
-                .checked_add(d_p.checked_mul(n_coins_hp)?)?
+                .checked_add(d_p.checked_mul(n_coins)?)?
                 .checked_mul(d)?
                 .checked_div(
                     ann_hp
                         .checked_sub(U256::one())?
                         .checked_mul(d)?
-                        .checked_add(n_coins_hp.checked_add(U256::one())?.checked_mul(d_p)?)?,
+                        .checked_add(n_coins.checked_add(U256::one())?.checked_mul(d_p)?)?,
                 )?
                 .checked_add(two_u256)?; // adding two here is sufficient to account for rounding
                                          // errors, AS LONG AS the minimum reserves are 2 for each
@@ -282,8 +282,8 @@ pub(crate) mod two_asset_pool_math {
 #[cfg(test)]
 mod invariants {
     use super::two_asset_pool_math::*;
-    use super::{calculate_in_given_out, calculate_out_given_in};
     use super::Balance;
+    use super::{calculate_in_given_out, calculate_out_given_in};
     use proptest::prelude::*;
     use proptest::proptest;
 
