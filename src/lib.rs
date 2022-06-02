@@ -8,10 +8,6 @@
 #[cfg(all(not(feature = "std"), test))]
 extern crate std;
 
-#[cfg(feature = "p12")]
-#[macro_use]
-extern crate lazy_static;
-
 #[cfg(test)]
 #[macro_use]
 extern crate approx;
@@ -22,9 +18,6 @@ pub mod liquidity_mining;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
-
-#[cfg(feature = "p12")]
-pub mod p12;
 
 #[cfg(test)]
 mod tests;

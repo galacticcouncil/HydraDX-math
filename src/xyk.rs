@@ -12,7 +12,7 @@ const FIXED_ROUND_UP: Balance = 1;
 /// Calculating spot price given reserve of selling asset and reserve of buying asset.
 /// Formula : OUT_RESERVE * AMOUNT / IN_RESERVE
 ///
-/// - `in_reserve` - reserve amount of selling asset
+/// - `in_reserve` - reserve amount of selling ass
 /// - `out_reserve` - reserve amount of buying asset
 /// - `amount` - amount
 ///

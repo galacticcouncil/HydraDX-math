@@ -5,15 +5,6 @@ use fixed::types::U89F39 as FixedBalance;
 
 use hydra_dx_math::transcendental::pow;
 
-#[cfg(feature = "p12")]
-use hydra_dx_math::p12::p12::{Balance256, pow as pow12};
-#[cfg(feature = "p12")]
-use hydra_dx_math::types::Balance;
-#[cfg(feature = "p12")]
-use hydra_dx_math::types::HYDRA_ONE;
-#[cfg(feature = "p12")]
-use std::convert::TryInto;
-
 use num_traits::{One, Zero};
 use rand::distributions::uniform::SampleUniform;
 use rand::{
@@ -51,20 +42,6 @@ where
         .collect()
 }
 
-#[cfg(feature = "p12")]
-fn convert_from_fixed<F>(value: F) -> Option<Balance256>
-where
-    F: FixedUnsigned,
-    F::Bits:
-        Zero + One + PartialEq + SampleUniform + Shr + ShrAssign + ShlAssign + ToFixed + Copy + AddAssign + BitOrAssign,
-{
-    let w: Balance = value.int().to_num();
-    let frac: Balance = value.frac().checked_mul(F::from_num(HYDRA_ONE))?.to_num();
-
-    let r = w.checked_mul(HYDRA_ONE)?.checked_add(frac)?;
-    Some(Balance256::from(r))
-}
-
 fn bench_pow<F>(c: &mut Criterion)
 where
     F: FixedUnsigned,
@@ -84,22 +61,6 @@ where
         b.iter(|| {
             for (o, e) in &fixed_dataset {
                 pow::<F, F>(black_box(*o), black_box(*e)).unwrap();
-            }
-        })
-    });
-
-    #[cfg(feature = "p12")]
-    let balance_dataset: Vec<(Balance256, Balance256)> = bits_dataset
-        .into_iter()
-        .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
-        .map(|(l, r)| (convert_from_fixed(l).unwrap(), convert_from_fixed(r).unwrap()))
-        .collect();
-
-    #[cfg(feature = "p12")]
-    c.bench_function("pow12", |b| {
-        b.iter(|| {
-            for (o, e) in &balance_dataset{
-                pow12(black_box(*o), black_box(*e)).unwrap();
             }
         })
     });
