@@ -15,6 +15,7 @@ extern crate approx;
 pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
+pub mod stableswap;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
