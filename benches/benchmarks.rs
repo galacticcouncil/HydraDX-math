@@ -52,7 +52,8 @@ where
     let bits_dataset: Vec<(F::Bits, F::Bits)> =
         gen_tuple_dataset(DATASET_SIZE, &F::from_num(0).to_bits(), &F::from_num(2).to_bits());
 
-    let fixed_dataset: Vec<(F, F)> = bits_dataset.clone()
+    let fixed_dataset: Vec<(F, F)> = bits_dataset
+        .clone()
         .into_iter()
         .map(|(l, r)| (F::from_bits(l), F::from_bits(r)))
         .collect();
