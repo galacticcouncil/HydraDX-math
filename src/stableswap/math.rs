@@ -40,6 +40,15 @@ pub(crate) mod two_asset_pool_math {
         (0..2).try_fold(amplification, |acc, _| acc.checked_mul(2u128))
     }
 
+    #[inline]
+    fn abs_diff(d0: U256, d1: U256) -> Option<U256> {
+        if d1 > d0 {
+            d1.checked_sub(d0)
+        } else {
+            d0.checked_sub(d1)
+        }
+    }
+
     /// Calculate `d` so the Stableswap invariant does not change.
     ///
     /// Note: this works for two asset pools only!
@@ -92,18 +101,14 @@ pub(crate) mod two_asset_pool_math {
                         .checked_mul(d)?
                         .checked_add(n_coins.checked_add(U256::one())?.checked_mul(d_p)?)?,
                 )?
-                .checked_add(two_u256)?; // adding two here is sufficient to account for rounding
-                                         // errors, AS LONG AS the minimum reserves are 2 for each
-                                         // asset. I.e., as long as xp_hp[0] >= 2 and xp_hp[1] >= 2
+                // adding two here is sufficient to account for rounding
+                // errors, AS LONG AS the minimum reserves are 2 for each
+                // asset. I.e., as long as xp_hp[0] >= 2 and xp_hp[1] >= 2
+                // adding two guarantees that this function will return
+                // a value larger than or equal to the correct D invariant
+                .checked_add(two_u256)?;
 
-            // adding two guarantees that this function will return
-            // a value larger than or equal to the correct D invariant
-
-            if d > d_prev {
-                if d.checked_sub(d_prev)? <= precision_hp {
-                    return Balance::try_from(d).ok();
-                }
-            } else if d_prev.checked_sub(d)? <= precision_hp {
+            if abs_diff(d, d_prev)? <= precision_hp {
                 return Balance::try_from(d).ok();
             }
         }
@@ -175,17 +180,13 @@ pub(crate) mod two_asset_pool_math {
                 .checked_mul(y)?
                 .checked_add(c)?
                 .checked_div(two_hp.checked_mul(y)?.checked_add(b)?.checked_sub(d_hp)?)?
+                // Adding 2 guarantees that at each iteration, we are rounding so as to *overestimate* compared
+                // to exact division.
+                // Note that while this should guarantee convergence when y is decreasing, it may cause
+                // issues when y is increasing.
                 .checked_add(two_hp)?;
-            // Adding 2 guarantees that at each iteration, we are rounding so as to *overestimate* compared
-            // to exact division.
-            // Note that while this should guarantee convergence when y is decreasing, it may cause
-            // issues when y is increasing.
 
-            if y > y_prev {
-                if y.checked_sub(y_prev)? <= precision_hp {
-                    return Balance::try_from(y).ok();
-                }
-            } else if y_prev.checked_sub(y)? <= precision_hp {
+            if abs_diff(y, y_prev)? <= precision_hp {
                 return Balance::try_from(y).ok();
             }
         }
