@@ -2,7 +2,7 @@ use crate::types::Balance;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// N - number of iterations to use for Newton's formula
-pub fn calculate_out_given_in<const N: usize>(
+pub fn calculate_out_given_in<const N: u8>(
     reserve_in: Balance,
     reserve_out: Balance,
     amount_in: Balance,
@@ -17,7 +17,7 @@ pub fn calculate_out_given_in<const N: usize>(
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// N - number of iterations to use for Newton's formula
-pub fn calculate_in_given_out<const N: usize>(
+pub fn calculate_in_given_out<const N: u8>(
     reserve_in: Balance,
     reserve_out: Balance,
     amount_out: Balance,
@@ -59,7 +59,7 @@ pub(crate) mod two_asset_pool_math {
     /// - `xp`: reserves of asset a and b.
     /// - `ann`: amplification coefficient multiplied by `2^2` ( number of assets in pool)
     /// - `precision`:  convergence precision
-    pub(crate) fn calculate_d<const N: usize>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
+    pub(crate) fn calculate_d<const N: u8>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
         let two_u256 = to_u256!(2_u128);
         let n_coins = two_u256;
 
@@ -111,7 +111,7 @@ pub(crate) mod two_asset_pool_math {
     }
 
     /// Calculate new amount of reserve OUT given amount to be added to the pool
-    pub(crate) fn calculate_y_given_in<const N: usize>(
+    pub(crate) fn calculate_y_given_in<const N: u8>(
         amount: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
@@ -126,7 +126,7 @@ pub(crate) mod two_asset_pool_math {
     }
 
     /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
-    pub(crate) fn calculate_y_given_out<const N: usize>(
+    pub(crate) fn calculate_y_given_out<const N: u8>(
         amount: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
@@ -155,7 +155,7 @@ pub(crate) mod two_asset_pool_math {
     /// P = reserve
     ///
     /// Note: this implementation works only for 2 assets pool!
-    fn calculate_y<const N: usize>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
+    fn calculate_y<const N: u8>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
         let (d_hp, two_hp, ann_hp, new_reserve_hp, precision_hp) = to_u256!(d, 2u128, ann, reserve, precision);
 
         let n_coins_hp = two_hp;
@@ -196,7 +196,7 @@ pub(crate) mod two_asset_pool_math {
 
 #[cfg(test)]
 mod test_two_assets_math {
-    const ITERATIONS: usize = 255;
+    const ITERATIONS: u8 = 255;
 
     use super::two_asset_pool_math::*;
 
@@ -309,7 +309,7 @@ mod invariants {
 
     pub const ONE: Balance = 1_000_000_000_000;
 
-    const ITERATIONS: usize = 255;
+    const ITERATIONS: u8 = 255;
 
     const RESERVE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
     const LOW_RESERVE_RANGE: (Balance, Balance) = (10_u128, 11_u128);
