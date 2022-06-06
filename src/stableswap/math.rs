@@ -313,7 +313,7 @@ mod invariants {
     }
 
     fn amplification() -> impl Strategy<Value = Balance> {
-        5..10000u128
+        2..10000u128
     }
 
     proptest! {
