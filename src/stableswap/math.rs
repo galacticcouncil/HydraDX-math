@@ -215,6 +215,14 @@ pub(crate) mod two_asset_pool_math {
     }
 
     #[test]
+    fn test_d_with_zero_reserves() {
+        let precision = 1_u128;
+        let reserves = [0u128, 0u128];
+        let ann = 4u128;
+        assert_eq!(calculate_d(&reserves, ann, precision), Some(0u128));
+    }
+
+    #[test]
     fn test_y_given_in() {
         let precision = 1_u128;
         let reserves = [1000u128, 2000u128];
@@ -294,7 +302,6 @@ mod invariants {
     const HIGH_RESERVE_RANGE: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
 
     fn trade_amount() -> impl Strategy<Value = Balance> {
-        //Just(1000 * ONE)
         1000..10000 * ONE
     }
 
