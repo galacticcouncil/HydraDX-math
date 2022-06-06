@@ -1,7 +1,8 @@
 use crate::types::Balance;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
-pub fn calculate_out_given_in(
+/// N - number of iterations to use for Newton's formula
+pub fn calculate_out_given_in<const N: usize>(
     reserve_in: Balance,
     reserve_out: Balance,
     amount_in: Balance,
@@ -10,12 +11,13 @@ pub fn calculate_out_given_in(
 ) -> Option<Balance> {
     let ann = two_asset_pool_math::calculate_ann(amplification)?;
     let new_reserve_out =
-        two_asset_pool_math::calculate_y_given_in(amount_in, reserve_in, reserve_out, ann, precision)?;
+        two_asset_pool_math::calculate_y_given_in::<N>(amount_in, reserve_in, reserve_out, ann, precision)?;
     reserve_out.checked_sub(new_reserve_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
-pub fn calculate_in_given_out(
+/// N - number of iterations to use for Newton's formula
+pub fn calculate_in_given_out<const N: usize>(
     reserve_in: Balance,
     reserve_out: Balance,
     amount_out: Balance,
@@ -24,7 +26,7 @@ pub fn calculate_in_given_out(
 ) -> Option<Balance> {
     let ann = two_asset_pool_math::calculate_ann(amplification)?;
     let new_reserve_in =
-        two_asset_pool_math::calculate_y_given_out(amount_out, reserve_in, reserve_out, ann, precision)?;
+        two_asset_pool_math::calculate_y_given_out::<N>(amount_out, reserve_in, reserve_out, ann, precision)?;
     new_reserve_in.checked_sub(reserve_in)
 }
 
@@ -57,7 +59,7 @@ pub(crate) mod two_asset_pool_math {
     /// - `xp`: reserves of asset a and b.
     /// - `ann`: amplification coefficient multiplied by `2^2` ( number of assets in pool)
     /// - `precision`:  convergence precision
-    pub(crate) fn calculate_d(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
+    pub(crate) fn calculate_d<const N: usize>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
         let two_u256 = to_u256!(2_u128);
         let n_coins = two_u256;
 
@@ -74,7 +76,7 @@ pub(crate) mod two_asset_pool_math {
 
         let (ann_hp, precision_hp) = to_u256!(ann, precision);
 
-        for _ in 0..255 {
+        for _ in 0..N {
             let d_p = xp_hp
                 .iter()
                 .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
@@ -109,7 +111,7 @@ pub(crate) mod two_asset_pool_math {
     }
 
     /// Calculate new amount of reserve OUT given amount to be added to the pool
-    pub(crate) fn calculate_y_given_in(
+    pub(crate) fn calculate_y_given_in<const N: usize>(
         amount: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
@@ -118,13 +120,13 @@ pub(crate) mod two_asset_pool_math {
     ) -> Option<Balance> {
         let new_reserve_in = reserve_in.checked_add(amount)?;
 
-        let d = calculate_d(&[reserve_in, reserve_out], ann, precision)?;
+        let d = calculate_d::<N>(&[reserve_in, reserve_out], ann, precision)?;
 
-        calculate_y(new_reserve_in, d, ann, precision)
+        calculate_y::<N>(new_reserve_in, d, ann, precision)
     }
 
     /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
-    pub(crate) fn calculate_y_given_out(
+    pub(crate) fn calculate_y_given_out<const N: usize>(
         amount: Balance,
         reserve_in: Balance,
         reserve_out: Balance,
@@ -133,9 +135,9 @@ pub(crate) mod two_asset_pool_math {
     ) -> Option<Balance> {
         let new_reserve_out = reserve_out.checked_sub(amount)?;
 
-        let d = calculate_d(&[reserve_in, reserve_out], ann, precision)?;
+        let d = calculate_d::<N>(&[reserve_in, reserve_out], ann, precision)?;
 
-        calculate_y(new_reserve_out, d, ann, precision)
+        calculate_y::<N>(new_reserve_out, d, ann, precision)
     }
 
     /// Calculate new reserve amount of an asset given updated reserve of secondary asset and initial `d`
@@ -153,7 +155,7 @@ pub(crate) mod two_asset_pool_math {
     /// P = reserve
     ///
     /// Note: this implementation works only for 2 assets pool!
-    fn calculate_y(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
+    fn calculate_y<const N: usize>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
         let (d_hp, two_hp, ann_hp, new_reserve_hp, precision_hp) = to_u256!(d, 2u128, ann, reserve, precision);
 
         let n_coins_hp = two_hp;
@@ -167,7 +169,7 @@ pub(crate) mod two_asset_pool_math {
         let b = s.checked_add(d_hp.checked_div(ann_hp)?)?;
         let mut y = d_hp;
 
-        for _ in 0..255 {
+        for _ in 0..N {
             let y_prev = y;
             y = y
                 .checked_mul(y)?
@@ -190,6 +192,13 @@ pub(crate) mod two_asset_pool_math {
 
         None
     }
+}
+
+#[cfg(test)]
+mod test_two_assets_math {
+    const ITERATIONS: usize = 255;
+
+    use super::two_asset_pool_math::*;
 
     #[test]
     fn test_ann() {
@@ -204,12 +213,15 @@ pub(crate) mod two_asset_pool_math {
 
         let reserves = [1000u128, 1000u128];
         let ann = 4u128;
-        assert_eq!(calculate_d(&reserves, ann, precision), Some(2000u128 + 2u128));
+        assert_eq!(
+            calculate_d::<ITERATIONS>(&reserves, ann, precision),
+            Some(2000u128 + 2u128)
+        );
 
         let reserves = [1_000_000_000_000_000_000_000u128, 1_000_000_000_000_000_000_000u128];
         let ann = 4u128;
         assert_eq!(
-            calculate_d(&reserves, ann, precision),
+            calculate_d::<ITERATIONS>(&reserves, ann, precision),
             Some(2_000_000_000_000_000_000_000u128 + 2u128)
         );
     }
@@ -219,7 +231,7 @@ pub(crate) mod two_asset_pool_math {
         let precision = 1_u128;
         let reserves = [0u128, 0u128];
         let ann = 4u128;
-        assert_eq!(calculate_d(&reserves, ann, precision), Some(0u128));
+        assert_eq!(calculate_d::<ITERATIONS>(&reserves, ann, precision), Some(0u128));
     }
 
     #[test]
@@ -229,13 +241,13 @@ pub(crate) mod two_asset_pool_math {
         let ann = 4u128;
 
         let amount_in = 100u128;
-        assert_eq!(calculate_d(&reserves, ann, precision), Some(2942u128));
+        assert_eq!(calculate_d::<ITERATIONS>(&reserves, ann, precision), Some(2942u128));
         assert_eq!(
-            calculate_y_given_in(amount_in, reserves[0], reserves[1], ann, precision),
+            calculate_y_given_in::<ITERATIONS>(amount_in, reserves[0], reserves[1], ann, precision),
             Some(2000u128 - 121u128)
         );
         assert_eq!(
-            calculate_d(&[1100u128, 2000u128 - 125u128], ann, precision),
+            calculate_d::<ITERATIONS>(&[1100u128, 2000u128 - 125u128], ann, precision),
             Some(2942u128)
         );
     }
@@ -250,14 +262,14 @@ pub(crate) mod two_asset_pool_math {
 
         let expected_in = 83u128;
 
-        assert_eq!(calculate_d(&reserves, ann, precision), Some(2942u128));
+        assert_eq!(calculate_d::<ITERATIONS>(&reserves, ann, precision), Some(2942u128));
 
         assert_eq!(
-            calculate_y_given_out(amount_out, reserves[0], reserves[1], ann, precision),
+            calculate_y_given_out::<ITERATIONS>(amount_out, reserves[0], reserves[1], ann, precision),
             Some(1000u128 + expected_in)
         );
         assert_eq!(
-            calculate_d(&[1000u128 + expected_in, 2000u128 - amount_out], ann, precision),
+            calculate_d::<ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], ann, precision),
             Some(2946u128)
         );
     }
@@ -269,7 +281,7 @@ pub(crate) mod two_asset_pool_math {
 
         let precision = 1u128;
 
-        let result = calculate_d(&[500000000000008580273458u128, 10u128], ann, precision);
+        let result = calculate_d::<ITERATIONS>(&[500000000000008580273458u128, 10u128], ann, precision);
 
         assert!(result.is_some());
     }
@@ -281,7 +293,7 @@ pub(crate) mod two_asset_pool_math {
 
         let precision = 1u128;
 
-        let result = calculate_d(&[500000000000000000000010u128, 11u128], ann, precision);
+        let result = calculate_d::<ITERATIONS>(&[500000000000000000000010u128, 11u128], ann, precision);
 
         assert!(result.is_some());
     }
@@ -296,6 +308,8 @@ mod invariants {
     use proptest::proptest;
 
     pub const ONE: Balance = 1_000_000_000_000;
+
+    const ITERATIONS: usize = 255;
 
     const RESERVE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
     const LOW_RESERVE_RANGE: (Balance, Balance) = (10_u128, 11_u128);
@@ -334,7 +348,7 @@ mod invariants {
 
             let precision = 1u128;
 
-            let d = calculate_d(&[reserve_in, reserve_out], ann, precision);
+            let d = calculate_d::<ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
 
             assert!(d.is_some());
         }
@@ -352,13 +366,13 @@ mod invariants {
 
             let precision = 1u128;
 
-            let d1 = calculate_d(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_out_given_in(reserve_in, reserve_out, amount_in, amp, precision);
+            let result = calculate_out_given_in::<ITERATIONS>(reserve_in, reserve_out, amount_in, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
+            let d2 = calculate_d::<ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
 
             assert!(d2 >= d1);
         }
@@ -376,13 +390,13 @@ mod invariants {
 
             let precision = 1u128;
 
-            let d1 = calculate_d(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_out_given_in(reserve_in, reserve_out, amount_in, amp, precision);
+            let result = calculate_out_given_in::<ITERATIONS>(reserve_in, reserve_out, amount_in, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
+            let d2 = calculate_d::<ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
 
             assert!(d2 >= d1);
         }
@@ -400,13 +414,13 @@ mod invariants {
 
             let precision = 1u128;
 
-            let d1 = calculate_d(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_in_given_out(reserve_in, reserve_out, amount_out, amp, precision);
+            let result = calculate_in_given_out::<ITERATIONS>(reserve_in, reserve_out, amount_out, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d(&[reserve_in + result.unwrap(), reserve_out - amount_out ], ann, precision).unwrap();
+            let d2 = calculate_d::<ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], ann, precision).unwrap();
 
             assert!(d2 >= d1);
         }
