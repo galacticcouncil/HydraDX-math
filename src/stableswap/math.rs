@@ -1,4 +1,7 @@
+use crate::to_u256;
 use crate::types::Balance;
+use num_traits::Zero;
+use primitive_types::U256;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// N - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
@@ -32,6 +35,70 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
     new_reserve_in.checked_sub(reserve_in)
 }
 
+/// Calculate shares amount after liquidity is added to the pool.
+///
+/// No fee applied. Currently is expected that liquidity of both assets are added to the pool.
+///
+/// share_amount = share_supply * ( d1 - d0 ) / d0
+///
+/// Returns `Some(shares)` when successful.
+pub fn calculate_add_liquidity_shares<const N: u8>(
+    initial_reserves: &[Balance; 2],
+    updated_reserves: &[Balance; 2],
+    amplification: Balance,
+    precision: Balance,
+    share_issuance: Balance,
+) -> Option<Balance> {
+    let ann = two_asset_pool_math::calculate_ann(amplification)?;
+
+    let initial_d = two_asset_pool_math::calculate_d::<N>(initial_reserves, ann, precision)?;
+
+    // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
+    // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
+    let updated_d = two_asset_pool_math::calculate_d::<N>(updated_reserves, ann, precision)?.checked_sub(2_u128)?;
+
+    if updated_d < initial_d {
+        return None;
+    }
+
+    if share_issuance == 0 {
+        // if first liquidity added
+        Some(updated_d)
+    } else {
+        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d - initial_d, initial_d);
+        let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
+        Balance::try_from(share_amount).ok()
+    }
+}
+
+/// Given amount of shares and asset reserves, calculate corresponding amounts of each asset to be withdrawn.
+pub fn calculate_remove_liquidity_amounts(
+    reserves: &[Balance; 2],
+    shares: Balance,
+    share_asset_issuance: Balance,
+) -> Option<(Balance, Balance)> {
+    if share_asset_issuance.is_zero() {
+        return None;
+    }
+
+    let (shares_hp, issuance_hp) = to_u256!(shares, share_asset_issuance);
+
+    let calculate_amount = |asset_reserve: Balance| {
+        Balance::try_from(
+            to_u256!(asset_reserve)
+                .checked_mul(shares_hp)?
+                .checked_div(issuance_hp)?,
+        )
+        .ok()
+    };
+
+    let amount_a = calculate_amount(reserves[0])?;
+    let amount_b = calculate_amount(reserves[1])?;
+
+    Some((amount_a, amount_b))
+}
+
+/// Stableswap/curve math reduced to two assets.
 pub(crate) mod two_asset_pool_math {
     use super::Balance;
     use crate::to_u256;
@@ -323,7 +390,7 @@ mod test_two_assets_math {
 mod invariants {
     use super::two_asset_pool_math::*;
     use super::Balance;
-    use super::{calculate_in_given_out, calculate_out_given_in};
+    use super::{calculate_add_liquidity_shares, calculate_in_given_out, calculate_out_given_in};
     use proptest::prelude::*;
     use proptest::proptest;
 
@@ -361,8 +428,8 @@ mod invariants {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
-        fn test_d_extreme(reserve_in in  low_asset_reserve(),
-            reserve_out in  high_asset_reserve(),
+        fn test_d_extreme(reserve_in in low_asset_reserve(),
+            reserve_out in high_asset_reserve(),
             amp in amplification(),
         ) {
             let ann = amp * 4u128;
@@ -379,8 +446,8 @@ mod invariants {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
         fn test_out_given_in_extreme(amount_in in high_trade_amount(),
-            reserve_in in  low_asset_reserve(),
-            reserve_out in  high_asset_reserve(),
+            reserve_in in low_asset_reserve(),
+            reserve_out in high_asset_reserve(),
             amp in amplification(),
         ) {
             let ann = amp * 4u128;
@@ -403,8 +470,8 @@ mod invariants {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
         fn test_out_given_in(amount_in in trade_amount(),
-            reserve_in in  asset_reserve(),
-            reserve_out in  asset_reserve(),
+            reserve_in in asset_reserve(),
+            reserve_out in asset_reserve(),
             amp in amplification(),
         ) {
             let ann = amp * 4u128;
@@ -427,8 +494,8 @@ mod invariants {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
         fn test_in_given_out(amount_out in trade_amount(),
-            reserve_in in  asset_reserve(),
-            reserve_out in  asset_reserve(),
+            reserve_in in asset_reserve(),
+            reserve_out in asset_reserve(),
             amp in amplification(),
         ) {
             let ann = amp*4u128;
@@ -444,6 +511,28 @@ mod invariants {
             let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], ann, precision).unwrap();
 
             assert!(d2 >= d1);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_add_liquidity(
+            amount_a in trade_amount(),
+            amount_b in trade_amount(),
+            reserve_a in asset_reserve(),
+            reserve_b in asset_reserve(),
+            amp in amplification(),
+            issuance in asset_reserve(),
+        ) {
+            let precision = 1u128;
+
+            let initial_reserves = &[reserve_a, reserve_b];
+            let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
+
+            let result = calculate_add_liquidity_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
+
+            assert!(result.is_some());
         }
     }
 }
