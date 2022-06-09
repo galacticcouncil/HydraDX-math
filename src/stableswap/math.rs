@@ -110,7 +110,7 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if abs_diff(d, d_prev)? <= precision_hp {
+            if abs_diff(d, d_prev)? < precision_hp {
                 return Balance::try_from(d).ok();
             }
         }
@@ -188,7 +188,7 @@ pub(crate) mod two_asset_pool_math {
                 // issues when y is increasing.
                 .checked_add(two_hp)?;
 
-            if abs_diff(y, y_prev)? <= precision_hp {
+            if abs_diff(y, y_prev)? < precision_hp {
                 return Balance::try_from(y).ok();
             }
         }
