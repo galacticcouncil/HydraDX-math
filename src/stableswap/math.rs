@@ -202,8 +202,8 @@ mod test_two_assets_math {
     const D_ITERATIONS: u8 = 255;
     const Y_ITERATIONS: u8 = 255;
 
-    use crate::types::Balance;
     use super::two_asset_pool_math::*;
+    use crate::types::Balance;
 
     #[test]
     fn test_ann() {
@@ -304,10 +304,10 @@ mod test_two_assets_math {
     }
 
     #[test]
-    fn test_case_03(){
-        let reserve_in : Balance = 95329220803912837655;
-        let reserve_out : Balance = 57374284583541134907;
-        let amp : u128 = 310;
+    fn test_case_03() {
+        let reserve_in: Balance = 95329220803912837655;
+        let reserve_out: Balance = 57374284583541134907;
+        let amp: u128 = 310;
 
         let ann = amp * 4u128;
 
