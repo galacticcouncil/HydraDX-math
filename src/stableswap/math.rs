@@ -110,7 +110,7 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if abs_diff(d, d_prev)? < precision_hp {
+            if abs_diff(d, d_prev)? <= precision_hp {
                 return Balance::try_from(d).ok();
             }
         }
@@ -188,7 +188,7 @@ pub(crate) mod two_asset_pool_math {
                 // issues when y is increasing.
                 .checked_add(two_hp)?;
 
-            if abs_diff(y, y_prev)? < precision_hp {
+            if abs_diff(y, y_prev)? <= precision_hp {
                 return Balance::try_from(y).ok();
             }
         }
@@ -202,6 +202,7 @@ mod test_two_assets_math {
     const D_ITERATIONS: u8 = 255;
     const Y_ITERATIONS: u8 = 255;
 
+    use crate::types::Balance;
     use super::two_asset_pool_math::*;
 
     #[test]
@@ -300,6 +301,21 @@ mod test_two_assets_math {
         let result = calculate_d::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], ann, precision);
 
         assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_case_03(){
+        let reserve_in : Balance = 95329220803912837655;
+        let reserve_out : Balance = 57374284583541134907;
+        let amp : u128 = 310;
+
+        let ann = amp * 4u128;
+
+        let precision = 1u128;
+
+        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
+
+        assert!(d.is_some());
     }
 }
 
