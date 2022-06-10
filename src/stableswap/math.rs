@@ -119,12 +119,10 @@ pub(crate) mod two_asset_pool_math {
     }
 
     #[inline]
-    fn has_converged( v0: U256, v1: U256, precision: U256) -> Option<bool>{
+    fn has_converged(v0: U256, v1: U256, precision: U256) -> Option<bool> {
         let diff = abs_diff(v0, v1)?;
 
-        if v1 <= v0 && diff < precision{
-            return Some(true);
-        }else if v1 > v0 && diff <= precision{
+        if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
             return Some(true);
         }
 
@@ -190,7 +188,7 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if matches!(has_converged(d_prev, d, precision_hp), Some(true)){
+            if matches!(has_converged(d_prev, d, precision_hp), Some(true)) {
                 // If runtime-benchmarks - dont return and force max iterations
                 #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(d).ok();
