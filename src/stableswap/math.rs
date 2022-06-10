@@ -110,23 +110,24 @@ pub(crate) mod two_asset_pool_math {
     }
 
     #[inline]
-    fn abs_diff(d0: U256, d1: U256) -> Option<U256> {
-        if d1 > d0 {
-            d1.checked_sub(d0)
+    fn abs_diff(d0: U256, d1: U256) -> U256 {
+        if d1 >= d0 {
+            // This is safe due the previous condition
+            d1 - d0
         } else {
-            d0.checked_sub(d1)
+            d0 - d1
         }
     }
 
     #[inline]
-    fn has_converged(v0: U256, v1: U256, precision: U256) -> Option<bool> {
-        let diff = abs_diff(v0, v1)?;
+    fn has_converged(v0: U256, v1: U256, precision: U256) -> bool {
+        let diff = abs_diff(v0, v1);
 
         if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
-            return Some(true);
+            return true;
         }
 
-        Some(false)
+        false
     }
 
     /// Calculate `d` so the Stableswap invariant does not change.
@@ -188,7 +189,7 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if matches!(has_converged(d_prev, d, precision_hp), Some(true)) {
+            if has_converged(d_prev, d, precision_hp) {
                 // If runtime-benchmarks - dont return and force max iterations
                 #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(d).ok();
@@ -269,7 +270,7 @@ pub(crate) mod two_asset_pool_math {
                 // issues when y is increasing.
                 .checked_add(two_hp)?;
 
-            if matches!(has_converged(y_prev, y, precision_hp), Some(true)) {
+            if has_converged(y_prev, y, precision_hp) {
                 // If runtime-benchmarks - dont return and force max iterations
                 #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(y).ok();
