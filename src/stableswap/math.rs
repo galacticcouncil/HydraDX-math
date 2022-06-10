@@ -118,6 +118,19 @@ pub(crate) mod two_asset_pool_math {
         }
     }
 
+    #[inline]
+    fn has_converged( v0: U256, v1: U256, precision: U256) -> Option<bool>{
+        let diff = abs_diff(v0, v1)?;
+
+        if v1 <= v0 && diff < precision{
+            return Some(true);
+        }else if v1 > v0 && diff <= precision{
+            return Some(true);
+        }
+
+        Some(false)
+    }
+
     /// Calculate `d` so the Stableswap invariant does not change.
     ///
     /// Note: this works for two asset pools only!
@@ -177,11 +190,14 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if abs_diff(d, d_prev)? <= precision_hp {
+            if matches!(has_converged(d_prev, d, precision_hp), Some(true)){
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(d).ok();
             }
         }
-        None
+
+        Balance::try_from(d).ok()
     }
 
     /// Calculate new amount of reserve OUT given amount to be added to the pool
@@ -255,19 +271,21 @@ pub(crate) mod two_asset_pool_math {
                 // issues when y is increasing.
                 .checked_add(two_hp)?;
 
-            if abs_diff(y, y_prev)? <= precision_hp {
+            if matches!(has_converged(y_prev, y, precision_hp), Some(true)) {
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(y).ok();
             }
         }
 
-        None
+        Balance::try_from(y).ok()
     }
 }
 
 #[cfg(test)]
 mod test_two_assets_math {
-    const D_ITERATIONS: u8 = 255;
-    const Y_ITERATIONS: u8 = 255;
+    const D_ITERATIONS: u8 = 128;
+    const Y_ITERATIONS: u8 = 64;
 
     use super::two_asset_pool_math::*;
     use crate::types::Balance;
