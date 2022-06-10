@@ -105,6 +105,7 @@ pub(crate) mod two_asset_pool_math {
     use num_traits::Zero;
     use primitive_types::U256;
 
+    /// amplification * n^n where n is number of assets in pool.
     pub(crate) fn calculate_ann(amplification: Balance) -> Option<Balance> {
         (0..2).try_fold(amplification, |acc, _| acc.checked_mul(2u128))
     }
