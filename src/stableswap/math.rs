@@ -229,7 +229,7 @@ pub(crate) mod two_asset_pool_math {
     /// P = reserve
     ///
     /// Note: this implementation works only for 2 assets pool!
-    fn calculate_y<const N: u8>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
+    pub(crate) fn calculate_y<const N: u8>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
         let (d_hp, two_hp, ann_hp, new_reserve_hp, precision_hp) = to_u256!(d, 2u128, ann, reserve, precision);
 
         let n_coins_hp = two_hp;
