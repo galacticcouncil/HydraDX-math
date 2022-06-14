@@ -105,17 +105,30 @@ pub(crate) mod two_asset_pool_math {
     use num_traits::Zero;
     use primitive_types::U256;
 
+    /// amplification * n^n where n is number of assets in pool.
     pub(crate) fn calculate_ann(amplification: Balance) -> Option<Balance> {
         (0..2).try_fold(amplification, |acc, _| acc.checked_mul(2u128))
     }
 
     #[inline]
-    fn abs_diff(d0: U256, d1: U256) -> Option<U256> {
-        if d1 > d0 {
-            d1.checked_sub(d0)
+    fn abs_diff(d0: U256, d1: U256) -> U256 {
+        if d1 >= d0 {
+            // This is safe due the previous condition
+            d1 - d0
         } else {
-            d0.checked_sub(d1)
+            d0 - d1
         }
+    }
+
+    #[inline]
+    fn has_converged(v0: U256, v1: U256, precision: U256) -> bool {
+        let diff = abs_diff(v0, v1);
+
+        if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
+            return true;
+        }
+
+        false
     }
 
     /// Calculate `d` so the Stableswap invariant does not change.
@@ -177,11 +190,14 @@ pub(crate) mod two_asset_pool_math {
                 // a value larger than or equal to the correct D invariant
                 .checked_add(two_u256)?;
 
-            if abs_diff(d, d_prev)? <= precision_hp {
+            if has_converged(d_prev, d, precision_hp) {
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(d).ok();
             }
         }
-        None
+
+        Balance::try_from(d).ok()
     }
 
     /// Calculate new amount of reserve OUT given amount to be added to the pool
@@ -255,19 +271,21 @@ pub(crate) mod two_asset_pool_math {
                 // issues when y is increasing.
                 .checked_add(two_hp)?;
 
-            if abs_diff(y, y_prev)? <= precision_hp {
+            if has_converged(y_prev, y, precision_hp) {
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
                 return Balance::try_from(y).ok();
             }
         }
 
-        None
+        Balance::try_from(y).ok()
     }
 }
 
 #[cfg(test)]
 mod test_two_assets_math {
-    const D_ITERATIONS: u8 = 255;
-    const Y_ITERATIONS: u8 = 255;
+    const D_ITERATIONS: u8 = 128;
+    const Y_ITERATIONS: u8 = 64;
 
     use super::two_asset_pool_math::*;
     use crate::types::Balance;
