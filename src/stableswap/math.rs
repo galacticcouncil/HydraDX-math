@@ -99,7 +99,7 @@ pub fn calculate_remove_liquidity_amounts(
 }
 
 /// Stableswap/curve math reduced to two assets.
-pub(crate) mod two_asset_pool_math {
+pub mod two_asset_pool_math {
     use super::Balance;
     use crate::to_u256;
     use num_traits::Zero;
@@ -150,7 +150,7 @@ pub(crate) mod two_asset_pool_math {
     /// - `xp`: reserves of asset a and b.
     /// - `ann`: amplification coefficient multiplied by `2^2` ( number of assets in pool)
     /// - `precision`:  convergence precision
-    pub(crate) fn calculate_d<const N: u8>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
+    pub fn calculate_d<const N: u8>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
         let two_u256 = to_u256!(2_u128);
         let n_coins = two_u256;
 
