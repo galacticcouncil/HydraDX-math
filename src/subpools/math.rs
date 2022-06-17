@@ -78,13 +78,31 @@ pub(crate) fn calculate_risk_out_given_stable_in<const N: u8, const N_Y: u8>(
     Some(risk_out)
 }
 
+pub(crate) fn calculate_stable_out_given_stable_in<const N: u8, const N_Y: u8>(
+    lrna_in: Balance,
+    reserve_in: &[Balance; 2],
+    lrna_out: Balance,
+    reserve_out: &[Balance; 2],
+    amount_in: Balance,
+    asset_in: usize,
+    asset_out: usize,
+    amplification_in: Balance,
+    amplification_out: Balance,
+    precision: Balance,
+) -> Option<Balance> {
+    let lrna_amt = calculate_lrna_out_given_stable_in::<N,N_Y>(lrna_in, reserve_in, amount_in, asset_in, amplification_in, precision).unwrap();
+    let stable_out = calculate_stable_out_given_lrna_in::<N,N_Y>(lrna_out, reserve_out, lrna_amt, asset_out, amplification_out, precision).unwrap();
+    Some(stable_out)
+}
+
 
 #[cfg(test)]
 mod invariants {
     // use super::two_asset_pool_math::*;
     use super::Balance;
     use super::{calculate_stable_out_given_lrna_in, calculate_lrna_out_given_stable_in,
-                calculate_risk_out_given_stable_in, calculate_stable_out_given_risk_in};
+                calculate_risk_out_given_stable_in, calculate_stable_out_given_risk_in,
+                calculate_stable_out_given_stable_in};
     use proptest::prelude::*;
     use proptest::proptest;
     use crate::stableswap::math::two_asset_pool_math::calculate_d;
@@ -268,6 +286,38 @@ mod invariants {
             dbg!(d2);
 
             assert!(d2 >= d1);
+
+            // TODO: check both xyk pools
+
+        }
+    }
+
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_stable_out_given_stable_in(amount_in in trade_amount(),
+            lrna0 in asset_reserve(),
+            lrna1 in asset_reserve(),
+            stable00 in asset_reserve(),
+            stable01 in asset_reserve(),
+            stable10 in asset_reserve(),
+            stable11 in asset_reserve(),
+            amp0 in amplification(),
+            amp1 in amplification(),
+        ) {
+            let ann0 = amp0 * 4u128;
+            let ann1 = amp1 * 4u128;
+
+            let precision = 1u128;
+
+            //let d00 = calculate_d::<D_ITERATIONS>(&[stable00, stable01], ann0, precision).unwrap();
+            // let d01 = calculate_d::<D_ITERATIONS>(&[stable10, stable11], ann1, precision).unwrap();
+            let result = calculate_stable_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(lrna0, &[stable00, stable01], lrna1, &[stable10, stable11], amount_in, 0, 0, amp0, amp1, precision);
+            assert!(result.is_some());
+
+            // let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in.checked_add(amount_in).unwrap(), reserve_stable], ann, precision).unwrap();
+
 
             // TODO: check both xyk pools
 
