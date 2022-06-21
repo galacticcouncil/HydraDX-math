@@ -25,7 +25,7 @@ proptest = "1.0.0"
 
 [features]
 default = ["std"]
-std = []
+std = ["sp-arithmetic/std"]
 runtime-benchmarks = []
 
 [[bench]]
