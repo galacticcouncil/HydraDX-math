@@ -82,7 +82,7 @@ proptest! {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
-    fn add_liquidity_prices( asset_a_reserve in asset_reserve(),
+    fn add_liquidity( asset_a_reserve in asset_reserve(),
         asset_b_reserve in asset_reserve(),
         amount in  trade_amount()
     ) {
@@ -96,6 +96,18 @@ proptest! {
             p1,
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");
+
+        let delta_s = U256::from(amount);
+        let delta_y = U256::from(amount_b);
+        let x = U256::from(asset_a_reserve);// + amount;
+        let y = U256::from(asset_b_reserve);// + amount_b;
+
+        let l= delta_s * y;
+        let r= delta_y * x;
+        dbg!(l);
+        dbg!(r);
+
+        assert!(l<= r);
     }
 }
 
