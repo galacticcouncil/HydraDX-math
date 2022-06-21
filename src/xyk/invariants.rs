@@ -21,7 +21,7 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-    ONE..100 *ONE
+    ONE..100 * ONE
 }
 
 fn assert_asset_invariant(
