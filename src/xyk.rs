@@ -3,6 +3,7 @@ use crate::{
     MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
 use core::convert::TryFrom;
+use num_traits::Zero;
 use primitive_types::U256;
 
 type Balance = u128;
@@ -107,12 +108,16 @@ pub fn calculate_liquidity_in(
 ) -> Result<Balance, MathError> {
     ensure!(asset_a_reserve != 0, ZeroReserve);
 
+    if amount.is_zero() || asset_b_reserve.is_zero() {
+        return Ok(Balance::zero());
+    }
+
     let (a_reserve_hp, b_reserve_hp, amount_hp) = to_u256!(asset_a_reserve, asset_b_reserve, amount);
 
     let b_required_hp = amount_hp
         .checked_mul(b_reserve_hp)
-        .ok_or(Overflow)?
-        .checked_div(a_reserve_hp)
+        .and_then(|v| v.checked_div(a_reserve_hp))
+        .and_then(|v| v.checked_add(U256::one()))
         .ok_or(Overflow)?;
 
     to_balance!(b_required_hp)

@@ -79,7 +79,7 @@ fn in_given_out_should_work() {
 #[test]
 fn add_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Ok(1000), "Easy case"),
+        (1000, 2000, 500, Ok(1001), "Easy case"),
         (100, 100, 0, Ok(0), "amount is zero"),
         (110, 0, 100, Ok(0), "asset b is zero"),
         (0, 110, 100, Err(ZeroReserve), "asset a is zero"),
