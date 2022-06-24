@@ -3,6 +3,7 @@ use crate::{
     MathError::{InsufficientOutReserve, Overflow, ZeroReserve},
 };
 use core::convert::TryFrom;
+use num_traits::Zero;
 use primitive_types::U256;
 
 type Balance = u128;
@@ -107,12 +108,16 @@ pub fn calculate_liquidity_in(
 ) -> Result<Balance, MathError> {
     ensure!(asset_a_reserve != 0, ZeroReserve);
 
+    if amount.is_zero() || asset_b_reserve.is_zero() {
+        return Ok(Balance::zero());
+    }
+
     let (a_reserve_hp, b_reserve_hp, amount_hp) = to_u256!(asset_a_reserve, asset_b_reserve, amount);
 
     let b_required_hp = amount_hp
         .checked_mul(b_reserve_hp)
-        .ok_or(Overflow)?
-        .checked_div(a_reserve_hp)
+        .and_then(|v| v.checked_div(a_reserve_hp))
+        .and_then(|v| v.checked_add(U256::one()))
         .ok_or(Overflow)?;
 
     to_balance!(b_required_hp)
@@ -155,4 +160,25 @@ pub fn calculate_liquidity_out(
     let remove_amount_b = to_balance!(remove_amount_b_hp)?;
 
     Ok((remove_amount_a, remove_amount_b))
+}
+
+/// Calculating amount of shares given to LP for added liquidity
+/// shares = issuance * amount / reserve
+///
+/// - `asset_reserve` - asset reserve
+/// - `asset_b_reserve` - amount added by LP
+/// - `share_issuance` - total issuance of share asset
+///
+pub fn calculate_shares(asset_reserve: Balance, asset_amount: Balance, share_issuance: Balance) -> Option<Balance> {
+    if asset_reserve.is_zero() {
+        return None;
+    }
+
+    let (reserve_hp, amount_hp, issuance_hp) = to_u256!(asset_reserve, asset_amount, share_issuance);
+
+    let result = issuance_hp
+        .checked_mul(amount_hp)
+        .and_then(|v| v.checked_div(reserve_hp))?;
+
+    to_balance!(result).ok()
 }

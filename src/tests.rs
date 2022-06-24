@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use crate::MathError::{InsufficientOutReserve, Overflow, ZeroReserve};
 
+use crate::types::Balance;
 use std::vec;
 
 #[test]
@@ -79,7 +80,7 @@ fn in_given_out_should_work() {
 #[test]
 fn add_liquidity_should_work() {
     let cases = vec![
-        (1000, 2000, 500, Ok(1000), "Easy case"),
+        (1000, 2000, 500, Ok(1001), "Easy case"),
         (100, 100, 0, Ok(0), "amount is zero"),
         (110, 0, 100, Ok(0), "asset b is zero"),
         (0, 110, 100, Err(ZeroReserve), "asset a is zero"),
@@ -114,6 +115,26 @@ fn remove_liquidity_should_work() {
             case.4,
             "{}",
             case.5
+        );
+    }
+}
+
+#[test]
+fn calculate_shares() {
+    let one: Balance = 1_000_000_000_000;
+
+    let cases = vec![
+        (100 * one, one, 10000 * one, Some(100000000000000), "Easy case"),
+        (100 * one, 15 * one, 143 * one, Some(21450000000000), "Easy case"),
+        (0u128, one, 10000 * one, None, "0 reserve"),
+    ];
+
+    for case in cases {
+        assert_eq!(
+            crate::xyk::calculate_shares(case.0, case.1, case.2),
+            case.3,
+            "{}",
+            case.4
         );
     }
 }
