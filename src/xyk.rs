@@ -161,3 +161,24 @@ pub fn calculate_liquidity_out(
 
     Ok((remove_amount_a, remove_amount_b))
 }
+
+/// Calculating amount of shares given to LP for added liquidity
+/// shares = issuance * amount / reserve
+///
+/// - `asset_reserve` - asset reserve
+/// - `asset_b_reserve` - amount added by LP
+/// - `share_issuance` - total issuance of share asset
+///
+pub fn calculate_shares(asset_reserve: Balance, asset_amount: Balance, share_issuance: Balance) -> Option<Balance> {
+    if asset_reserve.is_zero() {
+        return None;
+    }
+
+    let (reserve_hp, amount_hp, issuance_hp) = to_u256!(asset_reserve, asset_amount, share_issuance);
+
+    let result = issuance_hp
+        .checked_mul(amount_hp)
+        .and_then(|v| v.checked_div(reserve_hp))?;
+
+    to_balance!(result).ok()
+}
