@@ -20,9 +20,6 @@ pub mod transcendental;
 pub mod types;
 pub mod xyk;
 
-#[cfg(test)]
-mod tests;
-
 #[macro_export]
 macro_rules! ensure {
     ($e:expr, $f:expr) => {
