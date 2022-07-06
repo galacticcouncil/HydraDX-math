@@ -278,137 +278,200 @@ mod invariants {
     // }
 
 
-    // proptest! {
-    //     #![proptest_config(ProptestConfig::with_cases(1000))]
-    //     #[test]
-    //     fn test_lrna_out_given_stable_in(amount_in in trade_amount(),
-    //         reserve_lrna in asset_reserve(),
-    //         reserve_stable in asset_reserve(),
-    //         reserve_in in asset_reserve(),
-    //         amp in amplification(),
-    //     ) {
-    //         let ann = amp * 4u128;
-    //
-    //         let precision = 1u128;
-    //
-    //         let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_stable], ann, precision).unwrap();
-    //         let result = calculate_lrna_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(reserve_lrna, &[reserve_in, reserve_stable], amount_in, 0, amp, precision);
-    //         assert!(result.is_some());
-    //
-    //         let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in.checked_add(amount_in).unwrap(), reserve_stable], ann, precision).unwrap();
-    //
-    //         dbg!(d1);
-    //         dbg!(d2);
-    //
-    //         assert!(d2 >= d1);
-    //
-    //         let (d1_hp, d2_hp, amt_out_hp, rsv_lrna) = to_u256!(d1, d2, result.unwrap(), reserve_lrna);
-    //
-    //         let invar_before = d1_hp.checked_mul(rsv_lrna).unwrap();
-    //
-    //         let invar_after = d2_hp.checked_mul(rsv_lrna.checked_sub(amt_out_hp).unwrap()).unwrap();
-    //
-    //         assert!(invar_after > invar_before);
-    //         let precision = to_u256!(100_000_000_000_u128);
-    //
-    //         assert!(invar_after.checked_sub(invar_before).unwrap().checked_mul(precision).unwrap().checked_div(invar_before).unwrap() == U256::zero());
-    //     }
-    // }
-    //
-    //
-    // proptest! {
-    //     #![proptest_config(ProptestConfig::with_cases(1000))]
-    //     #[test]
-    //     fn test_stable_out_given_risk_in(amount_in in trade_amount(),
-    //         risk_lrna in asset_reserve(),
-    //         reserve_risk in asset_reserve(),
-    //         lrna_stable in asset_reserve(),
-    //         reserve_stable in asset_reserve(),
-    //         reserve_out in asset_reserve(),
-    //         amp in amplification(),
-    //     ) {
-    //         let ann = amp * 4u128;
-    //
-    //         let precision = 1u128;
-    //
-    //         let reserves_before = [reserve_out, reserve_stable];
-    //
-    //         let d1 = calculate_d::<D_ITERATIONS>(&reserves_before, ann, precision).unwrap();
-    //         let result = calculate_stable_out_given_risk_in::<D_ITERATIONS, Y_ITERATIONS>(risk_lrna, reserve_risk, lrna_stable, &reserves_before, amount_in, 0, amp, precision);
-    //         assert!(result.is_some());
-    //         let reserves_after = [reserve_out.checked_sub(result.unwrap()).unwrap(), reserve_stable];
-    //
-    //         let d2 = calculate_d::<D_ITERATIONS>(&reserves_after, ann, precision).unwrap();
-    //
-    //         assert!(d2 <= d1);
-    //
-    //         // TODO: check both xyk pools
-    //     }
-    // }
-    //
-    //
-    // proptest! {
-    //     #![proptest_config(ProptestConfig::with_cases(1000))]
-    //     #[test]
-    //     fn test_risk_out_given_stable_in(amount_in in trade_amount(),
-    //         risk_lrna in asset_reserve(),
-    //         reserve_risk in asset_reserve(),
-    //         lrna_stable in asset_reserve(),
-    //         reserve_stable in asset_reserve(),
-    //         reserve_in in asset_reserve(),
-    //         amp in amplification(),
-    //     ) {
-    //         let ann = amp * 4u128;
-    //
-    //         let precision = 1u128;
-    //
-    //         let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_stable], ann, precision).unwrap();
-    //         let result = calculate_risk_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(risk_lrna, reserve_risk, lrna_stable, &[reserve_in, reserve_stable], amount_in, 0, amp, precision);
-    //         assert!(result.is_some());
-    //
-    //         let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in.checked_add(amount_in).unwrap(), reserve_stable], ann, precision).unwrap();
-    //
-    //         dbg!(d1);
-    //         dbg!(d2);
-    //
-    //         assert!(d2 >= d1);
-    //
-    //         // TODO: check both xyk pools
-    //
-    //     }
-    // }
-    //
-    //
-    // proptest! {
-    //     #![proptest_config(ProptestConfig::with_cases(1000))]
-    //     #[test]
-    //     fn test_stable_out_given_stable_in(amount_in in trade_amount(),
-    //         lrna0 in asset_reserve(),
-    //         lrna1 in asset_reserve(),
-    //         stable00 in asset_reserve(),
-    //         stable01 in asset_reserve(),
-    //         stable10 in asset_reserve(),
-    //         stable11 in asset_reserve(),
-    //         amp0 in amplification(),
-    //         amp1 in amplification(),
-    //     ) {
-    //         let ann0 = amp0 * 4u128;
-    //         let ann1 = amp1 * 4u128;
-    //
-    //         let precision = 1u128;
-    //
-    //         //let d00 = calculate_d::<D_ITERATIONS>(&[stable00, stable01], ann0, precision).unwrap();
-    //         // let d01 = calculate_d::<D_ITERATIONS>(&[stable10, stable11], ann1, precision).unwrap();
-    //         let result = calculate_stable_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(lrna0, &[stable00, stable01], lrna1, &[stable10, stable11], amount_in, 0, 0, amp0, amp1, precision);
-    //         assert!(result.is_some());
-    //
-    //         // let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in.checked_add(amount_in).unwrap(), reserve_stable], ann, precision).unwrap();
-    //
-    //
-    //         // TODO: check both xyk pools
-    //
-    //     }
-    // }
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_lrna_out_given_stable_in(amount_in in trade_amount(),
+            reserve_lrna in asset_reserve(),
+            reserve_stable in asset_reserve(),
+            reserve_in in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+            let precision_rounding = 100_000_000_000_u128;
+
+            let stable_reserves_before = [reserve_in, reserve_stable];
+
+            let d1 = calculate_d::<D_ITERATIONS>(&stable_reserves_before, ann, precision).unwrap();
+            let result = calculate_lrna_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(reserve_lrna, &stable_reserves_before, amount_in, 0, amp, precision);
+            let transfer = result.unwrap();
+            let stable_reserves_after = [reserve_in.checked_add(amount_in).unwrap(), reserve_stable];
+
+            let d2 = calculate_d::<D_ITERATIONS>(&stable_reserves_after, ann, precision).unwrap();
+            let d_transfer = transfer.transfer_1;
+
+            let d2_actual = d1.checked_add(d_transfer).unwrap();
+
+            assert!(d2 >= d1);
+
+            let (d2_hp, d2_actual_hp, precision_rounding_hp) = to_u256!(d2, d2_actual, precision_rounding);
+
+            assert!(approx_equal(d2_hp, d2_actual_hp, precision_rounding_hp));
+
+            let xyk_reserves_before = [d1, reserve_lrna];
+            let xyk_reserves_after = [d2, reserve_lrna.checked_sub(transfer.amt_out).unwrap()];
+
+            assert!(check_xyk(&xyk_reserves_before, &xyk_reserves_after, precision_rounding))
+
+        }
+    }
+
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_stable_out_given_risk_in(amount_in in trade_amount(),
+            risk_lrna in asset_reserve(),
+            reserve_risk in asset_reserve(),
+            lrna_stable in asset_reserve(),
+            reserve_stable in asset_reserve(),
+            reserve_out in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+            let precision_rounding = 100_000_000_000_u128;
+
+            let reserves_before = [reserve_out, reserve_stable];
+
+            let d1 = calculate_d::<D_ITERATIONS>(&reserves_before, ann, precision).unwrap();
+            let result = calculate_stable_out_given_risk_in::<D_ITERATIONS, Y_ITERATIONS>(risk_lrna, reserve_risk, lrna_stable, &reserves_before, amount_in, 0, amp, precision);
+            let transfer = result.unwrap();
+            let stable_reserves_after = [reserve_out.checked_sub(transfer.amt_out).unwrap(), reserve_stable];
+
+            let d2 = calculate_d::<D_ITERATIONS>(&stable_reserves_after, ann, precision).unwrap();
+            let d_transfer = transfer.transfer_2;
+
+            let d2_actual = d1.checked_sub(d_transfer).unwrap();
+
+            assert!(d2 <= d1);  // test that D went correct direction
+
+            let (d2_hp, d2_actual_hp, precision_rounding_hp) = to_u256!(d2, d2_actual, precision_rounding);
+
+            assert!(approx_equal(d2_hp, d2_actual_hp, precision_rounding_hp));
+
+            let lrna_transfer = transfer.transfer_1;
+            let xyk_stable_reserves_before = [d1, lrna_stable];
+            let xyk_stable_reserves_after = [d1.checked_sub(d_transfer).unwrap(), lrna_stable.checked_add(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_stable_reserves_before, &xyk_stable_reserves_after, precision_rounding));
+
+            let xyk_risk_reserves_before = [reserve_risk, risk_lrna];
+            let xyk_risk_reserves_after = [reserve_risk.checked_add(amount_in).unwrap(), risk_lrna.checked_sub(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_risk_reserves_before, &xyk_risk_reserves_after, precision_rounding));
+
+        }
+    }
+
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_risk_out_given_stable_in(amount_in in trade_amount(),
+            risk_lrna in asset_reserve(),
+            reserve_risk in asset_reserve(),
+            lrna_stable in asset_reserve(),
+            reserve_stable in asset_reserve(),
+            reserve_in in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+            let precision_rounding = 100_000_000_000_u128;
+
+            let stable_reserves_before = [reserve_in, reserve_stable];
+
+            let d1 = calculate_d::<D_ITERATIONS>(&stable_reserves_before, ann, precision).unwrap();
+            let result = calculate_risk_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(risk_lrna, reserve_risk, lrna_stable, &stable_reserves_before, amount_in, 0, amp, precision);
+            let transfer = result.unwrap();
+            let stable_reserves_after = [reserve_in.checked_add(amount_in).unwrap(), reserve_stable];
+
+            let d2 = calculate_d::<D_ITERATIONS>(&stable_reserves_after, ann, precision).unwrap();
+            let d_transfer = transfer.transfer_1;
+
+            let d2_actual = d1.checked_add(d_transfer).unwrap();
+
+            assert!(d2 >= d1);
+
+            let (d2_hp, d2_actual_hp, precision_rounding_hp) = to_u256!(d2, d2_actual, precision_rounding);
+
+            assert!(approx_equal(d2_hp, d2_actual_hp, precision_rounding_hp));
+
+            let lrna_transfer = transfer.transfer_2;
+            let xyk_stable_reserves_before = [d1, lrna_stable];
+            let xyk_stable_reserves_after = [d2, lrna_stable.checked_sub(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_stable_reserves_before, &xyk_stable_reserves_after, precision_rounding));
+
+            let xyk_risk_reserves_before = [reserve_risk, risk_lrna];
+            let xyk_risk_reserves_after = [reserve_risk.checked_sub(transfer.amt_out).unwrap(), risk_lrna.checked_add(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_risk_reserves_before, &xyk_risk_reserves_after, precision_rounding));
+
+        }
+    }
+
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_stable_out_given_stable_in(amount_in in trade_amount(),
+            lrna0 in asset_reserve(),
+            lrna1 in asset_reserve(),
+            stable00 in asset_reserve(),
+            stable01 in asset_reserve(),
+            stable10 in asset_reserve(),
+            stable11 in asset_reserve(),
+            amp0 in amplification(),
+            amp1 in amplification(),
+        ) {
+            let ann0 = amp0 * 4u128;
+            let ann1 = amp1 * 4u128;
+
+            let precision = 1u128;
+            let precision_rounding = 100_000_000_000_u128;
+
+            let stable_reserves_before0 = [stable00, stable01];
+            let stable_reserves_before1 = [stable10, stable11];
+
+
+            let d01 = calculate_d::<D_ITERATIONS>(&stable_reserves_before0, ann0, precision).unwrap();
+            let d11 = calculate_d::<D_ITERATIONS>(&stable_reserves_before1, ann1, precision).unwrap();
+            let result = calculate_stable_out_given_stable_in::<D_ITERATIONS, Y_ITERATIONS>(lrna0, &stable_reserves_before0, lrna1, &stable_reserves_before1, amount_in, 0, 0, amp0, amp1, precision);
+
+            let transfer = result.unwrap();
+            let stable_reserves_after0 = [stable00.checked_add(amount_in).unwrap(), stable01];
+            let stable_reserves_after1 = [stable10.checked_sub(transfer.amt_out).unwrap(), stable11];
+
+            let d02 = calculate_d::<D_ITERATIONS>(&stable_reserves_after0, ann0, precision).unwrap();
+            let d12 = calculate_d::<D_ITERATIONS>(&stable_reserves_after1, ann1, precision).unwrap();
+            let d0_transfer = transfer.transfer_1;
+            let lrna_transfer = transfer.transfer_2;
+            let d1_transfer = transfer.transfer_3;
+
+            let d02_actual = d01.checked_add(d0_transfer).unwrap();
+            let d12_actual = d11.checked_sub(d1_transfer).unwrap();
+
+            assert!(d02 >= d01);
+            assert!(d12 <= d11);
+
+            let (d02_hp, d02_actual_hp, precision_rounding_hp) = to_u256!(d02, d02_actual, precision_rounding);
+            let (d12_hp, d12_actual_hp, precision_rounding_hp) = to_u256!(d12, d12_actual, precision_rounding);
+
+            assert!(approx_equal(d02_hp, d02_actual_hp, precision_rounding_hp));
+            assert!(approx_equal(d12_hp, d12_actual_hp, precision_rounding_hp));
+
+            let xyk_stable0_reserves_before = [d01, lrna0];
+            let xyk_stable0_reserves_after = [d02, lrna0.checked_sub(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_stable0_reserves_before, &xyk_stable0_reserves_after, precision_rounding));
+
+            let xyk_stable1_reserves_before = [d11, lrna1];
+            let xyk_stable1_reserves_after = [d12, lrna1.checked_add(lrna_transfer).unwrap()];
+            assert!(check_xyk(&xyk_stable1_reserves_before, &xyk_stable1_reserves_after, precision_rounding));
+
+        }
+    }
 
 
 }
