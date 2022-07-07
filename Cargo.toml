@@ -31,3 +31,7 @@ runtime-benchmarks = []
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[[bench]]
+name = "subpools"
+harness = false

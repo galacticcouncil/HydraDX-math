@@ -5,14 +5,14 @@ use primitive_types::U256;
 use crate::stableswap::math::two_asset_pool_math::{calculate_y, calculate_d, calculate_ann};
 use crate::xyk::calculate_out_given_in as xyk_out_given_in;
 
-pub(crate) struct TokenTransfer {
+pub struct TokenTransfer {
     transfer_1: Balance,
     transfer_2: Balance,
     transfer_3: Balance,
     amt_out: Balance
 }
 
-pub(crate) fn calculate_stable_out_given_lrna_in<const N: u8, const N_Y: u8>(
+pub fn calculate_stable_out_given_lrna_in<const N: u8, const N_Y: u8>(
     reserve_lrna: Balance,
     reserve_out: &[Balance; 2],
     amount_in: Balance,
@@ -45,7 +45,7 @@ pub(crate) fn calculate_stable_out_given_lrna_in<const N: u8, const N_Y: u8>(
     Some(transfer)
 }
 
-pub(crate) fn calculate_lrna_out_given_stable_in<const N: u8, const N_Y: u8>(
+pub fn calculate_lrna_out_given_stable_in<const N: u8, const N_Y: u8>(
     reserve_lrna: Balance,
     reserve_in: &[Balance; 2],
     amount_in: Balance,
@@ -72,7 +72,7 @@ pub(crate) fn calculate_lrna_out_given_stable_in<const N: u8, const N_Y: u8>(
 
 }
 
-pub(crate) fn calculate_stable_out_given_risk_in<const N: u8, const N_Y: u8>(
+pub fn calculate_stable_out_given_risk_in<const N: u8, const N_Y: u8>(
     risk_lrna: Balance,
     reserve_risk: Balance,
     stable_lrna: Balance,
@@ -95,7 +95,7 @@ pub(crate) fn calculate_stable_out_given_risk_in<const N: u8, const N_Y: u8>(
     Some(transfer)
 }
 
-pub(crate) fn calculate_risk_out_given_stable_in<const N: u8, const N_Y: u8>(
+pub fn calculate_risk_out_given_stable_in<const N: u8, const N_Y: u8>(
     risk_lrna: Balance,
     reserve_risk: Balance,
     stable_lrna: Balance,
@@ -118,7 +118,7 @@ pub(crate) fn calculate_risk_out_given_stable_in<const N: u8, const N_Y: u8>(
     Some(transfer)
 }
 
-pub(crate) fn calculate_stable_out_given_stable_in<const N: u8, const N_Y: u8>(
+pub fn calculate_stable_out_given_stable_in<const N: u8, const N_Y: u8>(
     lrna_in: Balance,
     reserve_in: &[Balance; 2],
     lrna_out: Balance,
