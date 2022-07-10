@@ -1,4 +1,4 @@
-use crate::to_u256;
+use crate::{to_balance, to_u256};
 use crate::types::Balance;
 use num_traits::Zero;
 use primitive_types::U256;
@@ -97,6 +97,40 @@ pub fn calculate_remove_liquidity_amounts(
 
     Some((amount_a, amount_b))
 }
+
+
+/// Given amount of shares and asset reserves and desired asset, calculate amount of desired asset to be withdrawn.
+pub fn calculate_remove_single_asset_liquidity_amount<const N: u8, const N_Y: u8>(
+    reserves: &[Balance; 2],
+    shares: Balance,
+    share_asset_issuance: Balance,
+    amplification: Balance,
+    precision: Balance,
+    asset_out: i8,
+) -> Option<(Balance,Balance)> {
+    if share_asset_issuance.is_zero() {
+        return None;
+    }
+
+    let (shares_hp, issuance_hp) = to_u256!(shares, share_asset_issuance);
+    // d_new = s_new * d / s
+    let ann = two_asset_pool_math::calculate_ann(amplification)?;
+    let initial_d = two_asset_pool_math::calculate_d::<N>(reserves, ann, precision)?;
+    let d = Balance::try_from(to_u256!(initial_d).checked_mul(issuance_hp.checked_sub(shares_hp)?)?.checked_div(issuance_hp)?).unwrap();
+    let reserve = if asset_out == 0_i8 {
+        reserves[1]
+    } else {
+        reserves[0]
+    };
+    let y = two_asset_pool_math::calculate_y::<N_Y>(reserve, d, ann, precision)?;
+
+    if asset_out == 0_i8 {
+        return Some((reserves[0].checked_sub(y)?, 0_u128));
+    } else {
+        return Some((0_u128, reserves[1].checked_sub(y)?));
+    }
+}
+
 
 /// Stableswap/curve math reduced to two assets.
 pub mod two_asset_pool_math {
@@ -408,9 +442,13 @@ mod test_two_assets_math {
 mod invariants {
     use super::two_asset_pool_math::*;
     use super::Balance;
-    use super::{calculate_add_liquidity_shares, calculate_in_given_out, calculate_out_given_in};
+    use super::{calculate_add_liquidity_shares, calculate_in_given_out, calculate_out_given_in, calculate_remove_single_asset_liquidity_amount};
     use proptest::prelude::*;
     use proptest::proptest;
+    use crate::to_u256;
+    use crate::assert_eq_approx;
+    use primitive_types::U256;
+    use sp_arithmetic::FixedU128;
 
     pub const ONE: Balance = 1_000_000_000_000;
 
@@ -457,6 +495,25 @@ mod invariants {
             let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
 
             assert!(d.is_some());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn round_trip_d_y(reserve_a in asset_reserve(),
+            reserve_b in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+
+            let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b], ann, precision).unwrap();
+            let y = calculate_y::<Y_ITERATIONS>(reserve_b, d, ann, precision).unwrap();
+
+            assert!(y - 4 <= reserve_a);
+            assert!(y >= reserve_a);
         }
     }
 
@@ -543,14 +600,77 @@ mod invariants {
             amp in amplification(),
             issuance in asset_reserve(),
         ) {
+            let ann = amp*4u128;
+
             let precision = 1u128;
 
             let initial_reserves = &[reserve_a, reserve_b];
             let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
 
+            // act
             let result = calculate_add_liquidity_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
 
+            // assert
             assert!(result.is_some());
+            let delta_shares = result.unwrap();
+
+            let initial_d = calculate_d::<D_ITERATIONS>(&initial_reserves, ann, precision).unwrap();
+            let final_d = calculate_d::<D_ITERATIONS>(&updated_reserves, ann, precision).unwrap();
+            let delta_d = final_d.checked_sub(initial_d).unwrap();
+            let left = delta_shares.checked_mul(initial_d).unwrap();
+            let right = delta_d.checked_mul(issuance).unwrap();
+            assert!(left <= right);
+
+            let r0 = FixedU128::from((initial_d, issuance));
+            let r1 = FixedU128::from((final_d, issuance + delta_shares));
+
+            assert_eq_approx!(r0,
+            r1,
+            FixedU128::from_float(0.0000000001),
+            "Share value has changed after add liquidity");
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_calculate_remove_single_asset_liquidity_amount(
+            shares in trade_amount(),
+            reserve_a in asset_reserve(),
+            reserve_b in asset_reserve(),
+            amp in amplification(),
+            issuance in asset_reserve(),
+        ) {
+            let ann = amp*4u128;
+
+            let precision = 1u128;
+            let i_remove = 0_i8;
+
+            let initial_reserves = &[reserve_a, reserve_b];
+            // let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
+
+            // act
+            let result = calculate_remove_single_asset_liquidity_amount::<D_ITERATIONS, Y_ITERATIONS>(initial_reserves, shares, issuance, amp, precision, i_remove);
+
+            // assert
+            assert!(result.is_some());
+            let delta_balance = result.unwrap();
+            let updated_reserves = &[reserve_a.checked_sub(delta_balance.0).unwrap(), reserve_b.checked_sub(delta_balance.1).unwrap()];
+
+            let initial_d = calculate_d::<D_ITERATIONS>(&initial_reserves, ann, precision).unwrap();
+            let final_d = calculate_d::<D_ITERATIONS>(&updated_reserves, ann, precision).unwrap();
+            let delta_d = initial_d.checked_sub(final_d).unwrap();
+            let left = shares.checked_mul(initial_d).unwrap();
+            let right = delta_d.checked_mul(issuance).unwrap();
+            assert!(left >= right);
+
+            let r0 = FixedU128::from((initial_d, issuance));
+            let r1 = FixedU128::from((final_d, issuance - shares));
+
+            assert_eq_approx!(r0,
+            r1,
+            FixedU128::from_float(0.0000000001),
+            "Share value has changed after remove single asset liquidity");
         }
     }
 }
