@@ -11,7 +11,7 @@ version = "4.6.0"
 [dependencies]
 primitive-types = {default-features = false, version = '0.8.0'}
 num-traits = {default-features = false, version = "0.2.14"}
-fixed = "1.9.0"
+fixed = "=1.15.0"
 # Added because of use of the FixedU128
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive", "max-encoded-len"] }
 #sp-arithmetic = { git = "https://github.com/paritytech/substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e", version="4.0.0", default-features = false }
