@@ -15,11 +15,11 @@ extern crate approx;
 pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
+pub mod omnipool;
 pub mod stableswap;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
-pub mod omnipool;
 
 #[macro_export]
 macro_rules! ensure {
