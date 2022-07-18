@@ -1,7 +1,7 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use num_traits::{CheckedAdd, CheckedSub};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
-use sp_std::ops::{Add, Deref, Sub};
+use sp_std::ops::{Add, Deref};
 
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Default, Debug)]
@@ -36,80 +36,6 @@ where
             protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
             tvl: (delta.delta_tvl + self.tvl)?,
         })
-    }
-}
-
-/// Simple type to represent imbalance which can be positive or negative.
-// Note: Simple prefix is used not to confuse with Imbalance trait from frame_support.
-#[derive(Clone, Eq, PartialEq)]
-pub struct SimpleImbalance<Balance> {
-    pub value: Balance,
-    pub negative: bool,
-}
-
-impl<Balance: Default> Default for SimpleImbalance<Balance> {
-    fn default() -> Self {
-        Self {
-            value: Balance::default(),
-            negative: true,
-        }
-    }
-}
-
-/// The addition operator + for SimpleImbalance.
-///
-/// Adds amount to imbalance.
-///
-/// Note that it returns Option<self> rather than Self.
-///
-/// Note: Implements `Add` instead of `CheckedAdd` because `CheckedAdd` requires the second parameter
-/// to be the same type as the first while we want to add a `Balance` here.
-///
-/// # Example
-///
-/// ```ignore
-/// let imbalance = SimpleImbalance{value: 100, negative: false} ;
-/// assert_eq!(imbalance + 200 , Some(SimpleImbalance{value: 300, negative: false}));
-/// ```
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Add<Balance> for SimpleImbalance<Balance> {
-    type Output = Option<Self>;
-
-    fn add(self, amount: Balance) -> Self::Output {
-        let (value, sign) = if !self.negative {
-            (self.value.checked_add(&amount)?, self.negative)
-        } else if self.value < amount {
-            (amount.checked_sub(&self.value)?, false)
-        } else {
-            (self.value.checked_sub(&amount)?, self.negative)
-        };
-        Some(Self { value, negative: sign })
-    }
-}
-
-/// The subtraction operator - for SimpleImbalance.
-///
-/// Subtracts amount from imbalance.
-///
-/// Note that it returns Option<self> rather than Self.
-///
-/// # Example
-///
-/// ```ignore
-/// let imbalance = SimpleImbalance{value: 200, negative: false} ;
-/// assert_eq!(imbalance - 100 , Some(SimpleImbalance{value: 100, negative: false}));
-/// ```
-impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy> Sub<Balance> for SimpleImbalance<Balance> {
-    type Output = Option<Self>;
-
-    fn sub(self, amount: Balance) -> Self::Output {
-        let (value, sign) = if self.negative {
-            (self.value.checked_add(&amount)?, self.negative)
-        } else if self.value < amount {
-            (amount.checked_sub(&self.value)?, true)
-        } else {
-            (self.value.checked_sub(&amount)?, self.negative)
-        };
-        Some(Self { value, negative: sign })
     }
 }
 
@@ -269,4 +195,170 @@ pub struct Position<Balance> {
     pub shares: Balance,
     /// Price at which liquidity was provided
     pub price: FixedU128,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BalanceUpdate;
+    use super::CheckedAdd;
+    //use cool_asserts::assert_panics;
+
+    #[test]
+    fn balance_update_addition_works() {
+        assert_eq!(
+            BalanceUpdate::Increase(100) + BalanceUpdate::Increase(100),
+            BalanceUpdate::Increase(200)
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(500) + BalanceUpdate::Decrease(300),
+            BalanceUpdate::Increase(200)
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(300),
+            BalanceUpdate::Decrease(200)
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(0),
+            BalanceUpdate::Increase(100)
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(100),
+            BalanceUpdate::Decrease(100)
+        );
+
+        assert_eq!(
+            BalanceUpdate::Decrease(100) + BalanceUpdate::Decrease(300),
+            BalanceUpdate::Decrease(400)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(100),
+            BalanceUpdate::Decrease(100)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(300),
+            BalanceUpdate::Increase(100)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(0),
+            BalanceUpdate::Decrease(200)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(0) + BalanceUpdate::Decrease(100),
+            BalanceUpdate::Decrease(100)
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(100),
+            BalanceUpdate::Increase(0)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(100) + BalanceUpdate::Increase(100),
+            BalanceUpdate::Decrease(0)
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(0),
+            BalanceUpdate::Increase(0)
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(0) + BalanceUpdate::Increase(0),
+            BalanceUpdate::Decrease(0)
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Decrease(1),
+            BalanceUpdate::Increase(u128::MAX - 1)
+        );
+
+        //assert_panics!(BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Increase(1));
+        //assert_panics!(BalanceUpdate::Decrease(u128::MAX) + BalanceUpdate::Decrease(1));
+    }
+
+    #[test]
+    fn balance_update_to_balance_addition_works() {
+        let zero = 0u32;
+        assert_eq!(BalanceUpdate::Increase(100u32) + 200u32, Some(300));
+        assert_eq!(BalanceUpdate::Decrease(50u32) + 100u32, Some(50));
+        assert_eq!(BalanceUpdate::Decrease(50u32) + 50u32, Some(0));
+        assert_eq!(BalanceUpdate::Decrease(50u32) + zero, None);
+        assert_eq!(BalanceUpdate::Increase(50u32) + zero, Some(50));
+
+        assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
+    }
+
+    #[test]
+    fn balance_update_safe_addition_works() {
+        assert_eq!(
+            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Increase(100)),
+            Some(BalanceUpdate::Increase(200))
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(500).checked_add(&BalanceUpdate::Decrease(300)),
+            Some(BalanceUpdate::Increase(200))
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(300)),
+            Some(BalanceUpdate::Decrease(200))
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(0)),
+            Some(BalanceUpdate::Increase(100))
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(100)),
+            Some(BalanceUpdate::Decrease(100))
+        );
+
+        assert_eq!(
+            BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Decrease(300)),
+            Some(BalanceUpdate::Decrease(400))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(100)),
+            Some(BalanceUpdate::Decrease(100))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(300)),
+            Some(BalanceUpdate::Increase(100))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(0)),
+            Some(BalanceUpdate::Decrease(200))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Decrease(100)),
+            Some(BalanceUpdate::Decrease(100))
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(100)),
+            Some(BalanceUpdate::Increase(0))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Increase(100)),
+            Some(BalanceUpdate::Decrease(0))
+        );
+        assert_eq!(
+            BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(0)),
+            Some(BalanceUpdate::Increase(0))
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Increase(0)),
+            Some(BalanceUpdate::Decrease(0))
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
+            Some(BalanceUpdate::Increase(u128::MAX - 1))
+        );
+
+        assert_eq!(
+            BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Increase(1)),
+            None
+        );
+        assert_eq!(
+            BalanceUpdate::Decrease(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
+            None
+        );
+    }
 }

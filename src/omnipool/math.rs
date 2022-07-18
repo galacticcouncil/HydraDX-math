@@ -1,7 +1,7 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use crate::omnipool::types::{
     AssetReserveState, AssetStateChange, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position,
-    SimpleImbalance, TradeStateChange,
+    TradeStateChange,
 };
 use crate::types::Balance;
 use crate::MathError::Overflow;
@@ -25,7 +25,7 @@ pub fn calculate_sell_state_changes(
     amount: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
-    imbalance: &SimpleImbalance<Balance>,
+    imbalance: Balance,
 ) -> Option<TradeStateChange<Balance>> {
     let (in_hub_reserve, in_reserve, in_amount) = to_u256!(asset_in_state.hub_reserve, asset_in_state.reserve, amount);
 
@@ -52,7 +52,7 @@ pub fn calculate_sell_state_changes(
     // Fee accounting
     let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
-    let delta_imbalance = min(protocol_fee_amount, imbalance.value);
+    let delta_imbalance = min(protocol_fee_amount, imbalance);
 
     let hdx_fee_amount = protocol_fee_amount.checked_sub(delta_imbalance)?;
 
@@ -142,7 +142,7 @@ pub fn calculate_buy_state_changes(
     amount: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
-    imbalance: &SimpleImbalance<Balance>,
+    imbalance: Balance,
 ) -> Option<TradeStateChange<Balance>> {
     let reserve_no_fee = amount_without_fee(asset_out_state.reserve, asset_fee)?;
     let (out_hub_reserve, out_reserve_no_fee, out_amount) =
@@ -178,7 +178,7 @@ pub fn calculate_buy_state_changes(
 
     // Fee accounting and imbalance
     let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
-    let delta_imbalance = min(protocol_fee_amount, imbalance.value);
+    let delta_imbalance = min(protocol_fee_amount, imbalance);
 
     let hdx_fee_amount = protocol_fee_amount.checked_sub(delta_imbalance)?;
 
@@ -393,10 +393,10 @@ pub fn calculate_asset_tvl(asset_hub_reserve: Balance, stable_asset: (Balance, B
 pub fn calculate_delta_imbalance(
     asset_state: &AssetReserveState<Balance>,
     amount: Balance,
-    imbalance: &SimpleImbalance<Balance>,
+    imbalance: Balance,
     hub_reserve: Balance,
 ) -> Option<Balance> {
-    if amount == Balance::zero() || imbalance.value == Balance::zero() || hub_reserve == Balance::zero() {
+    if amount == Balance::zero() || imbalance == Balance::zero() || hub_reserve == Balance::zero() {
         return Some(Balance::default());
     }
 
@@ -404,7 +404,7 @@ pub fn calculate_delta_imbalance(
         asset_state.reserve,
         asset_state.hub_reserve,
         amount,
-        imbalance.value,
+        imbalance,
         hub_reserve
     );
 
