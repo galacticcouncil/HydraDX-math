@@ -205,7 +205,7 @@ pub fn calculate_add_liquidity_state_changes(
     stable_asset: (Balance, Balance),
     is_stable_asset: bool,
 ) -> Option<LiquidityStateChange<Balance>> {
-    let delta_hub_reserve = asset_state.price().checked_mul_int(amount)?;
+    let delta_hub_reserve = asset_state.price()?.checked_mul_int(amount)?;
 
     let (
         amount_hp,
@@ -271,7 +271,7 @@ pub fn calculate_remove_liquidity_state_changes<AssetId>(
     let current_reserve = asset_state.reserve;
     let current_hub_reserve = asset_state.hub_reserve;
 
-    let current_price = asset_state.price();
+    let current_price = asset_state.price()?;
     let position_price = position.price;
 
     // Protocol shares update

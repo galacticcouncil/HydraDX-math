@@ -23,8 +23,8 @@ where
     Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
     /// Calculate price for actual state
-    pub(crate) fn price(&self) -> FixedU128 {
-        FixedU128::from((self.hub_reserve.into(), self.reserve.into()))
+    pub(crate) fn price(&self) -> Option<FixedU128> {
+        FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
     }
 
     /// Update current asset state with given delta changes.
