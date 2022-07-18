@@ -1,7 +1,7 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use num_traits::{CheckedAdd, CheckedSub};
 use sp_arithmetic::{FixedPointNumber, FixedU128};
-use std::ops::{Add, Deref, Sub};
+use sp_std::ops::{Add, Deref, Sub};
 
 /// Asset state representation including asset pool reserve.
 #[derive(Clone, Default, Debug)]

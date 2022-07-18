@@ -9,8 +9,8 @@ use crate::{to_balance, to_u256};
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use std::cmp::{min, Ordering};
-use std::ops::Sub;
+use sp_std::cmp::{min, Ordering};
+use sp_std::ops::Sub;
 
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
