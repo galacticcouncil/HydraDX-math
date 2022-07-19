@@ -53,15 +53,15 @@ pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32
     num.checked_div(&denom).ok_or(MathError::Overflow)
 }
 
-/// This function return `GlobalPool`'s reward per one period or error.
+/// This function return `GlobalFarm`'s reward per one period or error.
 /// Reward per period is capped by `max_reward_per_period`.             
-pub fn calculate_global_pool_reward_per_period(
+pub fn calculate_global_farm_reward_per_period(
     yield_per_period: FixedU128,
-    total_pool_shares_z: Balance,
+    total_farm_shares_z: Balance,
     max_reward_per_period: Balance,
 ) -> Result<Balance, MathError> {
     Ok(yield_per_period
-        .checked_mul_int(total_pool_shares_z)
+        .checked_mul_int(total_farm_shares_z)
         .ok_or(MathError::Overflow)?
         .min(max_reward_per_period))
 }
@@ -106,15 +106,15 @@ pub fn calculate_user_reward(
     Ok((user_rewards, unclaimable_rewards))
 }
 
-/// This function calculate account's valued shares[`Balance`] or error.
+/// This function calculate account's valued shares [`Balance`] or error.
 pub fn calculate_valued_shares(shares: Balance, incentivized_asset_balance: Balance) -> Result<Balance, MathError> {
     shares
         .checked_mul(incentivized_asset_balance)
         .ok_or(MathError::Overflow)
 }
 
-/// This function calculate liq. pool's shares amount in `GlobalPool` or error.
-pub fn calculate_global_pool_shares(valued_shares: Balance, multiplier: FixedU128) -> Result<Balance, MathError> {
+/// This function calculate yield farm's shares amount [`Balance`] in `GlobalFarm` or error.
+pub fn calculate_global_farm_shares(valued_shares: Balance, multiplier: FixedU128) -> Result<Balance, MathError> {
     multiplier.checked_mul_int(valued_shares).ok_or(MathError::Overflow)
 }
 
@@ -130,4 +130,9 @@ pub fn calculate_reward(
         .ok_or(MathError::Overflow)?
         .checked_mul(shares)
         .ok_or(MathError::Overflow)
+}
+
+/// This function calculate adjusted shares amount [`Balance`] or error.
+pub fn calculate_adjusted_shares(shares: Balance, price_adjustment: FixedU128) -> Result<Balance, MathError> {
+    price_adjustment.checked_mul_int(shares).ok_or(MathError::Overflow)
 }

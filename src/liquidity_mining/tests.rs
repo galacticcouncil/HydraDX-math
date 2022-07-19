@@ -227,11 +227,11 @@ fn calculate_reward_per_period_should_work() {
         (FixedU128::from_inner(0), 68797_u128, 789846_u128, 0_u128),
     ];
 
-    for (yield_per_period, total_pool_shares_z, max_reward_per_period, expected_reward_per_period) in
+    for (yield_per_period, total_farm_shares_z, max_reward_per_period, expected_reward_per_period) in
         testing_values.iter()
     {
         assert_eq!(
-            calculate_global_pool_reward_per_period(*yield_per_period, *total_pool_shares_z, *max_reward_per_period)
+            calculate_global_farm_reward_per_period(*yield_per_period, *total_farm_shares_z, *max_reward_per_period)
                 .unwrap(),
             *expected_reward_per_period
         );
@@ -567,18 +567,18 @@ fn calculate_valued_shares_should_work() {
 }
 
 #[test]
-fn calculate_global_pool_shares_should_work() {
-    assert_eq!(calculate_global_pool_shares(0, FixedU128::from(0)).unwrap(), 0);
+fn calculate_global_farm_shares_should_work() {
+    assert_eq!(calculate_global_farm_shares(0, FixedU128::from(0)).unwrap(), 0);
 
-    assert_eq!(calculate_global_pool_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
+    assert_eq!(calculate_global_farm_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
 
     assert_eq!(
-        calculate_global_pool_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
+        calculate_global_farm_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
         2_641_979
     );
 
     assert_eq!(
-        calculate_global_pool_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
+        calculate_global_farm_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
         313_948_636_755_764
     );
 }
@@ -596,4 +596,21 @@ fn calculate_reward_should_work() {
 
     //NOTE: start and now RPS are the same
     assert_eq!(calculate_reward(1_688_453, 1_688_453, 268_413_545_346).unwrap(), 0);
+}
+
+#[test]
+fn calculate_adjusted_shares_should_work() {
+    assert_eq!(calculate_adjusted_shares(0, FixedU128::from(0)).unwrap(), 0);
+
+    assert_eq!(calculate_adjusted_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
+
+    assert_eq!(
+        calculate_adjusted_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
+        2_641_979
+    );
+
+    assert_eq!(
+        calculate_adjusted_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
+        313_948_636_755_764
+    );
 }
