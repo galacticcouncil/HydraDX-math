@@ -81,13 +81,17 @@ pub fn calculate_sell_hub_state_changes(
     let (reserve_hp, hub_reserve_hp, amount_hp) =
         to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
 
-    let delta_reserve_out = reserve_hp * amount_hp / (hub_reserve_hp + amount_hp);
+    let delta_reserve_out = reserve_hp
+        .checked_mul(amount_hp)
+        .and_then(|v| v.checked_div(hub_reserve_hp.checked_add(amount_hp)?))?;
 
     let delta_reserve_out = to_balance!(delta_reserve_out).ok()?;
 
     let delta_reserve_out = amount_without_fee(delta_reserve_out, asset_fee)?;
 
-    let hub_imbalance = amount_hp * hub_reserve_hp / (hub_reserve_hp + amount_hp);
+    let hub_imbalance = amount_hp
+        .checked_mul(hub_reserve_hp)
+        .and_then(|v| v.checked_div(hub_reserve_hp.checked_add(amount_hp)?))?;
     let hub_imbalance = to_balance!(hub_imbalance).ok()?;
 
     // Negative
@@ -114,9 +118,14 @@ pub fn calculate_buy_for_hub_asset_state_changes(
     let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
         to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
 
-    let delta_hub_reserve_hp = (hub_reserve_hp * amount_hp / hub_denominator_hp) + 1;
+    let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
+        v.checked_div(hub_denominator_hp)
+            .and_then(|v| v.checked_add(U256::one()))
+    })?;
 
-    let hub_imbalance = delta_hub_reserve_hp * hub_reserve_hp / (hub_reserve_hp + delta_hub_reserve_hp);
+    let hub_imbalance = delta_hub_reserve_hp
+        .checked_mul(hub_reserve_hp)
+        .and_then(|v| v.checked_div(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?))?;
 
     let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
     let hub_imbalance = to_balance!(hub_imbalance).ok()?;
@@ -161,8 +170,6 @@ pub fn calculate_buy_state_changes(
         .into_inner();
 
     if delta_hub_reserve_in >= asset_in_state.hub_reserve {
-        // TODO: this is not math error, perhaps we need to think about how to deal with this in nicer way
-        // see tests::invariants::buy_update_invariants_no_fees_case
         return None;
     }
 
