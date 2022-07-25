@@ -7,7 +7,7 @@ use proptest::prelude::*;
 use sp_arithmetic::{FixedU128, Permill};
 
 pub const ONE: Balance = 1_000_000_000_000;
-pub const TOLERANCE: Balance = 1_000; // * 1_000 * 1_000;
+pub const TOLERANCE: Balance = 1_000;
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
 

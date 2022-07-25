@@ -266,7 +266,7 @@ pub fn calculate_add_liquidity_state_changes(
     })
 }
 
-/// Calculate delta changes of rmove liqudiity given current asset state and position from which liquidity should be removed.
+/// Calculate delta changes of remove liqudiity given current asset state and position from which liquidity should be removed.
 pub fn calculate_remove_liquidity_state_changes(
     asset_state: &AssetReserveState<Balance>,
     shares_removed: Balance,
@@ -327,7 +327,6 @@ pub fn calculate_remove_liquidity_state_changes(
         .and_then(|v| v.checked_div(position_shares_hp))?;
 
     let adjusted_asset_tvl_hp = if is_stable_asset {
-        // TODO: add test for this
         stable_reserve_hp.checked_sub(delta_reserve_hp)?
     } else {
         stable_reserve_hp
