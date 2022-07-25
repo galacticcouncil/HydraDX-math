@@ -1,6 +1,7 @@
 use crate::MathError;
 
 use sp_arithmetic::{
+    traits::One,
     traits::{CheckedAdd, CheckedDiv, CheckedMul},
     FixedPointNumber, FixedU128,
 };
@@ -50,7 +51,10 @@ pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32
         .checked_add(&1.into())
         .ok_or(MathError::Overflow)?;
 
-    num.checked_div(&denom).ok_or(MathError::Overflow)
+    Ok(num
+        .checked_div(&denom)
+        .ok_or(MathError::Overflow)?
+        .min(FixedU128::one()))
 }
 
 /// This function return `GlobalPool`'s reward per one period or error.
