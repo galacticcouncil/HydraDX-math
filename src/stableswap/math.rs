@@ -234,6 +234,58 @@ pub mod two_asset_pool_math {
         Balance::try_from(d).ok()
     }
 
+    pub fn calculate_d_5<const N: u8>(xp: &[Balance; 5], ann: Balance, precision: Balance) -> Option<Balance> {
+        let two_u256 = to_u256!(2_u128);
+        let five_u256 = to_u256!(5_u128);
+        let n_coins = five_u256;
+
+        let mut xp_hp: [U256; 5] = [to_u256!(xp[0]), to_u256!(xp[1]), to_u256!(xp[2]), to_u256!(xp[3]), to_u256!(xp[4])];
+        xp_hp.sort();
+
+        let s_hp = xp_hp[0].checked_add(xp_hp[1])?
+            .checked_add(xp_hp[2])?
+            .checked_add(xp_hp[3])?
+            .checked_add(xp_hp[4])?;
+
+        if s_hp == U256::zero() {
+            return Some(Balance::zero());
+        }
+
+        let mut d = s_hp;
+
+        let (ann_hp, precision_hp) = to_u256!(ann, precision);
+
+        for _i in 0..N {
+            let d_p = xp_hp
+                .iter()
+                .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
+            let d_prev = d;
+
+            d = ann_hp
+                .checked_mul(s_hp)?
+                .checked_add(d_p.checked_mul(n_coins)?)?
+                .checked_mul(d)?
+                .checked_div(
+                    ann_hp
+                        .checked_sub(U256::one())?
+                        .checked_mul(d)?
+                        .checked_add(n_coins.checked_add(U256::one())?.checked_mul(d_p)?)?,
+                )?
+                // I have not analytically justified adding 2 here in the case when n > 2,
+                // but I will leave it until tests provide us more information
+                .checked_add(two_u256)?;
+
+            if has_converged(d_prev, d, precision_hp) {
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
+                dbg!(_i);
+                return Balance::try_from(d).ok();
+            }
+        }
+
+        Balance::try_from(d).ok()
+    }
+
     /// Calculate new amount of reserve OUT given amount to be added to the pool
     pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
         amount: Balance,
@@ -459,6 +511,11 @@ mod invariants {
     const LOW_RESERVE_RANGE: (Balance, Balance) = (10_u128, 11_u128);
     const HIGH_RESERVE_RANGE: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
 
+    // For larger n, bounds on max ratios of allowed reserve values must be tighter to avoid
+    // overflow in calculation of D_P
+    const LOW_RESERVE_RANGE_5: (Balance, Balance) = (10_000 * ONE, 10_001 * ONE);
+    const HIGH_RESERVE_RANGE_5: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
+
     fn trade_amount() -> impl Strategy<Value = Balance> {
         1000..10000 * ONE
     }
@@ -477,6 +534,13 @@ mod invariants {
         HIGH_RESERVE_RANGE.0..HIGH_RESERVE_RANGE.1
     }
 
+    fn low_asset_reserve_5() -> impl Strategy<Value = Balance> {
+        LOW_RESERVE_RANGE_5.0..LOW_RESERVE_RANGE_5.1
+    }
+    fn high_asset_reserve_5() -> impl Strategy<Value = Balance> {
+        HIGH_RESERVE_RANGE_5.0..HIGH_RESERVE_RANGE_5.1
+    }
+
     fn amplification() -> impl Strategy<Value = Balance> {
         2..10000u128
     }
@@ -493,6 +557,66 @@ mod invariants {
             let precision = 1u128;
 
             let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
+
+            assert!(d.is_some());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_d_5(reserve_0 in asset_reserve(),
+            reserve_1 in asset_reserve(),
+            reserve_2 in asset_reserve(),
+            reserve_3 in asset_reserve(),
+            reserve_4 in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+
+            let d = calculate_d_5::<D_ITERATIONS>(&[reserve_0, reserve_1, reserve_2, reserve_3, reserve_4], ann, precision);
+
+            assert!(d.is_some());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_d_5_extreme_1(reserve_0 in low_asset_reserve_5(),
+            reserve_1 in high_asset_reserve_5(),
+            reserve_2 in high_asset_reserve_5(),
+            reserve_3 in high_asset_reserve_5(),
+            reserve_4 in high_asset_reserve_5(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+
+            let d = calculate_d_5::<D_ITERATIONS>(&[reserve_0, reserve_1, reserve_2, reserve_3, reserve_4], ann, precision);
+
+            assert!(d.is_some());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn test_d_5_extreme_2(reserve_0 in low_asset_reserve_5(),
+            reserve_1 in low_asset_reserve_5(),
+            reserve_2 in low_asset_reserve_5(),
+            reserve_3 in low_asset_reserve_5(),
+            reserve_4 in high_asset_reserve_5(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 4u128;
+
+            let precision = 1u128;
+
+            let d = calculate_d_5::<D_ITERATIONS>(&[reserve_0, reserve_1, reserve_2, reserve_3, reserve_4], ann, precision);
 
             assert!(d.is_some());
         }
