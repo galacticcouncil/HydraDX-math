@@ -366,6 +366,51 @@ pub mod two_asset_pool_math {
 
         Balance::try_from(y).ok()
     }
+
+    pub(crate) fn calculate_y_5<const N: u8>(xp: &[Balance; 4], d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
+        let (d_hp, n_coins_hp, ann_hp, precision_hp) = to_u256!(d, 5u128, ann, precision);
+        let mut xp_hp: [U256; 4] = [to_u256!(xp[0]), to_u256!(xp[1]), to_u256!(xp[2]), to_u256!(xp[3])];
+        xp_hp.sort();
+
+        let two_hp = to_u256!(2u128);
+        let s_hp = xp_hp[0].checked_add(xp_hp[1])?
+            .checked_add(xp_hp[2])?
+            .checked_add(xp_hp[3])?;
+        let mut c = d_hp;
+
+        for _i in 0..4 {
+            c = c.checked_mul(d_hp)?.checked_div(xp_hp[_i].checked_mul(n_coins_hp)?)?;
+        }
+
+        c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
+
+        let b = s_hp.checked_add(d_hp.checked_div(ann_hp)?)?;
+        let mut y = d_hp;
+
+        dbg!(xp);
+        dbg!(c);
+        dbg!(b);
+        for _i in 0..N {
+            let y_prev = y;
+            dbg!(_i);
+            dbg!(y);
+            y = y
+                .checked_mul(y)?
+                .checked_add(c)?
+                .checked_div(two_hp.checked_mul(y)?.checked_add(b)?.checked_sub(d_hp)?)?
+                .checked_add(two_hp)?;
+
+
+            if has_converged(y_prev, y, precision_hp) {
+                // If runtime-benchmarks - dont return and force max iterations
+                #[cfg(not(feature = "runtime-benchmarks"))]
+                dbg!(_i);
+                return Balance::try_from(y).ok();
+            }
+        }
+        dbg!(N);
+        Balance::try_from(y).ok()
+    }
 }
 
 #[cfg(test)]
@@ -516,6 +561,9 @@ mod invariants {
     const LOW_RESERVE_RANGE_5: (Balance, Balance) = (10_000 * ONE, 10_001 * ONE);
     const HIGH_RESERVE_RANGE_5: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
 
+    const CALC_Y_LOW_RESERVE_RANGE_5: (Balance, Balance) = (1000_u128, 1001_u128);
+    const CALC_Y_HIGH_RESERVE_RANGE_5: (Balance, Balance) = (50_000_000_000_000_u128, 50_000_000_000_001_u128);
+
     fn trade_amount() -> impl Strategy<Value = Balance> {
         1000..10000 * ONE
     }
@@ -539,6 +587,12 @@ mod invariants {
     }
     fn high_asset_reserve_5() -> impl Strategy<Value = Balance> {
         HIGH_RESERVE_RANGE_5.0..HIGH_RESERVE_RANGE_5.1
+    }
+    fn calc_y_low_asset_reserve_5() -> impl Strategy<Value = Balance> {
+        CALC_Y_LOW_RESERVE_RANGE_5.0..CALC_Y_LOW_RESERVE_RANGE_5.1
+    }
+    fn calc_y_high_asset_reserve_5() -> impl Strategy<Value = Balance> {
+        CALC_Y_HIGH_RESERVE_RANGE_5.0..CALC_Y_HIGH_RESERVE_RANGE_5.1
     }
 
     fn amplification() -> impl Strategy<Value = Balance> {
@@ -572,7 +626,7 @@ mod invariants {
             reserve_4 in asset_reserve(),
             amp in amplification(),
         ) {
-            let ann = amp * 4u128;
+            let ann = amp * 3125u128;
 
             let precision = 1u128;
 
@@ -592,7 +646,7 @@ mod invariants {
             reserve_4 in high_asset_reserve_5(),
             amp in amplification(),
         ) {
-            let ann = amp * 4u128;
+            let ann = amp * 3125u128;
 
             let precision = 1u128;
 
@@ -605,14 +659,15 @@ mod invariants {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
-        fn test_d_5_extreme_2(reserve_0 in low_asset_reserve_5(),
+        fn test_d_5_extreme_2(reserve_0 in high_asset_reserve_5(),
             reserve_1 in low_asset_reserve_5(),
             reserve_2 in low_asset_reserve_5(),
             reserve_3 in low_asset_reserve_5(),
-            reserve_4 in high_asset_reserve_5(),
-            amp in amplification(),
+            reserve_4 in low_asset_reserve_5(),
+            // amp in amplification(),
         ) {
-            let ann = amp * 4u128;
+            // let ann = amp * 3125u128;
+            let ann = 2u128 * 3125u128;
 
             let precision = 1u128;
 
@@ -638,6 +693,90 @@ mod invariants {
 
             assert!(y - 4 <= reserve_a);
             assert!(y >= reserve_a);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn round_trip_d_y_5(reserve_a in asset_reserve(),
+            reserve_b in asset_reserve(),
+            reserve_c in asset_reserve(),
+            reserve_d in asset_reserve(),
+            reserve_e in asset_reserve(),
+            amp in amplification(),
+        ) {
+            let ann = amp * 3125u128;
+
+            let precision = 1u128;
+
+            let d = calculate_d_5::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
+            let y = calculate_y_5::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
+
+            dbg!(y);
+            dbg!(reserve_a);
+
+            assert!(y - 4 <= reserve_a);
+            assert!(y >= reserve_a);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn round_trip_d_y_extreme_5(reserve_a in low_asset_reserve_5(),
+            reserve_b in low_asset_reserve_5(),
+            reserve_c in low_asset_reserve_5(),
+            reserve_d in low_asset_reserve_5(),
+            reserve_e in high_asset_reserve_5(),
+            amp in amplification(),
+        ) {
+            // let ann = amp * 3125u128;
+            let ann = 10000u128 * 3125u128;
+
+            let precision = 1u128;
+
+            let s = reserve_b.checked_add(reserve_c).unwrap()
+                .checked_add(reserve_d).unwrap()
+                .checked_add(reserve_e).unwrap();
+            let d = ann.checked_mul(s).unwrap().checked_div(ann.checked_sub(1_u128).unwrap()).unwrap();
+
+            // let d = calculate_d_5::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
+            let y = calculate_y_5::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision);
+
+            assert!(y.is_some());
+
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn round_trip_d_y_extreme_convergence_5(reserve_b in calc_y_low_asset_reserve_5(),
+            reserve_c in calc_y_low_asset_reserve_5(),
+            reserve_d in calc_y_low_asset_reserve_5(),
+            reserve_e in calc_y_high_asset_reserve_5(),
+            // amp in amplification(),
+        ) {
+            // let ann = amp * 3125u128;
+            let ann = 2u128 * 3125u128;
+            // let ann = 10000u128 * 3125u128;
+
+            let precision = 1u128;
+
+            let s = reserve_b.checked_add(reserve_c).unwrap()
+                .checked_add(reserve_d).unwrap()
+                .checked_add(reserve_e).unwrap();
+            // This formula for d is chosen to make the function f(y) as non-linear as possible.
+            // f(y) is a quadratic, and using d as calculated below eliminates the linear term.
+            let d = ann.checked_mul(s).unwrap().checked_div(ann.checked_sub(1_u128).unwrap()).unwrap();
+            let res = calculate_y_5::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision);
+
+            assert!(res.is_some());
+            // Uncomment below to see iterations of this test
+            // assert!(!res.is_some());
+
+
         }
     }
 
