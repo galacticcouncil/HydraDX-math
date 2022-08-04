@@ -1,3 +1,2 @@
-pub mod math;
-mod multi_math;
-pub use multi_math::*;
+mod math;
+pub use math::*;

@@ -2,60 +2,54 @@ use crate::to_u256;
 use crate::types::Balance;
 use num_traits::Zero;
 use primitive_types::U256;
+use sp_std::prelude::*;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// N - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
 /// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
-    reserve_in: Balance,
-    reserve_out: Balance,
+    balances: &[Balance],
+    idx_in: usize,
+    idx_out: usize,
     amount_in: Balance,
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    let ann = two_asset_pool_math::calculate_ann(amplification)?;
-    let new_reserve_out =
-        two_asset_pool_math::calculate_y_given_in::<N, N_Y>(amount_in, reserve_in, reserve_out, ann, precision)?;
-    reserve_out.checked_sub(new_reserve_out)
+    let ann = calculate_ann(balances.len(), amplification)?;
+    let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, ann, precision)?;
+    balances[idx_out].checked_sub(new_reserve_out)
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
 /// N - number of iterations to use for Newton's formula ( it should be >=1 otherwise it wont converge at all and will always fail
 /// N_Y - number of iterations to use for Newton's formula to calculate reserve Y ( it should be >=1 otherwise it wont converge at all and will always fail
 pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
-    reserve_in: Balance,
-    reserve_out: Balance,
+    balances: &[Balance],
+    idx_in: usize,
+    idx_out: usize,
     amount_out: Balance,
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    let ann = two_asset_pool_math::calculate_ann(amplification)?;
-    let new_reserve_in =
-        two_asset_pool_math::calculate_y_given_out::<N, N_Y>(amount_out, reserve_in, reserve_out, ann, precision)?;
-    new_reserve_in.checked_sub(reserve_in)
+    let ann = calculate_ann(balances.len(), amplification)?;
+    let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, ann, precision)?;
+    new_reserve_in.checked_sub(balances[idx_in])
 }
 
-/// Calculate shares amount after liquidity is added to the pool.
-///
-/// No fee applied. Currently is expected that liquidity of both assets are added to the pool.
-///
-/// share_amount = share_supply * ( d1 - d0 ) / d0
-///
-/// Returns `Some(shares)` when successful.
-pub fn calculate_add_liquidity_shares<const N: u8>(
-    initial_reserves: &[Balance; 2],
-    updated_reserves: &[Balance; 2],
+pub fn calculate_shares<const N: u8>(
+    initial_reserves: &[Balance],
+    updated_reserves: &[Balance],
     amplification: Balance,
     precision: Balance,
     share_issuance: Balance,
 ) -> Option<Balance> {
-    let ann = two_asset_pool_math::calculate_ann(amplification)?;
+    let ann = calculate_ann(initial_reserves.len(), amplification)?;
 
-    let initial_d = two_asset_pool_math::calculate_d::<N>(initial_reserves, ann, precision)?;
+    let initial_d = calculate_d::<N>(initial_reserves, ann, precision)?;
 
     // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
     // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-    let updated_d = two_asset_pool_math::calculate_d::<N>(updated_reserves, ann, precision)?.checked_sub(2_u128)?;
+    let updated_d = calculate_d::<N>(updated_reserves, ann, precision)?.checked_sub(2_u128)?;
 
     if updated_d < initial_d {
         return None;
@@ -73,10 +67,10 @@ pub fn calculate_add_liquidity_shares<const N: u8>(
 
 /// Given amount of shares and asset reserves, calculate corresponding amounts of each asset to be withdrawn.
 pub fn calculate_remove_liquidity_amounts(
-    reserves: &[Balance; 2],
+    reserves: &[Balance],
     shares: Balance,
     share_asset_issuance: Balance,
-) -> Option<(Balance, Balance)> {
+) -> Option<Vec<Balance>> {
     if share_asset_issuance.is_zero() {
         return None;
     }
@@ -92,13 +86,66 @@ pub fn calculate_remove_liquidity_amounts(
         .ok()
     };
 
-    let amount_a = calculate_amount(reserves[0])?;
-    let amount_b = calculate_amount(reserves[1])?;
+    let mut r = Vec::<Balance>::new();
+    for reserve in reserves {
+        r.push(calculate_amount(*reserve)?);
+    }
 
-    Some((amount_a, amount_b))
+    Some(r)
+}
+
+/// amplification * n^n where n is number of assets in pool.
+fn calculate_ann(len: usize, amplification: Balance) -> Option<Balance> {
+    (0..len).try_fold(amplification, |acc, _| acc.checked_mul(len as u128))
+}
+
+fn calculate_y_given_in<const N: u8, const N_Y: u8>(
+    amount: Balance,
+    idx_in: usize,
+    idx_out: usize,
+    balances: &[Balance],
+    ann: Balance,
+    precision: Balance,
+) -> Option<Balance> {
+    let new_reserve_in = balances[idx_in].checked_add(amount)?;
+
+    let d = calculate_d::<N>(balances, ann, precision)?;
+
+    let xp: Vec<Balance> = balances
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_out)
+        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
+        .collect();
+
+    calculate_y::<N_Y>(&xp, d, ann, precision)
+}
+
+/// Calculate new amount of reserve IN given amount to be withdrawn from the pool
+fn calculate_y_given_out<const N: u8, const N_Y: u8>(
+    amount: Balance,
+    idx_in: usize,
+    idx_out: usize,
+    balances: &[Balance],
+    ann: Balance,
+    precision: Balance,
+) -> Option<Balance> {
+    let new_reserve_out = balances[idx_out].checked_sub(amount)?;
+
+    let d = calculate_d::<N>(balances, ann, precision)?;
+    let xp: Vec<Balance> = balances
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_in)
+        .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
+        .collect();
+
+    calculate_y::<N_Y>(&xp, d, ann, precision)
 }
 
 /// Calculate required amount of asset b when adding liquidity of asset a.
+///
+/// Note: currently here to be backwards compatible with 2-asset support until decided how to do add liquidity
 ///
 /// new_reserve_b = (reserve_a + amount) * reserve_b / reserve_a
 ///
@@ -115,187 +162,117 @@ pub fn calculate_asset_b_required(
     updated_reserve_b.checked_sub(asset_b_reserve)
 }
 
-/// Stableswap/curve math reduced to two assets.
-pub mod two_asset_pool_math {
-    use super::Balance;
-    use crate::to_u256;
-    use num_traits::Zero;
-    use primitive_types::U256;
+pub fn calculate_d<const N: u8>(xp: &[Balance], ann: Balance, precision: Balance) -> Option<Balance> {
+    let two_u256 = to_u256!(2_u128);
+    let n_coins = to_u256!(xp.len());
 
-    /// amplification * n^n where n is number of assets in pool.
-    pub(crate) fn calculate_ann(amplification: Balance) -> Option<Balance> {
-        (0..2).try_fold(amplification, |acc, _| acc.checked_mul(2u128))
+    //let mut xp_hp: [U256; 2] = [to_u256!(xp[0]), to_u256!(xp[1])];
+    let mut xp_hp: Vec<U256> = xp.iter().map(|v| to_u256!(*v)).collect();
+    xp_hp.sort();
+
+    let mut s_hp = U256::zero();
+
+    for x in xp_hp.iter() {
+        s_hp = s_hp.checked_add(*x)?;
     }
 
-    #[inline]
-    fn abs_diff(d0: U256, d1: U256) -> U256 {
-        if d1 >= d0 {
-            // This is safe due the previous condition
-            d1 - d0
-        } else {
-            d0 - d1
+    if s_hp == U256::zero() {
+        return Some(Balance::zero());
+    }
+
+    let mut d = s_hp;
+
+    let (ann_hp, precision_hp) = to_u256!(ann, precision);
+
+    for _ in 0..N {
+        let d_p = xp_hp
+            .iter()
+            .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
+        let d_prev = d;
+
+        d = ann_hp
+            .checked_mul(s_hp)?
+            .checked_add(d_p.checked_mul(n_coins)?)?
+            .checked_mul(d)?
+            .checked_div(
+                ann_hp
+                    .checked_sub(U256::one())?
+                    .checked_mul(d)?
+                    .checked_add(n_coins.checked_add(U256::one())?.checked_mul(d_p)?)?,
+            )?
+            // adding two here is sufficient to account for rounding
+            // errors, AS LONG AS the minimum reserves are 2 for each
+            // asset. I.e., as long as xp_hp[0] >= 2 and xp_hp[1] >= 2
+            // adding two guarantees that this function will return
+            // a value larger than or equal to the correct D invariant
+            .checked_add(two_u256)?;
+
+        if has_converged(d_prev, d, precision_hp) {
+            // If runtime-benchmarks - dont return and force max iterations
+            #[cfg(not(feature = "runtime-benchmarks"))]
+            return Balance::try_from(d).ok();
         }
     }
 
-    #[inline]
-    fn has_converged(v0: U256, v1: U256, precision: U256) -> bool {
-        let diff = abs_diff(v0, v1);
+    Balance::try_from(d).ok()
+}
 
-        if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
-            return true;
-        }
+fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
+    let (d_hp, n_coins_hp, ann_hp, precision_hp) = to_u256!(d, xp.len().checked_add(1)?, ann, precision);
+    let mut xp_hp: Vec<U256> = xp.iter().map(|v| to_u256!(*v)).collect();
+    xp_hp.sort();
 
-        false
+    let two_hp = to_u256!(2u128);
+    let mut s_hp = U256::zero();
+    for x in xp_hp.iter() {
+        s_hp = s_hp.checked_add(*x)?;
+    }
+    let mut c = d_hp;
+
+    for _i in 0..xp.len() {
+        c = c.checked_mul(d_hp)?.checked_div(xp_hp[_i].checked_mul(n_coins_hp)?)?;
     }
 
-    /// Calculate `d` so the Stableswap invariant does not change.
-    ///
-    /// Note: this works for two asset pools only!
-    ///
-    /// This is solved using newtons formula by iterating the following equation until convergence.
-    ///
-    /// dn+1 = (ann * S + n * Dp) * dn) / ( (ann -1) * dn + (n+1) * dp)
-    ///
-    /// where
-    ///
-    /// S = sum(xp)
-    /// dp = d^n+1 / prod(sp)
-    ///
-    /// if (dn+1 - dn) <= precision - converged successfully.
-    ///
-    /// Parameters:
-    /// - `xp`: reserves of asset a and b.
-    /// - `ann`: amplification coefficient multiplied by `2^2` ( number of assets in pool)
-    /// - `precision`:  convergence precision
-    pub fn calculate_d<const N: u8>(xp: &[Balance; 2], ann: Balance, precision: Balance) -> Option<Balance> {
-        let two_u256 = to_u256!(2_u128);
-        let n_coins = two_u256;
+    c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
 
-        let mut xp_hp: [U256; 2] = [to_u256!(xp[0]), to_u256!(xp[1])];
-        xp_hp.sort();
+    let b = s_hp.checked_add(d_hp.checked_div(ann_hp)?)?;
+    let mut y = d_hp;
 
-        let s_hp = xp_hp[0].checked_add(xp_hp[1])?;
+    for _i in 0..N {
+        let y_prev = y;
+        y = y
+            .checked_mul(y)?
+            .checked_add(c)?
+            .checked_div(two_hp.checked_mul(y)?.checked_add(b)?.checked_sub(d_hp)?)?
+            .checked_add(two_hp)?;
 
-        if s_hp == U256::zero() {
-            return Some(Balance::zero());
+        if has_converged(y_prev, y, precision_hp) {
+            // If runtime-benchmarks - dont return and force max iterations
+            #[cfg(not(feature = "runtime-benchmarks"))]
+            return Balance::try_from(y).ok();
         }
+    }
+    Balance::try_from(y).ok()
+}
 
-        let mut d = s_hp;
+#[inline]
+fn has_converged(v0: U256, v1: U256, precision: U256) -> bool {
+    let diff = abs_diff(v0, v1);
 
-        let (ann_hp, precision_hp) = to_u256!(ann, precision);
-
-        for _ in 0..N {
-            let d_p = xp_hp
-                .iter()
-                .try_fold(d, |acc, v| acc.checked_mul(d)?.checked_div(v.checked_mul(n_coins)?))?;
-            let d_prev = d;
-
-            d = ann_hp
-                .checked_mul(s_hp)?
-                .checked_add(d_p.checked_mul(n_coins)?)?
-                .checked_mul(d)?
-                .checked_div(
-                    ann_hp
-                        .checked_sub(U256::one())?
-                        .checked_mul(d)?
-                        .checked_add(n_coins.checked_add(U256::one())?.checked_mul(d_p)?)?,
-                )?
-                // adding two here is sufficient to account for rounding
-                // errors, AS LONG AS the minimum reserves are 2 for each
-                // asset. I.e., as long as xp_hp[0] >= 2 and xp_hp[1] >= 2
-                // adding two guarantees that this function will return
-                // a value larger than or equal to the correct D invariant
-                .checked_add(two_u256)?;
-
-            if has_converged(d_prev, d, precision_hp) {
-                // If runtime-benchmarks - dont return and force max iterations
-                #[cfg(not(feature = "runtime-benchmarks"))]
-                return Balance::try_from(d).ok();
-            }
-        }
-
-        Balance::try_from(d).ok()
+    if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
+        return true;
     }
 
-    /// Calculate new amount of reserve OUT given amount to be added to the pool
-    pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
-        amount: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
-        ann: Balance,
-        precision: Balance,
-    ) -> Option<Balance> {
-        let new_reserve_in = reserve_in.checked_add(amount)?;
+    false
+}
 
-        let d = calculate_d::<N>(&[reserve_in, reserve_out], ann, precision)?;
-
-        calculate_y::<N_Y>(new_reserve_in, d, ann, precision)
-    }
-
-    /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
-    pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
-        amount: Balance,
-        reserve_in: Balance,
-        reserve_out: Balance,
-        ann: Balance,
-        precision: Balance,
-    ) -> Option<Balance> {
-        let new_reserve_out = reserve_out.checked_sub(amount)?;
-
-        let d = calculate_d::<N>(&[reserve_in, reserve_out], ann, precision)?;
-
-        calculate_y::<N_Y>(new_reserve_out, d, ann, precision)
-    }
-
-    /// Calculate new reserve amount of an asset given updated reserve of secondary asset and initial `d`
-    ///
-    /// This is solved using Newton's method by iterating the following until convergence:
-    ///
-    /// yn+1 = (yn^2 + c) / ( 2 * yn + b - d )
-    ///
-    /// where
-    /// c = d^n+1 / n^n * P * ann
-    /// b = s + d/ann
-    ///
-    /// note: thw s and P are sum or prod of all reserves except the one we are calculating but since we are in 2 asset pool - it is just one
-    /// s = reserve
-    /// P = reserve
-    ///
-    /// Note: this implementation works only for 2 assets pool!
-    fn calculate_y<const N: u8>(reserve: Balance, d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
-        let (d_hp, two_hp, ann_hp, new_reserve_hp, precision_hp) = to_u256!(d, 2u128, ann, reserve, precision);
-
-        let n_coins_hp = two_hp;
-        let s = new_reserve_hp;
-        let mut c = d_hp;
-
-        c = c.checked_mul(d_hp)?.checked_div(new_reserve_hp.checked_mul(two_hp)?)?;
-
-        c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
-
-        let b = s.checked_add(d_hp.checked_div(ann_hp)?)?;
-        let mut y = d_hp;
-
-        for _ in 0..N {
-            let y_prev = y;
-            y = y
-                .checked_mul(y)?
-                .checked_add(c)?
-                .checked_div(two_hp.checked_mul(y)?.checked_add(b)?.checked_sub(d_hp)?)?
-                // Adding 2 guarantees that at each iteration, we are rounding so as to *overestimate* compared
-                // to exact division.
-                // Note that while this should guarantee convergence when y is decreasing, it may cause
-                // issues when y is increasing.
-                .checked_add(two_hp)?;
-
-            if has_converged(y_prev, y, precision_hp) {
-                // If runtime-benchmarks - dont return and force max iterations
-                #[cfg(not(feature = "runtime-benchmarks"))]
-                return Balance::try_from(y).ok();
-            }
-        }
-
-        Balance::try_from(y).ok()
+#[inline]
+fn abs_diff(d0: U256, d1: U256) -> U256 {
+    if d1 >= d0 {
+        // This is safe due the previous condition
+        d1 - d0
+    } else {
+        d0 - d1
     }
 }
 
@@ -304,14 +281,14 @@ mod test_two_assets_math {
     const D_ITERATIONS: u8 = 128;
     const Y_ITERATIONS: u8 = 64;
 
-    use super::two_asset_pool_math::*;
+    use super::*;
     use crate::types::Balance;
 
     #[test]
     fn test_ann() {
-        assert_eq!(calculate_ann(1u128), Some(4u128));
-        assert_eq!(calculate_ann(10u128), Some(40u128));
-        assert_eq!(calculate_ann(100u128), Some(400u128));
+        assert_eq!(calculate_ann(2, 1u128), Some(4u128));
+        assert_eq!(calculate_ann(2, 10u128), Some(40u128));
+        assert_eq!(calculate_ann(2, 100u128), Some(400u128));
     }
 
     #[test]
@@ -350,7 +327,7 @@ mod test_two_assets_math {
         let amount_in = 100u128;
         assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, ann, precision), Some(2942u128));
         assert_eq!(
-            calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, reserves[0], reserves[1], ann, precision),
+            calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, ann, precision),
             Some(2000u128 - 121u128)
         );
         assert_eq!(
@@ -372,7 +349,7 @@ mod test_two_assets_math {
         assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, ann, precision), Some(2942u128));
 
         assert_eq!(
-            calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, reserves[0], reserves[1], ann, precision),
+            calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, ann, precision),
             Some(1000u128 + expected_in)
         );
         assert_eq!(
@@ -423,9 +400,9 @@ mod test_two_assets_math {
 
 #[cfg(test)]
 mod invariants {
-    use super::two_asset_pool_math::*;
     use super::Balance;
-    use super::{calculate_add_liquidity_shares, calculate_in_given_out, calculate_out_given_in};
+    use super::*;
+    use super::{calculate_in_given_out, calculate_out_given_in, calculate_shares};
     use proptest::prelude::*;
     use proptest::proptest;
 
@@ -491,7 +468,7 @@ mod invariants {
 
             let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(reserve_in, reserve_out, amount_in, amp, precision);
+            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
 
             assert!(result.is_some());
 
@@ -515,7 +492,7 @@ mod invariants {
 
             let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(reserve_in, reserve_out, amount_in, amp, precision);
+            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
 
             assert!(result.is_some());
 
@@ -539,7 +516,7 @@ mod invariants {
 
             let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
 
-            let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(reserve_in, reserve_out, amount_out, amp, precision);
+            let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_out, amp, precision);
 
             assert!(result.is_some());
 
@@ -565,7 +542,7 @@ mod invariants {
             let initial_reserves = &[reserve_a, reserve_b];
             let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
 
-            let result = calculate_add_liquidity_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
+            let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
 
             assert!(result.is_some());
         }
