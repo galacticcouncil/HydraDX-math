@@ -15,6 +15,7 @@ fixed = "1.9.0"
 # Added because of use of the FixedU128
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive", "max-encoded-len"] }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e", version="4.0.0", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e", version="4.0.0", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
@@ -25,7 +26,7 @@ proptest = "1.0.0"
 
 [features]
 default = ["std"]
-std = ["sp-arithmetic/std"]
+std = ["sp-arithmetic/std", "sp-std/std"]
 runtime-benchmarks = []
 
 [[bench]]

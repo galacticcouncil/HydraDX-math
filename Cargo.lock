@@ -349,6 +349,7 @@ dependencies = [
  "rand 0.7.3",
  "rand_xoshiro",
  "sp-arithmetic",
+ "sp-std",
 ]
 
 [[package]]

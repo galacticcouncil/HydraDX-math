@@ -2,6 +2,7 @@ use crate::to_u256;
 use crate::types::Balance;
 use num_traits::Zero;
 use primitive_types::U256;
+use sp_std::prelude::*;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
 /// N - number of iterations to use for Newton's formula to calculate parameter D ( it should be >=1 otherwise it wont converge at all and will always fail
@@ -92,7 +93,6 @@ pub fn calculate_remove_liquidity_amounts(
 
     Some(r)
 }
-
 
 /// amplification * n^n where n is number of assets in pool.
 fn calculate_ann(len: usize, amplification: Balance) -> Option<Balance> {
@@ -221,8 +221,6 @@ fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, ann: Balance, precision:
 
     for _i in 0..N {
         let y_prev = y;
-        dbg!(_i);
-        dbg!(y);
         y = y
             .checked_mul(y)?
             .checked_add(c)?
@@ -232,11 +230,9 @@ fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, ann: Balance, precision:
         if has_converged(y_prev, y, precision_hp) {
             // If runtime-benchmarks - dont return and force max iterations
             #[cfg(not(feature = "runtime-benchmarks"))]
-            dbg!(_i);
             return Balance::try_from(y).ok();
         }
     }
-    dbg!(N);
     Balance::try_from(y).ok()
 }
 
