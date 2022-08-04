@@ -143,7 +143,26 @@ fn calculate_y_given_out<const N: u8, const N_Y: u8>(
     calculate_y::<N_Y>(&xp, d, ann, precision)
 }
 
-fn calculate_d<const N: u8>(xp: &[Balance], ann: Balance, precision: Balance) -> Option<Balance> {
+/// Calculate required amount of asset b when adding liquidity of asset a.
+///
+/// Note: currently here to be backwards compatible with 2-asset support until decided how to do add liquidity
+///
+/// new_reserve_b = (reserve_a + amount) * reserve_b / reserve_a
+///
+/// required_amount = new_reserve_b - asset_b_reserve
+///
+pub fn calculate_asset_b_required(
+    asset_a_reserve: Balance,
+    asset_b_reserve: Balance,
+    updated_a_reserve: Balance,
+) -> Option<Balance> {
+    let (reserve_a, reserve_b, updated_reserve_a) = to_u256!(asset_a_reserve, asset_b_reserve, updated_a_reserve);
+    let updated_reserve_b =
+        Balance::try_from(updated_reserve_a.checked_mul(reserve_b)?.checked_div(reserve_a)?).ok()?;
+    updated_reserve_b.checked_sub(asset_b_reserve)
+}
+
+pub fn calculate_d<const N: u8>(xp: &[Balance], ann: Balance, precision: Balance) -> Option<Balance> {
     let two_u256 = to_u256!(2_u128);
     let n_coins = to_u256!(xp.len());
 
