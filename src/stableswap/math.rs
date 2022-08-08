@@ -282,6 +282,7 @@ mod test_two_assets_math {
     const Y_ITERATIONS: u8 = 64;
 
     use super::*;
+    use crate::stableswap::math::invariants::ONE;
     use crate::types::Balance;
 
     #[test]
@@ -395,6 +396,19 @@ mod test_two_assets_math {
         let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
 
         assert!(d.is_some());
+    }
+
+    #[test]
+    fn test_shares() {
+        let precision = 1u128;
+        let amp = 100u128;
+
+        let initial_reserves = &[0u128, 0u128];
+        let updated_reserves = &[1000 * ONE, 0u128];
+
+        let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, 0u128);
+
+        assert!(result.is_some());
     }
 }
 
