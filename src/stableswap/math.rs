@@ -1,6 +1,6 @@
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::Zero;
+use num_traits::{One, Zero};
 use primitive_types::U256;
 use sp_std::prelude::*;
 
@@ -92,6 +92,86 @@ pub fn calculate_remove_liquidity_amounts(
     }
 
     Some(r)
+}
+
+/// Given amount of shares and asset reserves, calculate corresponding amounts of each asset to be withdrawn.
+pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
+    reserves: &[Balance],
+    shares: Balance,
+    asset_index: usize,
+    share_asset_issuance: Balance,
+    amplification: Balance,
+    precision: Balance,
+) -> Option<(Balance, Balance)> {
+    if share_asset_issuance.is_zero() {
+        return None;
+    }
+    let ann = calculate_ann(reserves.len(), amplification)?;
+
+    let initial_d = calculate_d::<N>(reserves, ann, precision)?;
+
+    let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
+
+    let d1 = d_hp.checked_sub(shares_hp.checked_mul(d_hp)?.checked_div(issuance_hp)?)?;
+
+    let xp: Vec<Balance> = reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != asset_index)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let y = calculate_y::<N_Y>(&xp, Balance::try_from(d1).ok()?, ann, precision)?;
+
+    let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
+
+    let y_hp = to_u256!(y);
+
+    /*
+       // Deposit x + withdraw y would charge about same
+        // fees as a swap. Otherwise, one could exchange w/o paying fees.
+        // And this formula leads to exactly that equality
+        // fee = pool_fee * n_coins / (4 * (n_coins - 1))
+        let fee = pool_fee
+            .checked_mul(&n_coins)?
+            .checked_div(&four.checked_mul(&n_coins.checked_sub(&one)?)?)?;
+    */
+
+    let fee = U256::zero();
+    let mut xp_reduced = xp_hp.to_vec();
+
+    for idx in 0..xp_hp.len() {
+        let dx_expected = if idx == asset_index {
+            // dx_expected = xp[j] * d1 / d0 - new_y
+            xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
+        } else {
+            // dx_expected = xp[j] - xp[j] * d1 / d0
+            xp_hp[idx].checked_sub(xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?)?
+        };
+        // xp_reduced[j] = xp_reduced[j] - fee * dx_expected
+        xp_reduced[idx] = xp_reduced[idx].checked_sub(fee.checked_mul(dx_expected)?)?;
+    }
+
+    let mut reserves_reduced: Vec<Balance> = Vec::new();
+    let mut asset_reserve: Balance = Balance::zero();
+
+    for (idx, reserve) in xp_reduced.iter().enumerate() {
+        if idx != asset_index {
+            reserves_reduced.push(Balance::try_from(*reserve).ok()?);
+        } else {
+            asset_reserve = Balance::try_from(*reserve).ok()?;
+        }
+    }
+
+    let y1 = calculate_y::<N_Y>(&reserves_reduced, Balance::try_from(d1).ok()?, ann, precision)?;
+
+    let dy = asset_reserve.checked_sub(y1)?.checked_sub(Balance::one())?;
+
+    let dy_0 = reserves[asset_index].checked_sub(y)?;
+
+    let fee = dy_0.checked_sub(dy)?;
+
+    Some((dy, fee))
 }
 
 /// amplification * n^n where n is number of assets in pool.
