@@ -1,7 +1,8 @@
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 use primitive_types::U256;
+use sp_arithmetic::Permill;
 use sp_std::prelude::*;
 
 /// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves.
@@ -102,6 +103,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     share_asset_issuance: Balance,
     amplification: Balance,
     precision: Balance,
+    fee: Permill,
 ) -> Option<(Balance, Balance)> {
     if share_asset_issuance.is_zero() {
         return None;
@@ -137,35 +139,32 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
             .checked_div(&four.checked_mul(&n_coins.checked_sub(&one)?)?)?;
     */
 
-    let fee = U256::zero();
-    let mut xp_reduced = xp_hp.to_vec();
-
-    for idx in 0..xp_hp.len() {
-        let dx_expected = if idx == asset_index {
-            // dx_expected = xp[j] * d1 / d0 - new_y
-            xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
-        } else {
-            // dx_expected = xp[j] - xp[j] * d1 / d0
-            xp_hp[idx].checked_sub(xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?)?
-        };
-        // xp_reduced[j] = xp_reduced[j] - fee * dx_expected
-        xp_reduced[idx] = xp_reduced[idx].checked_sub(fee.checked_mul(dx_expected)?)?;
-    }
-
+    //let fee = Balance::zero();
     let mut reserves_reduced: Vec<Balance> = Vec::new();
     let mut asset_reserve: Balance = Balance::zero();
 
-    for (idx, reserve) in xp_reduced.iter().enumerate() {
-        if idx != asset_index {
-            reserves_reduced.push(Balance::try_from(*reserve).ok()?);
+    for (idx, reserve) in xp_hp.iter().enumerate() {
+        let dx_expected = if idx == asset_index {
+            // dx_expected = xp[j] * d1 / d0 - new_y
+            reserve.checked_mul(d1)?.checked_div(d_hp)?.checked_sub(y_hp)?
         } else {
-            asset_reserve = Balance::try_from(*reserve).ok()?;
+            // dx_expected = xp[j] - xp[j] * d1 / d0
+            reserve.checked_sub(xp_hp[idx].checked_mul(d1)?.checked_div(d_hp)?)?
+        };
+
+        let expected = Balance::try_from(dx_expected).ok()?;
+        let reduced = Balance::try_from(*reserve).ok()?.checked_sub(fee.mul_floor(expected))?;
+
+        if idx != asset_index {
+            reserves_reduced.push(reduced);
+        } else {
+            asset_reserve = reduced;
         }
     }
 
     let y1 = calculate_y::<N_Y>(&reserves_reduced, Balance::try_from(d1).ok()?, ann, precision)?;
 
-    let dy = asset_reserve.checked_sub(y1)?.checked_sub(Balance::one())?;
+    let dy = asset_reserve.checked_sub(y1)?;
 
     let dy_0 = reserves[asset_index].checked_sub(y)?;
 
@@ -309,8 +308,8 @@ fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, ann: Balance, precision:
     }
     let mut c = d_hp;
 
-    for _i in 0..xp.len() {
-        c = c.checked_mul(d_hp)?.checked_div(xp_hp[_i].checked_mul(n_coins_hp)?)?;
+    for reserve in xp_hp.iter() {
+        c = c.checked_mul(d_hp)?.checked_div(reserve.checked_mul(n_coins_hp)?)?;
     }
 
     c = c.checked_mul(d_hp)?.checked_div(ann_hp.checked_mul(n_coins_hp)?)?;
@@ -488,7 +487,30 @@ mod test_two_assets_math {
 
         let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, 0u128);
 
+        assert!(result.is_none());
+    }
+    #[test]
+    fn remove_one_asset_should_work() {
+        let precision = 1u128;
+        let amp = 100u128;
+
+        let reserves = &[1000 * ONE, 2000u128];
+
+        let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
+            reserves,
+            100u128,
+            1,
+            3000u128,
+            amp,
+            precision,
+            Permill::from_percent(10),
+        );
+
         assert!(result.is_some());
+
+        let result = result.unwrap();
+
+        assert_eq!(result, (168, 24));
     }
 }
 
