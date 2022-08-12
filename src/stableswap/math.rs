@@ -16,8 +16,8 @@ pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    let ann = calculate_ann(balances.len(), amplification)?;
-    let new_reserve_out = calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, ann, precision)?;
+    let new_reserve_out =
+        calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, amplification, precision)?;
     balances[idx_out].checked_sub(new_reserve_out)
 }
 
@@ -32,8 +32,8 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    let ann = calculate_ann(balances.len(), amplification)?;
-    let new_reserve_in = calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, ann, precision)?;
+    let new_reserve_in =
+        calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, amplification, precision)?;
     new_reserve_in.checked_sub(balances[idx_in])
 }
 
@@ -44,13 +44,11 @@ pub fn calculate_shares<const N: u8>(
     precision: Balance,
     share_issuance: Balance,
 ) -> Option<Balance> {
-    let ann = calculate_ann(initial_reserves.len(), amplification)?;
-
-    let initial_d = calculate_d::<N>(initial_reserves, ann, precision)?;
+    let initial_d = calculate_d::<N>(initial_reserves, amplification, precision)?;
 
     // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
     // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
-    let updated_d = calculate_d::<N>(updated_reserves, ann, precision)?.checked_sub(2_u128)?;
+    let updated_d = calculate_d::<N>(updated_reserves, amplification, precision)?.checked_sub(2_u128)?;
 
     if updated_d < initial_d {
         return None;
@@ -108,9 +106,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     if share_asset_issuance.is_zero() {
         return None;
     }
-    let ann = calculate_ann(reserves.len(), amplification)?;
-
-    let initial_d = calculate_d::<N>(reserves, ann, precision)?;
+    let initial_d = calculate_d::<N>(reserves, amplification, precision)?;
 
     let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
 
@@ -123,7 +119,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         .map(|(_, v)| *v)
         .collect();
 
-    let y = calculate_y::<N_Y>(&xp, Balance::try_from(d1).ok()?, ann, precision)?;
+    let y = calculate_y::<N_Y>(&xp, Balance::try_from(d1).ok()?, amplification, precision)?;
 
     let xp_hp: Vec<U256> = reserves.iter().map(|v| to_u256!(*v)).collect();
 
@@ -162,7 +158,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         }
     }
 
-    let y1 = calculate_y::<N_Y>(&reserves_reduced, Balance::try_from(d1).ok()?, ann, precision)?;
+    let y1 = calculate_y::<N_Y>(&reserves_reduced, Balance::try_from(d1).ok()?, amplification, precision)?;
 
     let dy = asset_reserve.checked_sub(y1)?;
 
@@ -183,12 +179,12 @@ fn calculate_y_given_in<const N: u8, const N_Y: u8>(
     idx_in: usize,
     idx_out: usize,
     balances: &[Balance],
-    ann: Balance,
+    amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
     let new_reserve_in = balances[idx_in].checked_add(amount)?;
 
-    let d = calculate_d::<N>(balances, ann, precision)?;
+    let d = calculate_d::<N>(balances, amplification, precision)?;
 
     let xp: Vec<Balance> = balances
         .iter()
@@ -197,7 +193,7 @@ fn calculate_y_given_in<const N: u8, const N_Y: u8>(
         .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
         .collect();
 
-    calculate_y::<N_Y>(&xp, d, ann, precision)
+    calculate_y::<N_Y>(&xp, d, amplification, precision)
 }
 
 /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
@@ -206,12 +202,12 @@ fn calculate_y_given_out<const N: u8, const N_Y: u8>(
     idx_in: usize,
     idx_out: usize,
     balances: &[Balance],
-    ann: Balance,
+    amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
     let new_reserve_out = balances[idx_out].checked_sub(amount)?;
 
-    let d = calculate_d::<N>(balances, ann, precision)?;
+    let d = calculate_d::<N>(balances, amplification, precision)?;
     let xp: Vec<Balance> = balances
         .iter()
         .enumerate()
@@ -219,7 +215,7 @@ fn calculate_y_given_out<const N: u8, const N_Y: u8>(
         .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
         .collect();
 
-    calculate_y::<N_Y>(&xp, d, ann, precision)
+    calculate_y::<N_Y>(&xp, d, amplification, precision)
 }
 
 /// Calculate required amount of asset b when adding liquidity of asset a.
@@ -241,13 +237,16 @@ pub fn calculate_asset_b_required(
     updated_reserve_b.checked_sub(asset_b_reserve)
 }
 
-pub fn calculate_d<const N: u8>(xp: &[Balance], ann: Balance, precision: Balance) -> Option<Balance> {
+pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance, precision: Balance) -> Option<Balance> {
     let two_u256 = to_u256!(2_u128);
-    let n_coins = to_u256!(xp.len());
 
     //let mut xp_hp: [U256; 2] = [to_u256!(xp[0]), to_u256!(xp[1])];
-    let mut xp_hp: Vec<U256> = xp.iter().map(|v| to_u256!(*v)).collect();
+    let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
     xp_hp.sort();
+
+    let ann = calculate_ann(xp_hp.len(), amplification)?;
+
+    let n_coins = to_u256!(xp_hp.len());
 
     let mut s_hp = U256::zero();
 
@@ -296,10 +295,13 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], ann: Balance, precision: Balance
     Balance::try_from(d).ok()
 }
 
-fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, ann: Balance, precision: Balance) -> Option<Balance> {
-    let (d_hp, n_coins_hp, ann_hp, precision_hp) = to_u256!(d, xp.len().checked_add(1)?, ann, precision);
-    let mut xp_hp: Vec<U256> = xp.iter().map(|v| to_u256!(*v)).collect();
+fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification: Balance, precision: Balance) -> Option<Balance> {
+    let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
     xp_hp.sort();
+
+    let ann = calculate_ann(xp_hp.len().checked_add(1)?, amplification)?;
+
+    let (d_hp, n_coins_hp, ann_hp, precision_hp) = to_u256!(d, xp_hp.len().checked_add(1)?, ann, precision);
 
     let two_hp = to_u256!(2u128);
     let mut s_hp = U256::zero();
@@ -376,16 +378,14 @@ mod test_two_assets_math {
         let precision = 1_u128;
 
         let reserves = [1000u128, 1000u128];
-        let ann = 4u128;
         assert_eq!(
-            calculate_d::<D_ITERATIONS>(&reserves, ann, precision),
+            calculate_d::<D_ITERATIONS>(&reserves, 1, precision),
             Some(2000u128 + 2u128)
         );
 
         let reserves = [1_000_000_000_000_000_000_000u128, 1_000_000_000_000_000_000_000u128];
-        let ann = 4u128;
         assert_eq!(
-            calculate_d::<D_ITERATIONS>(&reserves, ann, precision),
+            calculate_d::<D_ITERATIONS>(&reserves, 1, precision),
             Some(2_000_000_000_000_000_000_000u128 + 2u128)
         );
     }
@@ -394,24 +394,22 @@ mod test_two_assets_math {
     fn test_d_with_zero_reserves() {
         let precision = 1_u128;
         let reserves = [0u128, 0u128];
-        let ann = 4u128;
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, ann, precision), Some(0u128));
+        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(0u128));
     }
 
     #[test]
     fn test_y_given_in() {
         let precision = 1_u128;
         let reserves = [1000u128, 2000u128];
-        let ann = 4u128;
 
         let amount_in = 100u128;
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, ann, precision), Some(2942u128));
+        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(2942u128));
         assert_eq!(
-            calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, ann, precision),
+            calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, 1, precision),
             Some(2000u128 - 121u128)
         );
         assert_eq!(
-            calculate_d::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], ann, precision),
+            calculate_d::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], 1, precision),
             Some(2942u128)
         );
     }
@@ -420,20 +418,19 @@ mod test_two_assets_math {
     fn test_y_given_out() {
         let precision = 1_u128;
         let reserves = [1000u128, 2000u128];
-        let ann = 4u128;
 
         let amount_out = 100u128;
 
         let expected_in = 83u128;
 
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, ann, precision), Some(2942u128));
+        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(2942u128));
 
         assert_eq!(
-            calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, ann, precision),
+            calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, 1, precision),
             Some(1000u128 + expected_in)
         );
         assert_eq!(
-            calculate_d::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], ann, precision),
+            calculate_d::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], 1, precision),
             Some(2946u128)
         );
     }
@@ -441,11 +438,10 @@ mod test_two_assets_math {
     #[test]
     fn test_d_case() {
         let amp = 400u128;
-        let ann = amp * 4u128;
 
         let precision = 1u128;
 
-        let result = calculate_d::<D_ITERATIONS>(&[500000000000008580273458u128, 10u128], ann, precision);
+        let result = calculate_d::<D_ITERATIONS>(&[500000000000008580273458u128, 10u128], amp, precision);
 
         assert!(result.is_some());
     }
@@ -453,11 +449,10 @@ mod test_two_assets_math {
     #[test]
     fn test_d_case2() {
         let amp = 168u128;
-        let ann = amp * 4u128;
 
         let precision = 1u128;
 
-        let result = calculate_d::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], ann, precision);
+        let result = calculate_d::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], amp, precision);
 
         assert!(result.is_some());
     }
@@ -468,11 +463,9 @@ mod test_two_assets_math {
         let reserve_out: Balance = 57374284583541134907;
         let amp: u128 = 310;
 
-        let ann = amp * 4u128;
-
         let precision = 1u128;
 
-        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
+        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision);
 
         assert!(d.is_some());
     }
@@ -487,7 +480,8 @@ mod test_two_assets_math {
 
         let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, 0u128);
 
-        assert!(result.is_none());
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), 1000_000_000_000_000u128);
     }
     #[test]
     fn remove_one_asset_should_work() {
@@ -560,11 +554,9 @@ mod invariants {
             reserve_out in high_asset_reserve(),
             amp in amplification(),
         ) {
-            let ann = amp * 4u128;
-
             let precision = 1u128;
 
-            let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision);
+            let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision);
 
             assert!(d.is_some());
         }
@@ -578,17 +570,15 @@ mod invariants {
             reserve_out in high_asset_reserve(),
             amp in amplification(),
         ) {
-            let ann = amp * 4u128;
-
             let precision = 1u128;
 
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
 
             let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
+            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
 
             assert!(d2 >= d1);
         }
@@ -602,17 +592,15 @@ mod invariants {
             reserve_out in asset_reserve(),
             amp in amplification(),
         ) {
-            let ann = amp * 4u128;
-
             let precision = 1u128;
 
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
 
             let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], ann, precision).unwrap();
+            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
 
             assert!(d2 >= d1);
         }
@@ -626,17 +614,15 @@ mod invariants {
             reserve_out in asset_reserve(),
             amp in amplification(),
         ) {
-            let ann = amp*4u128;
-
             let precision = 1u128;
 
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], ann, precision).unwrap();
+            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
 
             let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_out, amp, precision);
 
             assert!(result.is_some());
 
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], ann, precision).unwrap();
+            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], amp, precision).unwrap();
 
             assert!(d2 >= d1);
         }
