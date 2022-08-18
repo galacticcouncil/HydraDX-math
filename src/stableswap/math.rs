@@ -98,6 +98,23 @@ pub fn calculate_remove_liquidity_amounts(
     Some((amount_a, amount_b))
 }
 
+/// Calculate required amount of asset b when adding liquidity of asset a.
+///
+/// new_reserve_b = (reserve_a + amount) * reserve_b / reserve_a
+///
+/// required_amount = new_reserve_b - asset_b_reserve
+///
+pub fn calculate_asset_b_required(
+    asset_a_reserve: Balance,
+    asset_b_reserve: Balance,
+    updated_a_reserve: Balance,
+) -> Option<Balance> {
+    let (reserve_a, reserve_b, updated_reserve_a) = to_u256!(asset_a_reserve, asset_b_reserve, updated_a_reserve);
+    let updated_reserve_b =
+        Balance::try_from(updated_reserve_a.checked_mul(reserve_b)?.checked_div(reserve_a)?).ok()?;
+    updated_reserve_b.checked_sub(asset_b_reserve)
+}
+
 /// Stableswap/curve math reduced to two assets.
 pub mod two_asset_pool_math {
     use super::Balance;
