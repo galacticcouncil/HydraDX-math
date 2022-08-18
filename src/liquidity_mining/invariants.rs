@@ -14,18 +14,59 @@ fn initial_reward_percentage() -> impl Strategy<Value = u128> {
     1..=999_999_999_999_999_999_u128 //< FixedU128::one()
 }
 
-fn scale_coef() -> impl Strategy<Value = u32> {
-    0..=(u32::MAX / 2) //half of periods() so we are able to test `periods > scale_coef` case
+fn accumulated_rpvs() -> impl Strategy<Value = Balance> {
+    1..=1_000_000_000_000_000_u128
+}
+
+//this value is alwaych >= accumulated_rpvs
+fn accumulated_rpvs_now() -> impl Strategy<Value = Balance> {
+    1_000_000_000_000_000..1_000_000_000_000_000_000_u128
+}
+
+fn valued_shares() -> impl Strategy<Value = Balance> {
+    1_000..=100_000_000_u128
+}
+
+fn accumulated_claimed_rewards() -> impl Strategy<Value = Balance> {
+    0..3_000_000_000_000_000_000_u128
+}
+
+fn loyalty_multiplier() -> impl Strategy<Value = u128> {
+    //FixedU128::from_inner(999_999_999_999_999_999) should be max multiplier we can reach
+    1_000_000..999_999_999_999_999_999_u128 //0.000_000_000_001 - 0.999_999
+}
+
+prop_compose! {
+    fn get_scale_coef_and_periods_gte() (
+        periods in 0..u32::MAX/2
+    )
+    (
+        scale_coef in periods..u32::MAX, periods in Just(periods)
+    ) -> (u32, u32) {
+        (scale_coef, periods)
+    }
+}
+
+prop_compose! {
+    fn get_scale_coef_and_periods_lte() (
+        periods in u32::MAX/2..u32::MAX
+    )
+    (
+        scale_coef in 0..periods, periods in Just(periods)
+    ) -> (u32, u32) {
+        (scale_coef, periods)
+    }
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
-    fn calculate_loyalty_multiplier(
-        periods in periods(),
+    fn calculate_loyalty_multiplier_scale_coef_lte_periods(
+        (scale_coef, periods) in get_scale_coef_and_periods_lte(),
         initial_reward_percentage in initial_reward_percentage(),
-        scale_coef in scale_coef(),
     ) {
+        assert!(scale_coef <= periods, "scale_coef > periods");
+
         let b = FixedU128::from_inner(initial_reward_percentage);
         let multiplier = crate::liquidity_mining::calculate_loyalty_multiplier(
             periods,
@@ -41,13 +82,8 @@ proptest! {
                 .checked_div(&FixedU128::from(2_u128)).unwrap()
                 .checked_add(&b).unwrap();
 
-        if periods < scale_coef {
-            assert!(multiplier >= b && multiplier <= bound);
-        } else if periods > scale_coef {
-            assert!(multiplier >= bound && multiplier <= FixedU128::one());
-        } else {
-            assert_eq!(multiplier, bound);
-        }
+        //multiplier is between b + (1 - b)/2 and 1 if T >= scaleCoef
+        assert!(multiplier >= bound && multiplier <= FixedU128::one());
 
         //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
         let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
@@ -75,13 +111,69 @@ proptest! {
             "loyalty multiplier, LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)"
         );
     }
+}
 
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn calculate_loyalty_multiplier_periods_gte_scale_coef(
+        (scale_coef, periods) in get_scale_coef_and_periods_gte(),
+        initial_reward_percentage in initial_reward_percentage(),
+    ) {
+        let b = FixedU128::from_inner(initial_reward_percentage);
+        let multiplier = crate::liquidity_mining::calculate_loyalty_multiplier(
+            periods,
+            b,
+            scale_coef,
+        ).unwrap();
+
+        assert!(multiplier < FixedU128::one(), "loyalty multiplier is >= 1");
+
+        //b + (1 - b)/2;
+        let bound = FixedU128::one()
+                .checked_sub(&b).unwrap()
+                .checked_div(&FixedU128::from(2_u128)).unwrap()
+                .checked_add(&b).unwrap();
+
+        //multiplier is between b + (1 - b)/2 and 1 if T >= scaleCoef
+        assert!(multiplier >= b && multiplier <= bound);
+
+        //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
+        let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
+        let t_add_tb =  b
+            .checked_mul(&t).unwrap()
+            .checked_add(&t).unwrap();
+
+        let scale_coef_mul_b_add_one = FixedU128::one()
+            .checked_add(&b).unwrap()
+            .checked_mul(&FixedU128::from(scale_coef as u128)).unwrap();
+
+        let lhs = t_add_tb
+            .checked_add(&scale_coef_mul_b_add_one).unwrap()
+            .checked_mul(&multiplier).unwrap();
+
+        let rhs = b
+            .checked_mul(&scale_coef_mul_b_add_one).unwrap()
+            .checked_add(&t_add_tb).unwrap();
+
+        let tolerance = FixedU128::from_inner(20_000_000_000); //0.000_000_02
+        assert_eq_approx!(
+            lhs,
+            rhs,
+            tolerance,
+            "loyalty multiplier, LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)"
+        );
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn calculate_loyalty_multiplier_should_eqaul_to_bound_when_period_is_equal_scale_coef(
         periods in periods(),
         initial_reward_percentage in initial_reward_percentage(),
     ) {
-        //This case never hit by test above, that's why there is special test only for this
+        //This case is never hit by test above, that's why there is special test only for this
         let scale_coef = periods;
         let b = FixedU128::from_inner(initial_reward_percentage);
         let multiplier = crate::liquidity_mining::calculate_loyalty_multiplier(
@@ -99,28 +191,6 @@ proptest! {
         let tolerance = FixedU128::from_inner(1_000); //0.000_000_000_000_001
         assert_eq_approx!(multiplier, bound, tolerance, "loyalty multiplier, periods == scale_coef");
     }
-}
-
-fn accumulated_rpvs() -> impl Strategy<Value = Balance> {
-    1..=1_000_000_000_000_000_u128
-}
-
-//this value is alwaych >= accumulated_rpvs
-fn accumulated_rpvs_now() -> impl Strategy<Value = Balance> {
-    1_000_000_000_000_000..1_000_000_000_000_000_000_u128
-}
-
-fn valued_shares() -> impl Strategy<Value = Balance> {
-    1_000..=100_000_000_u128
-}
-
-fn accumulated_claimed_rewards() -> impl Strategy<Value = Balance> {
-    0..3_000_000_000_000_000_000_u128
-}
-
-fn loyalty_multiplier() -> impl Strategy<Value = u128> {
-    //FixedU128::from_inner(999_999_999_999_999_999) should be max multiplier we can reach
-    1_000_000..999_999_999_999_999_999_u128 //0.000_000_000_001 - 0.999_999
 }
 
 proptest! {
