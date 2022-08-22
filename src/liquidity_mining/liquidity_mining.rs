@@ -1,13 +1,15 @@
 use crate::MathError;
 
 use sp_arithmetic::{
-    traits::{CheckedAdd, CheckedDiv, CheckedMul},
+    traits::One,
+    traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub},
     FixedPointNumber, FixedU128,
 };
 
+use crate::types::{Balance, BASILISK_ONE as ONE};
 use core::convert::TryInto;
 
-type Balance = u128;
+//type Balance = u128;
 
 /// This function calculate loyalty multiplier or error.
 ///
@@ -50,7 +52,10 @@ pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32
         .checked_add(&1.into())
         .ok_or(MathError::Overflow)?;
 
-    num.checked_div(&denom).ok_or(MathError::Overflow)
+    Ok(num
+        .checked_div(&denom)
+        .ok_or(MathError::Overflow)?
+        .min(FixedU128::one()))
 }
 
 /// This function return `GlobalFarm`'s reward per one period or error.
@@ -68,23 +73,23 @@ pub fn calculate_global_farm_reward_per_period(
 
 /// This function calculate and return reward per share or error.
 pub fn calculate_accumulated_rps(
-    accumulated_rps_now: Balance,
+    accumulated_rps_now: FixedU128,
     total_shares: Balance,
     reward: Balance,
-) -> Result<Balance, MathError> {
-    reward
-        .checked_div(total_shares)
+) -> Result<FixedU128, MathError> {
+    FixedU128::from((reward, ONE))
+        .checked_div(&FixedU128::from((total_shares, ONE)))
         .ok_or(MathError::Overflow)?
-        .checked_add(accumulated_rps_now)
+        .checked_add(&accumulated_rps_now)
         .ok_or(MathError::Overflow)
 }
 
 /// This function calculate and return `(user_rewards, unclaimable_rewards)`.
 pub fn calculate_user_reward(
-    accumulated_rpvs: Balance,
+    accumulated_rpvs: FixedU128,
     valued_shares: Balance, // Value of shares at the time of entry in incentivized tokens.
     accumulated_claimed_rewards: Balance,
-    accumulated_rpvs_now: Balance,
+    accumulated_rpvs_now: FixedU128,
     loyalty_multiplier: FixedU128,
 ) -> Result<(Balance, Balance), MathError> {
     let max_rewards = calculate_reward(accumulated_rpvs, accumulated_rpvs_now, valued_shares)?;
@@ -121,14 +126,14 @@ pub fn calculate_global_farm_shares(valued_shares: Balance, multiplier: FixedU12
 /// General formula to calculate reward. Usage depends on type of rps and shares used for
 /// calculations
 pub fn calculate_reward(
-    accumulated_rps_start: Balance,
-    accumulated_rps_now: Balance,
+    accumulated_rps_start: FixedU128,
+    accumulated_rps_now: FixedU128,
     shares: Balance,
 ) -> Result<Balance, MathError> {
     accumulated_rps_now
-        .checked_sub(accumulated_rps_start)
+        .checked_sub(&accumulated_rps_start)
         .ok_or(MathError::Overflow)?
-        .checked_mul(shares)
+        .checked_mul_int(shares)
         .ok_or(MathError::Overflow)
 }
 
