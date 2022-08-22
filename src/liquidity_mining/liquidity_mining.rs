@@ -9,8 +9,6 @@ use sp_arithmetic::{
 use crate::types::{Balance, BASILISK_ONE as ONE};
 use core::convert::TryInto;
 
-//type Balance = u128;
-
 /// This function calculate loyalty multiplier or error.
 ///
 /// `t = periodNow - periodAdded`
