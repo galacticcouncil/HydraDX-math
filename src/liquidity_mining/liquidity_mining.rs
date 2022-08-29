@@ -6,7 +6,7 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-use crate::types::{Balance, BASILISK_ONE as ONE};
+use crate::types::Balance;
 use core::convert::TryInto;
 
 /// This function calculate loyalty multiplier or error.
@@ -75,11 +75,9 @@ pub fn calculate_accumulated_rps(
     total_shares: Balance,
     reward: Balance,
 ) -> Result<FixedU128, MathError> {
-    FixedU128::from((reward, ONE))
-        .checked_div(&FixedU128::from((total_shares, ONE)))
-        .ok_or(MathError::Overflow)?
-        .checked_add(&accumulated_rps_now)
-        .ok_or(MathError::Overflow)
+    let rps = FixedU128::saturating_from_rational(reward, total_shares);
+
+    rps.checked_add(&accumulated_rps_now).ok_or(MathError::Overflow)
 }
 
 /// This function calculate and return `(user_rewards, unclaimable_rewards)`.
