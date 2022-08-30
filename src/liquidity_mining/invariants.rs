@@ -12,10 +12,6 @@ fn periods() -> impl Strategy<Value = u32> {
     0..=u32::MAX
 }
 
-fn scale_coef() -> impl Strategy<Value = u32> {
-    0..=u32::MAX
-}
-
 fn initial_reward_percentage() -> impl Strategy<Value = u128> {
     1..=999_999_999_999_999_999_u128 //< FixedU128::one()
 }
@@ -64,6 +60,37 @@ prop_compose! {
     }
 }
 
+fn assert_loyalty_factor(b: FixedU128, periods: u32, scale_coef: u32, multiplier: FixedU128) {
+    let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
+    let t_add_tb = b.checked_mul(&t).unwrap().checked_add(&t).unwrap();
+
+    let scale_coef_mul_b_add_one = FixedU128::one()
+        .checked_add(&b)
+        .unwrap()
+        .checked_mul(&FixedU128::from(scale_coef as u128))
+        .unwrap();
+
+    let lhs = t_add_tb
+        .checked_add(&scale_coef_mul_b_add_one)
+        .unwrap()
+        .checked_mul(&multiplier)
+        .unwrap();
+
+    let rhs = b
+        .checked_mul(&scale_coef_mul_b_add_one)
+        .unwrap()
+        .checked_add(&t_add_tb)
+        .unwrap();
+
+    let tolerance = FixedU128::from((2, (ONE / 10_000))); //0.000_000_02
+    assert_eq_approx!(
+        lhs,
+        rhs,
+        tolerance,
+        "LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)"
+    );
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
@@ -88,6 +115,9 @@ proptest! {
 
         //multiplier is between b + (1 - b)/2 and 1 if T >= scaleCoef
         assert!(multiplier >= bound && multiplier <= FixedU128::one());
+
+        //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
+        assert_loyalty_factor(b, periods, scale_coef, multiplier);
     }
 }
 
@@ -115,13 +145,16 @@ proptest! {
 
         //multiplier is between b and b + (1 - b)/2 if T <= scaleCoef
         assert!(multiplier >= b && multiplier <= bound);
+
+        //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
+        assert_loyalty_factor(b, periods, scale_coef, multiplier);
     }
 }
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
-    fn calculate_loyalty_multiplier_should_equal_to_bound_when_period_is_equal_scale_coef(
+    fn calculate_loyalty_multiplier_should_equal_to_bound_when_period_eq_scale_coef(
         periods in periods(),
         initial_reward_percentage in initial_reward_percentage(),
     ) {
@@ -142,84 +175,9 @@ proptest! {
 
         let tolerance = FixedU128::from((1, ONE)); //0.000_000_000_001
         assert_eq_approx!(multiplier, bound, tolerance, "loyalty multiplier, periods == scale_coef");
-    }
-}
 
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1_000))]
-    #[test]
-    fn loyalty_factor_random_scale_coef_periods(
-        periods in periods(),
-        scale_coef in scale_coef(),
-        initial_reward_percentage in initial_reward_percentage(),
-    ) {
-        let b = FixedU128::from_inner(initial_reward_percentage);
-        let multiplier = crate::liquidity_mining::calculate_loyalty_multiplier(
-            periods,
-            b,
-            scale_coef,
-        ).unwrap();
-
-        let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
-        let t_add_tb =  b
-            .checked_mul(&t).unwrap()
-            .checked_add(&t).unwrap();
-
-        let scale_coef_mul_b_add_one = FixedU128::one()
-            .checked_add(&b).unwrap()
-            .checked_mul(&FixedU128::from(scale_coef as u128)).unwrap();
-
-        let lhs = t_add_tb
-            .checked_add(&scale_coef_mul_b_add_one).unwrap()
-            .checked_mul(&multiplier).unwrap();
-
-        let rhs = b
-            .checked_mul(&scale_coef_mul_b_add_one).unwrap()
-            .checked_add(&t_add_tb).unwrap();
-
-        let tolerance = FixedU128::from((2, (ONE / 10_000))); //0.000_000_02
-        assert_eq_approx!(lhs, rhs, tolerance, "LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)"
-        );
-    }
-}
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1_000))]
-    #[test]
-    fn loyalty_factor_test_scale_coef_eq_periods(
-        periods in periods(),
-        initial_reward_percentage in initial_reward_percentage(),
-    ) {
-        let scale_coef = periods;
-        let b = FixedU128::from_inner(initial_reward_percentage);
-        let multiplier = crate::liquidity_mining::calculate_loyalty_multiplier(
-            periods,
-            b,
-            scale_coef,
-        ).unwrap();
-
-        let t = FixedU128::from(TryInto::<u128>::try_into(periods).unwrap());
-        let scale_coef = FixedU128::from(TryInto::<u128>::try_into(scale_coef).unwrap());
-
-        let t_add_tb =  b
-            .checked_mul(&t).unwrap()
-            .checked_add(&t).unwrap();
-
-        let scale_coef_mul_b_add_one = FixedU128::one()
-            .checked_add(&b).unwrap()
-            .checked_mul(&scale_coef).unwrap();
-
-        let lhs = t_add_tb
-            .checked_add(&scale_coef_mul_b_add_one).unwrap()
-            .checked_mul(&multiplier).unwrap();
-
-        let rhs = b
-            .checked_mul(&scale_coef_mul_b_add_one).unwrap()
-            .checked_add(&t_add_tb).unwrap();
-
-        let tolerance = FixedU128::from((2, (ONE / 10_000))); //0.000_000_02
-        assert_eq_approx!(lhs, rhs, tolerance, "LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)"
-        );
+        //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
+        assert_loyalty_factor(b, periods, scale_coef, multiplier);
     }
 }
 
