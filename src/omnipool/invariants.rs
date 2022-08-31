@@ -2,9 +2,12 @@ use crate::assert_eq_approx;
 use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
 use crate::types::Balance;
+use crate::to_balance;
 use primitive_types::U256;
 use proptest::prelude::*;
-use sp_arithmetic::{FixedU128, Permill};
+use sp_arithmetic::{FixedU128, Permill, FixedPointNumber};
+use crate::MathError::Overflow;
+
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -288,6 +291,22 @@ proptest! {
             new_asset_state.price().unwrap(),
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");
+
+        let S = U256::from(asset.shares);
+        let S2 = U256::from(new_asset_state.shares);
+        let R = U256::from(asset.reserve);
+        let R2 = U256::from(new_asset_state.reserve);
+
+        // Shares should be approximately correct
+        // R^+ * S ~= R * S^+
+        let scaled_R2 = R2.checked_mul(S).unwrap().checked_div(S2).unwrap();
+        let invariant = FixedU128::from((to_balance!(scaled_R2).unwrap(), ONE)) / FixedU128::from((to_balance!(R).unwrap(), ONE));
+        assert_eq_approx!(invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE, ONE)), "Invariant is not correct after add liquidity");
+
+        // Rounding errors in share calculation should favor pool
+        // R^+ * S >= R * S^+
+        assert!(R2 * S >= R * S2,
+            "Share calculation rounding does not favor pool in add liquidity");
     }
 }
 
@@ -319,5 +338,40 @@ proptest! {
             new_asset_state.price().unwrap(),
             FixedU128::from_float(0.0000000001),
             "Price has changed after remove liquidity");
+
+        let S = U256::from(asset.shares);
+        let S2 = U256::from(new_asset_state.shares);
+        let R = U256::from(asset.reserve);
+        let R2 = U256::from(new_asset_state.reserve);
+
+        // // Shares should be approximately correct
+        // // R^+ * S ~= R * S^+
+        let scaled_R2 = R2.checked_mul(S).unwrap().checked_div(S2).unwrap();
+        let invariant = FixedU128::from((to_balance!(scaled_R2).unwrap(), ONE)) / FixedU128::from((to_balance!(R).unwrap(), ONE));
+        assert_eq_approx!(invariant, FixedU128::from(1u128), FixedU128::from((TOLERANCE, ONE)), "Invariant is not correct after add liquidity");
+
+        // Rounding errors in share calculation should favor pool
+        // R^+ * S >= R * S^+
+        assert!(R2 * S >= R * S2,
+            "Share calculation rounding does not favor pool in remove liquidity");
+
+        let dB = U256::from(new_asset_state.protocol_shares) - U256::from(asset.protocol_shares);
+        let price_x_R = U256::from(position.price.checked_mul_int(asset.reserve).unwrap());
+        let Q = U256::from(asset.hub_reserve);
+        let s = U256::from(position.shares);
+
+        // Rounding errors in protocol owned share calculation should favor pool
+        // dB (pa R + Q) >= sa (pa R - Q)
+        if dB > U256::from(0_u128) {
+            assert!(dB * (price_x_R + Q) >= s * (price_x_R - Q),
+                "Protocol owned share calculation rounding does not favor pool in remove liquidity");
+        }
+        // Rounding errors in LRNA dispersal should favor pool
+        // dq * [(Q + pa R) * S / (Q - pa R)] <= Q * s
+        else {
+            let dq = U256::from(state_changes.lp_hub_amount);
+            assert!(dq * (((Q + price_x_R) * S) / (Q - price_x_R)) <= Q * s,
+                "Protocol owned share calculation rounding does not favor pool in remove liquidity");
+        }
     }
 }
