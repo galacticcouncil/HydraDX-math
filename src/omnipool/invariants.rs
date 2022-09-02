@@ -209,18 +209,18 @@ proptest! {
 #[test]
 fn buy_update_invariants_no_fees_case() {
     let asset_in = AssetReserveState {
-        reserve: 10000000000000000,
-        hub_reserve: 10000000000000000,
-        shares: 10000000000000000,
-        protocol_shares: 10000000000000000,
-        tvl: 10000000000000000,
+        reserve: 10_000_000_000_000_000,
+        hub_reserve: 10_000_000_000_000_000,
+        shares: 10_000_000_000_000_000,
+        protocol_shares: 10_000_000_000_000_000,
+        tvl: 10_000_000_000_000_000,
     };
     let asset_out = AssetReserveState {
-        reserve: 10000000000000000,
-        hub_reserve: 89999999999999991,
-        shares: 10000000000000000,
-        protocol_shares: 10000000000000000,
-        tvl: 10000000000000000,
+        reserve: 10_000_000_000_000_000,
+        hub_reserve: 89_999_999_999_999_991,
+        shares: 10_000_000_000_000_000,
+        protocol_shares: 10_000_000_000_000_000,
+        tvl: 10_000_000_000_000_000,
     };
     let amount = 1_000_000_000_000_000;
 
