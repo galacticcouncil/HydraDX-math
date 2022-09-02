@@ -307,15 +307,15 @@ proptest! {
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");
 
-        let S = U256::from(asset.shares);
-        let S2 = U256::from(new_asset_state.shares);
-        let R = U256::from(asset.reserve);
-        let R2 = U256::from(new_asset_state.reserve);
+        let shares = U256::from(asset.shares);
+        let shares_updated = U256::from(new_asset_state.shares);
+        let reserve = U256::from(asset.reserve);
+        let reserve_updated = U256::from(new_asset_state.reserve);
 
         // Shares should be approximately correct
         // Rounding errors in share calculation should favor pool
         // R^+ * S ~= R * S^+
-        assert_eq_approx_ordered!(R2.checked_mul(S).unwrap(), R.checked_mul(S2).unwrap(), TOLERANCE,
+        assert_eq_approx_ordered!(reserve_updated.checked_mul(shares).unwrap(), reserve.checked_mul(shares_updated).unwrap(), TOLERANCE,
             "Invariant is not correct after add liquidity");
 
     }
@@ -350,33 +350,33 @@ proptest! {
             FixedU128::from_float(0.0000000001),
             "Price has changed after remove liquidity");
 
-        let S = U256::from(asset.shares);
-        let S2 = U256::from(new_asset_state.shares);
-        let R = U256::from(asset.reserve);
-        let R2 = U256::from(new_asset_state.reserve);
+        let shares  = U256::from(asset.shares);
+        let shares_updated = U256::from(new_asset_state.shares);
+        let reserve = U256::from(asset.reserve);
+        let reserve_updated = U256::from(new_asset_state.reserve);
 
         // Shares should be approximately correct
         // Rounding errors in share calculation should favor pool
         // R^+ * S ~= R * S^+
-        assert_eq_approx_ordered!(R2.checked_mul(S).unwrap(), R.checked_mul(S2).unwrap(), TOLERANCE,
+        assert_eq_approx_ordered!(reserve_updated.checked_mul(shares).unwrap(), reserve.checked_mul(shares_updated).unwrap(), TOLERANCE,
             "Invariant is not correct after remove liquidity");
 
-        let dB = U256::from(new_asset_state.protocol_shares) - U256::from(asset.protocol_shares);
-        let price_x_R = U256::from(position.price.checked_mul_int(asset.reserve).unwrap());
-        let Q = U256::from(asset.hub_reserve);
-        let s = U256::from(position.shares);
+        let delta_b = U256::from(new_asset_state.protocol_shares) - U256::from(asset.protocol_shares);
+        let price_x_r = U256::from(position.price.checked_mul_int(asset.reserve).unwrap());
+        let hub_reserve = U256::from(asset.hub_reserve);
+        let position_shares = U256::from(position.shares);
 
         // Rounding errors in protocol owned share calculation should favor pool
         // dB (pa R + Q) >= sa (pa R - Q)
-        if dB > U256::from(0_u128) {
-            assert_eq_approx_ordered!(dB * (price_x_R + Q), s * (price_x_R - Q), TOLERANCE,
+        if delta_b > U256::from(0_u128) {
+            assert_eq_approx_ordered!(delta_b * (price_x_r + hub_reserve), position_shares * (price_x_r - hub_reserve), TOLERANCE,
                 "Protocol owned share calculation incorrect in remove liquidity");
         }
         // Rounding errors in LRNA dispersal should favor pool
         // dq * [(Q + pa R) * S / (Q - pa R)] <= Q * s
         else {
             let dq = U256::from(state_changes.lp_hub_amount);
-            assert_eq_approx_ordered!(Q * s, dq * (((Q + price_x_R) * S) / (Q - price_x_R)), TOLERANCE,
+            assert_eq_approx_ordered!(hub_reserve * position_shares, dq * (((hub_reserve + price_x_r) * shares) / (hub_reserve - price_x_r)), TOLERANCE,
                 "Protocol owned share calculation incorrect in remove liquidity");
         }
     }
