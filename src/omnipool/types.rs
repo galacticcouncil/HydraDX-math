@@ -269,9 +269,6 @@ mod tests {
             BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Decrease(1),
             BalanceUpdate::Increase(u128::MAX - 1)
         );
-
-        //assert_panics!(BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Increase(1));
-        //assert_panics!(BalanceUpdate::Decrease(u128::MAX) + BalanceUpdate::Decrease(1));
     }
 
     #[test]

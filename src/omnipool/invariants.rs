@@ -250,7 +250,7 @@ proptest! {
             Balance::default()
         );
 
-        // ignore the invalid result
+        // perform assertion only when result is valid
         if let Some(state_changes) = result {
             let asset_in_state = asset_in.clone();
             let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
@@ -266,7 +266,7 @@ proptest! {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
-    fn add_liquidity_prices(asset in asset_state(),
+    fn price_should_not_change_when_liquidity_added(asset in asset_state(),
         amount in trade_amount(),
         stable_asset in stable_asset_state()
     ) {
@@ -294,7 +294,7 @@ proptest! {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
-    fn remove_liquidity_prices(asset in asset_state(),
+    fn price_should_not_change_when_liquidity_removed(asset in asset_state(),
         position in position(),
         stable_asset in stable_asset_state()
     ) {
