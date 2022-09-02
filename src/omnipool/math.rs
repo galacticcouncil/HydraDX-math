@@ -357,9 +357,7 @@ pub fn calculate_remove_liquidity_state_changes(
         let sub = current_hub_reserve_hp.checked_sub(p_x_r)?;
         let sum = current_hub_reserve_hp.checked_add(p_x_r)?;
         let div1 = current_hub_reserve_hp.checked_mul(sub)?.checked_div(sum)?;
-        div1.checked_mul(delta_shares_hp)?
-            .checked_div(current_shares_hp)?
-            .as_u128()
+        to_balance!(div1.checked_mul(delta_shares_hp)?.checked_div(current_shares_hp)?).ok()?
     } else {
         Balance::zero()
     };
