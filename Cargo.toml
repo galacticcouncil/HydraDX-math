@@ -6,7 +6,7 @@ license = 'Apache-2.0'
 name = "hydra-dx-math"
 description = "A collection of utilities to make performing liquidity pool calculations more convenient."
 repository = 'https://github.com/galacticcouncil/hydradx-math'
-version = "4.5.2"
+version = "4.7.0"
 
 [dependencies]
 primitive-types = {default-features = false, version = '0.8.0'}
@@ -14,7 +14,7 @@ num-traits = {default-features = false, version = "0.2.14"}
 fixed = "1.9.0"
 # Added because of use of the FixedU128
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive", "max-encoded-len"] }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", rev = "22d40c761a985482f93bbbea5ba4199bdba74f8e", version="4.0.0", default-features = false }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.17", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.7", default-features = false }
