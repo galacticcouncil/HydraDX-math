@@ -4,3 +4,5 @@
 .idea
 
 .DS_Store
+*.orig
+proptest-regressions
