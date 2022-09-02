@@ -1,1 +1,3 @@
-pub mod math;
+mod math;
+
+pub use math::*;
