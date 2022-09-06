@@ -59,7 +59,8 @@ impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Copy + Default> BalanceUpda
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use crate::hydra_dx_math::omnipool::types::BalanceUpdate;
 /// assert_eq!(BalanceUpdate::Increase(100) + BalanceUpdate::Increase(100), BalanceUpdate::Increase(200));
 /// ```
 impl<Balance: CheckedAdd + CheckedSub + PartialOrd + Default> Add<Self> for BalanceUpdate<Balance> {
