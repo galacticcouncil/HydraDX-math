@@ -204,72 +204,45 @@ mod tests {
     use super::BalanceUpdate;
     use super::CheckedAdd;
     //use cool_asserts::assert_panics;
+    use test_case::test_case;
 
-    #[test]
-    fn balance_update_addition_works() {
-        assert_eq!(
-            BalanceUpdate::Increase(100) + BalanceUpdate::Increase(100),
-            BalanceUpdate::Increase(200)
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(500) + BalanceUpdate::Decrease(300),
-            BalanceUpdate::Increase(200)
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(300),
-            BalanceUpdate::Decrease(200)
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(0),
-            BalanceUpdate::Increase(100)
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(100),
-            BalanceUpdate::Decrease(100)
-        );
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(100), BalanceUpdate::Increase(200) ; "When both increase")]
+    #[test_case(BalanceUpdate::Increase(500), BalanceUpdate::Decrease(300), BalanceUpdate::Increase(200) ; "When increase and decrease")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(300), BalanceUpdate::Decrease(200) ; "When increase and decrease larger")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(0), BalanceUpdate::Increase(100) ; "When increase and increase by zero")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0), BalanceUpdate::Increase(100) ; "When increase and decrease by zero")]
+    #[test_case(BalanceUpdate::Increase(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When increase zero and decrease ")]
+    #[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(300), BalanceUpdate::Decrease(400) ; "When both decrease ")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100) ; "When decrease and increase")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(300), BalanceUpdate::Increase(100) ; "When decrease and increase larger")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(0), BalanceUpdate::Decrease(200) ; "When decrease and increase zero")]
+    #[test_case(BalanceUpdate::Decrease(0), BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(100) ; "When decrease zero and decreaes ")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100), BalanceUpdate::Increase(0) ; "When decrease and decrease same amount ")]
+    #[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0) ; "When decrease and decrease same amount swapped ")] // should be probably same as previous ?
+    #[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Decrease(1), BalanceUpdate::Increase(u32::MAX - 1) ; "When increase max and decrease one")]
+    //#[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Increase(1), BalanceUpdate::Increase(u32::MAX - 1) ; "When increase overflows")]
+    fn balance_update_add(x: BalanceUpdate<u32>, y: BalanceUpdate<u32>, result: BalanceUpdate<u32>) {
+        assert_eq!(x + y, result);
+    }
 
-        assert_eq!(
-            BalanceUpdate::Decrease(100) + BalanceUpdate::Decrease(300),
-            BalanceUpdate::Decrease(400)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(100),
-            BalanceUpdate::Decrease(100)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(300),
-            BalanceUpdate::Increase(100)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200) + BalanceUpdate::Increase(0),
-            BalanceUpdate::Decrease(200)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(0) + BalanceUpdate::Decrease(100),
-            BalanceUpdate::Decrease(100)
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(100) + BalanceUpdate::Decrease(100),
-            BalanceUpdate::Increase(0)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(100) + BalanceUpdate::Increase(100),
-            BalanceUpdate::Decrease(0)
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(0) + BalanceUpdate::Decrease(0),
-            BalanceUpdate::Increase(0)
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(0) + BalanceUpdate::Increase(0),
-            BalanceUpdate::Decrease(0)
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(u128::MAX) + BalanceUpdate::Decrease(1),
-            BalanceUpdate::Increase(u128::MAX - 1)
-        );
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(100), Some(BalanceUpdate::Increase(200)) ; "When both increase")]
+    #[test_case(BalanceUpdate::Increase(500), BalanceUpdate::Decrease(300), Some(BalanceUpdate::Increase(200)) ; "When increase and decrease")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(300), Some(BalanceUpdate::Decrease(200)) ; "When increase and decrease larger")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Increase(0), Some(BalanceUpdate::Increase(100)) ; "When increase and increase by zero")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(0), Some(BalanceUpdate::Increase(100)) ; "When increase and decrease by zero")]
+    #[test_case(BalanceUpdate::Increase(0), BalanceUpdate::Decrease(100), Some(BalanceUpdate::Decrease(100)) ; "When increase zero and decrease ")]
+    #[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Decrease(300), Some(BalanceUpdate::Decrease(400)) ; "When both decrease ")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(100), Some(BalanceUpdate::Decrease(100)) ; "When decrease and increase")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(300), Some(BalanceUpdate::Increase(100)) ; "When decrease and increase larger")]
+    #[test_case(BalanceUpdate::Decrease(200), BalanceUpdate::Increase(0), Some(BalanceUpdate::Decrease(200)) ; "When decrease and increase zero")]
+    #[test_case(BalanceUpdate::Decrease(0), BalanceUpdate::Decrease(100), Some(BalanceUpdate::Decrease(100)) ; "When decrease zero and decreaes ")]
+    #[test_case(BalanceUpdate::Increase(100), BalanceUpdate::Decrease(100), Some(BalanceUpdate::Increase(0)) ; "When decrease and decrease same amount ")]
+    #[test_case(BalanceUpdate::Decrease(100), BalanceUpdate::Increase(100), Some(BalanceUpdate::Decrease(0)) ; "When decrease and decrease same amount swapped ")] // should be probably same as previous ?
+    #[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Decrease(1), Some(BalanceUpdate::Increase(u32::MAX - 1)) ; "When increase max and decrease one")]
+    #[test_case(BalanceUpdate::Increase(u32::MAX), BalanceUpdate::Increase(1), None ; "When increase overflows")]
+    #[test_case(BalanceUpdate::Decrease(u32::MAX), BalanceUpdate::Decrease(1), None ; "When decrease overflows")]
+    fn balance_update_checked_add(x: BalanceUpdate<u32>, y: BalanceUpdate<u32>, result: Option<BalanceUpdate<u32>>) {
+        assert_eq!(x.checked_add(&y), result);
     }
 
     #[test]
@@ -280,84 +253,6 @@ mod tests {
         assert_eq!(BalanceUpdate::Decrease(50u32) + 50u32, Some(0));
         assert_eq!(BalanceUpdate::Decrease(50u32) + zero, None);
         assert_eq!(BalanceUpdate::Increase(50u32) + zero, Some(50));
-
         assert_eq!(BalanceUpdate::Decrease(100u32) + 50u32, None);
-    }
-
-    #[test]
-    fn balance_update_safe_addition_works() {
-        assert_eq!(
-            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Increase(100)),
-            Some(BalanceUpdate::Increase(200))
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(500).checked_add(&BalanceUpdate::Decrease(300)),
-            Some(BalanceUpdate::Increase(200))
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(300)),
-            Some(BalanceUpdate::Decrease(200))
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(0)),
-            Some(BalanceUpdate::Increase(100))
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(100)),
-            Some(BalanceUpdate::Decrease(100))
-        );
-
-        assert_eq!(
-            BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Decrease(300)),
-            Some(BalanceUpdate::Decrease(400))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(100)),
-            Some(BalanceUpdate::Decrease(100))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(300)),
-            Some(BalanceUpdate::Increase(100))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(200).checked_add(&BalanceUpdate::Increase(0)),
-            Some(BalanceUpdate::Decrease(200))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Decrease(100)),
-            Some(BalanceUpdate::Decrease(100))
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(100).checked_add(&BalanceUpdate::Decrease(100)),
-            Some(BalanceUpdate::Increase(0))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(100).checked_add(&BalanceUpdate::Increase(100)),
-            Some(BalanceUpdate::Decrease(0))
-        );
-        assert_eq!(
-            BalanceUpdate::Increase(0).checked_add(&BalanceUpdate::Decrease(0)),
-            Some(BalanceUpdate::Increase(0))
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(0).checked_add(&BalanceUpdate::Increase(0)),
-            Some(BalanceUpdate::Decrease(0))
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
-            Some(BalanceUpdate::Increase(u128::MAX - 1))
-        );
-
-        assert_eq!(
-            BalanceUpdate::Increase(u128::MAX).checked_add(&BalanceUpdate::Increase(1)),
-            None
-        );
-        assert_eq!(
-            BalanceUpdate::Decrease(u128::MAX).checked_add(&BalanceUpdate::Decrease(1)),
-            None
-        );
     }
 }
