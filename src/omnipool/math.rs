@@ -35,7 +35,9 @@ pub fn calculate_sell_state_changes(
 
     let delta_hub_reserve_in = to_balance!(delta_hub_reserve_in).ok()?;
 
-    let delta_hub_reserve_out = amount_without_fee(delta_hub_reserve_in, protocol_fee)?;
+    let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
+
+    let delta_hub_reserve_out = delta_hub_reserve_in.checked_sub(protocol_fee_amount)?;
 
     let (out_reserve_hp, out_hub_reserve_hp, delta_hub_reserve_out_hp) = to_u256!(
         asset_out_state.reserve,
@@ -49,8 +51,6 @@ pub fn calculate_sell_state_changes(
 
     let delta_reserve_out = amount_without_fee(to_balance!(delta_reserve_out).ok()?, asset_fee)?;
 
-    // Fee accounting
-    let protocol_fee_amount = protocol_fee.mul_floor(delta_hub_reserve_in);
 
     let delta_imbalance = min(protocol_fee_amount, imbalance);
 
