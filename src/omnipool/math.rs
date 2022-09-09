@@ -12,6 +12,12 @@ use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::{min, Ordering};
 use sp_std::ops::Sub;
 
+#[derive(Debug)]
+pub struct I129 {
+    pub value: Balance,
+    pub negative: bool,
+}
+
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
     let fee_amount = fee.mul_floor(amount);
@@ -77,9 +83,19 @@ pub fn calculate_sell_hub_state_changes(
     asset_out_state: &AssetReserveState<Balance>,
     hub_asset_amount: Balance,
     asset_fee: Permill,
+    imbalance: I129,
 ) -> Option<HubTradeStateChange<Balance>> {
-    let (reserve_hp, hub_reserve_hp, amount_hp) =
-        to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
+    if !imbalance.negative {
+        // currently math implementation deals only with negative values.
+        // interface is ready to support any imbalance though.
+        return None;
+    }
+    let (reserve_hp, hub_reserve_hp, amount_hp, imbalance_hp) = to_u256!(
+        asset_out_state.reserve,
+        asset_out_state.hub_reserve,
+        hub_asset_amount,
+        imbalance.value
+    );
 
     let delta_reserve_out = reserve_hp
         .checked_mul(amount_hp)
@@ -90,7 +106,7 @@ pub fn calculate_sell_hub_state_changes(
     let delta_reserve_out = amount_without_fee(delta_reserve_out, asset_fee)?;
 
     let hub_imbalance = amount_hp
-        .checked_mul(hub_reserve_hp)
+        .checked_mul(hub_reserve_hp.checked_sub(imbalance_hp)?)
         .and_then(|v| v.checked_div(hub_reserve_hp.checked_add(amount_hp)?))?;
     let hub_imbalance = to_balance!(hub_imbalance).ok()?;
 
@@ -112,11 +128,22 @@ pub fn calculate_buy_for_hub_asset_state_changes(
     asset_out_state: &AssetReserveState<Balance>,
     asset_out_amount: Balance,
     asset_fee: Permill,
+    imbalance: I129,
 ) -> Option<HubTradeStateChange<Balance>> {
+    if !imbalance.negative {
+        // currently math implementation deals only with negative values.
+        // interface is ready to support any imbalance though.
+        return None;
+    }
+
     let hub_denominator = amount_without_fee(asset_out_state.reserve, asset_fee)?.checked_sub(asset_out_amount)?;
 
-    let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
-        to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
+    let (hub_reserve_hp, amount_hp, hub_denominator_hp, imbalance_hp) = to_u256!(
+        asset_out_state.hub_reserve,
+        asset_out_amount,
+        hub_denominator,
+        imbalance.value
+    );
 
     let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
         v.checked_div(hub_denominator_hp)
@@ -124,7 +151,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
     })?;
 
     let hub_imbalance = delta_hub_reserve_hp
-        .checked_mul(hub_reserve_hp)
+        .checked_mul(hub_reserve_hp.checked_sub(imbalance_hp)?)
         .and_then(|v| v.checked_div(hub_reserve_hp.checked_add(delta_hub_reserve_hp)?))?;
 
     let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;

@@ -39,6 +39,10 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
     1000..10000 * ONE
 }
 
+fn some_imbalance() -> impl Strategy<Value = I129> {
+    (0..10000 * ONE).prop_map(|value| I129 { value, negative: true })
+}
+
 fn price() -> impl Strategy<Value = FixedU128> {
     (0.1f64..2f64).prop_map(FixedU128::from_float)
 }
@@ -144,9 +148,11 @@ proptest! {
     fn sell_hub_update_invariants_with_fees(asset_out in asset_state(),
         amount in trade_amount(),
         asset_fee in fee(),
+        imbalance in some_imbalance(),
     ) {
         let result = calculate_sell_hub_state_changes(&asset_out, amount,
             asset_fee,
+            imbalance,
         );
 
         assert!(result.is_some());
@@ -165,9 +171,11 @@ proptest! {
     fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
         amount in trade_amount(),
         asset_fee in fee(),
+        imbalance in some_imbalance(),
     ) {
         let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
             asset_fee,
+            imbalance,
         );
 
         assert!(result.is_some());
