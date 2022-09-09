@@ -51,7 +51,6 @@ pub fn calculate_sell_state_changes(
 
     let delta_reserve_out = amount_without_fee(to_balance!(delta_reserve_out).ok()?, asset_fee)?;
 
-
     let delta_imbalance = min(protocol_fee_amount, imbalance);
 
     let hdx_fee_amount = protocol_fee_amount.checked_sub(delta_imbalance)?;
