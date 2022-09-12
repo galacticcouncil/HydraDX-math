@@ -1,7 +1,7 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use crate::omnipool::types::{
     AssetReserveState, AssetStateChange, BalanceUpdate, HubTradeStateChange, LiquidityStateChange, Position,
-    TradeStateChange,
+    TradeStateChange, I129,
 };
 use crate::types::Balance;
 use crate::MathError::Overflow;
@@ -210,6 +210,8 @@ pub fn calculate_add_liquidity_state_changes(
     amount: Balance,
     stable_asset: (Balance, Balance),
     is_stable_asset: bool,
+    imbalance: I129<Balance>,
+    total_hub_reserve: Balance,
 ) -> Option<LiquidityStateChange<Balance>> {
     let delta_hub_reserve = asset_state.price()?.checked_mul_int(amount)?;
 
@@ -243,6 +245,8 @@ pub fn calculate_add_liquidity_state_changes(
             .and_then(|v| v.checked_div(stable_hub_reserve_hp))?
     };
 
+    let delta_imbalance = calculate_delta_imbalance_for_delta(delta_hub_reserve, imbalance, total_hub_reserve)?;
+
     let delta_shares = to_balance!(delta_shares_hp).ok()?;
     let adjusted_asset_tvl = to_balance!(adjusted_asset_tvl_hp).ok()?;
 
@@ -260,7 +264,7 @@ pub fn calculate_add_liquidity_state_changes(
             delta_tvl,
             ..Default::default()
         },
-        delta_imbalance: BalanceUpdate::Decrease(amount),
+        delta_imbalance: Decrease(delta_imbalance),
         ..Default::default()
     })
 }
@@ -272,6 +276,8 @@ pub fn calculate_remove_liquidity_state_changes(
     position: &Position<Balance>,
     stable_asset: (Balance, Balance),
     is_stable_asset: bool,
+    imbalance: I129<Balance>,
+    total_hub_reserve: Balance,
 ) -> Option<LiquidityStateChange<Balance>> {
     let current_shares = asset_state.shares;
     let current_reserve = asset_state.reserve;
@@ -344,6 +350,8 @@ pub fn calculate_remove_liquidity_state_changes(
         Ordering::Equal => BalanceUpdate::Increase(Balance::zero()),
     };
 
+    let delta_imbalance = calculate_delta_imbalance_for_delta(delta_hub_reserve, imbalance, total_hub_reserve)?;
+
     let hub_transferred = if current_price > position_price {
         // LP receives some hub asset
 
@@ -377,7 +385,7 @@ pub fn calculate_remove_liquidity_state_changes(
             delta_protocol_shares: Increase(delta_b),
             delta_tvl,
         },
-        delta_imbalance: Increase(delta_reserve),
+        delta_imbalance: Increase(delta_imbalance),
         lp_hub_amount: hub_transferred,
         delta_position_reserve: Decrease(delta_position_amount),
         delta_position_shares: Decrease(shares_removed),
@@ -417,6 +425,29 @@ pub fn calculate_delta_imbalance(
         .checked_mul(imbalance_hp)
         .and_then(|v| v.checked_div(asset_reserve_hp))
         .and_then(|v| v.checked_mul(amount_hp))
+        .and_then(|v| v.checked_div(hub_reserve_hp))?;
+
+    to_balance!(delta_imbalance_hp).ok()
+}
+
+pub fn calculate_delta_imbalance_for_delta(
+    delta_asset_hub_reserve: Balance,
+    imbalance: I129<Balance>,
+    hub_reserve: Balance,
+) -> Option<Balance> {
+    if imbalance.value == Balance::zero() {
+        return Some(Balance::default());
+    }
+
+    if !imbalance.negative {
+        // currently support only negative imbalances
+        return None;
+    }
+    let (asset_hub_reserve_hp, imbalance_hp, hub_reserve_hp) =
+        to_u256!(delta_asset_hub_reserve, imbalance.value, hub_reserve);
+
+    let delta_imbalance_hp = asset_hub_reserve_hp
+        .checked_mul(imbalance_hp)
         .and_then(|v| v.checked_div(hub_reserve_hp))?;
 
     to_balance!(delta_imbalance_hp).ok()

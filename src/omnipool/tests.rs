@@ -1,8 +1,8 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_for_hub_asset_state_changes,
-    calculate_buy_state_changes, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
-    calculate_sell_hub_state_changes, calculate_sell_state_changes,
+    calculate_buy_state_changes, calculate_delta_imbalance, calculate_delta_imbalance_for_delta,
+    calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes, calculate_sell_state_changes,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -391,8 +391,20 @@ fn calculate_add_liquidity_should_work_when_correct_input_provided() {
 
     let amount_to_add = 2 * UNIT;
     let state_asset = (6 * UNIT, 12 * UNIT);
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 22 * UNIT;
 
-    let state_changes = calculate_add_liquidity_state_changes(&asset_state, amount_to_add, state_asset, false);
+    let state_changes = calculate_add_liquidity_state_changes(
+        &asset_state,
+        amount_to_add,
+        state_asset,
+        false,
+        imbalance,
+        total_hub_reserve,
+    );
 
     assert!(state_changes.is_some());
 
@@ -408,10 +420,7 @@ fn calculate_add_liquidity_should_work_when_correct_input_provided() {
     );
     assert_eq!(state_changes.asset.delta_shares, BalanceUpdate::Increase(amount_to_add));
 
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(2000000000000u128) // TOOD: really ?
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(181818181818u128));
 
     assert_eq!(state_changes.delta_position_reserve, BalanceUpdate::Increase(0u128),);
 
@@ -433,14 +442,27 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
     let amount_to_remove = 2 * UNIT;
     let state_asset = (6 * UNIT, 12 * UNIT);
 
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 22 * UNIT;
+
     let position = Position {
         amount: 3 * UNIT,
         shares: 3 * UNIT,
         price: FixedU128::from_float(0.23),
     };
 
-    let state_changes =
-        calculate_remove_liquidity_state_changes(&asset_state, amount_to_remove, &position, state_asset, false);
+    let state_changes = calculate_remove_liquidity_state_changes(
+        &asset_state,
+        amount_to_remove,
+        &position,
+        state_asset,
+        false,
+        imbalance,
+        total_hub_reserve,
+    );
 
     assert!(state_changes.is_some());
 
@@ -466,10 +488,7 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         state_changes.asset.delta_tvl,
         BalanceUpdate::Decrease(12000000000000u128)
     );
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Increase(2000000000000u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(181818181818u128));
 
     assert_eq!(
         state_changes.delta_position_reserve,
@@ -497,14 +516,27 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
     let amount_to_remove = 2 * UNIT;
     let state_asset = (6 * UNIT, 12 * UNIT);
 
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 22 * UNIT;
+
     let position = Position {
         amount: 3 * UNIT,
         shares: 3 * UNIT,
         price: FixedU128::from_float(2.23),
     };
 
-    let state_changes =
-        calculate_remove_liquidity_state_changes(&asset_state, amount_to_remove, &position, state_asset, false);
+    let state_changes = calculate_remove_liquidity_state_changes(
+        &asset_state,
+        amount_to_remove,
+        &position,
+        state_asset,
+        false,
+        imbalance,
+        total_hub_reserve,
+    );
 
     assert!(state_changes.is_some());
 
@@ -530,10 +562,7 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         state_changes.asset.delta_tvl,
         BalanceUpdate::Decrease(11891252955083u128)
     );
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Increase(1891252955083u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(171932086825u128));
 
     assert_eq!(
         state_changes.delta_position_reserve,
@@ -583,4 +612,32 @@ fn calculate_tvl_should_work_when_correct_input_provided() {
     let delta_tvl = delta_tvl.unwrap();
 
     assert_eq!(delta_tvl, 1000000000000u128);
+}
+
+#[test]
+fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided() {
+    let asset_state = AssetReserveState {
+        reserve: 10 * UNIT,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+        tvl: 20 * UNIT,
+    };
+
+    let amount = 2 * UNIT;
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let hub_reserve = 11 * UNIT;
+
+    let d = asset_state.hub_reserve * amount / asset_state.reserve;
+
+    let delta_imbalance = calculate_delta_imbalance_for_delta(d, imbalance, hub_reserve);
+
+    assert!(delta_imbalance.is_some());
+
+    let delta_imbalance = delta_imbalance.unwrap();
+
+    assert_eq!(delta_imbalance, 363636363636u128);
 }

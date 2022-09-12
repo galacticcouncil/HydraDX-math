@@ -1,5 +1,5 @@
 use crate::assert_eq_approx;
-use crate::omnipool::types::{AssetReserveState, Position};
+use crate::omnipool::types::{AssetReserveState, Position, I129};
 use crate::omnipool::*;
 use crate::types::Balance;
 use primitive_types::U256;
@@ -52,6 +52,10 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
         shares: amount,
         price,
     })
+}
+
+fn some_imbalance() -> impl Strategy<Value = I129<Balance>> {
+    (0..10000 * ONE).prop_map(|value| I129 { value, negative: true })
 }
 
 fn assert_asset_invariant(
@@ -266,12 +270,15 @@ proptest! {
     #[test]
     fn price_should_not_change_when_liquidity_added(asset in asset_state(),
         amount in trade_amount(),
-        stable_asset in stable_asset_state()
+        stable_asset in stable_asset_state(),
+        imbalance in some_imbalance(),
     ) {
         let result = calculate_add_liquidity_state_changes(&asset,
             amount,
             stable_asset,
-            false
+            false,
+            imbalance,
+            100 * ONE,
         );
 
         assert!(result.is_some());
@@ -294,13 +301,16 @@ proptest! {
     #[test]
     fn price_should_not_change_when_liquidity_removed(asset in asset_state(),
         position in position(),
-        stable_asset in stable_asset_state()
+        stable_asset in stable_asset_state(),
+        imbalance in some_imbalance(),
     ) {
         let result = calculate_remove_liquidity_state_changes(&asset,
             position.amount,
             &position,
             stable_asset,
-            false
+            false,
+            imbalance,
+            100 * ONE,
         );
 
         assert!(result.is_some());

@@ -199,6 +199,12 @@ pub struct Position<Balance> {
     pub price: FixedU128,
 }
 
+#[derive(Debug)]
+pub struct I129<Balance> {
+    pub value: Balance,
+    pub negative: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::BalanceUpdate;
