@@ -44,7 +44,6 @@ fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
                 shares,
                 protocol_shares,
                 tvl,
-                ..Default::default()
             },
         )
 }
@@ -54,7 +53,6 @@ fn asset_reserve() -> impl Strategy<Value = Balance> {
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
-    //Just(1000 * ONE)
     1000..10000 * ONE
 }
 
@@ -70,7 +68,7 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
     (trade_amount(), price()).prop_map(|(amount, price)| Position {
         amount,
         shares: amount,
-        price: price,
+        price,
     })
 }
 
@@ -228,18 +226,18 @@ proptest! {
 #[test]
 fn buy_update_invariants_no_fees_case() {
     let asset_in = AssetReserveState {
-        reserve: 10000000000000000,
-        hub_reserve: 10000000000000000,
-        shares: 10000000000000000,
-        protocol_shares: 10000000000000000,
-        tvl: 10000000000000000,
+        reserve: 10_000_000_000_000_000,
+        hub_reserve: 10_000_000_000_000_000,
+        shares: 10_000_000_000_000_000,
+        protocol_shares: 10_000_000_000_000_000,
+        tvl: 10_000_000_000_000_000,
     };
     let asset_out = AssetReserveState {
-        reserve: 10000000000000000,
-        hub_reserve: 89999999999999991,
-        shares: 10000000000000000,
-        protocol_shares: 10000000000000000,
-        tvl: 10000000000000000,
+        reserve: 10_000_000_000_000_000,
+        hub_reserve: 89_999_999_999_999_991,
+        shares: 10_000_000_000_000_000,
+        protocol_shares: 10_000_000_000_000_000,
+        tvl: 10_000_000_000_000_000,
     };
     let amount = 1_000_000_000_000_000;
 
@@ -268,7 +266,7 @@ proptest! {
             Balance::default()
         );
 
-        // ignore the invalid result
+        // perform assertion only when result is valid
         if let Some(state_changes) = result {
             let asset_in_state = asset_in.clone();
             let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
@@ -284,7 +282,7 @@ proptest! {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
-    fn add_liquidity_prices(asset in asset_state(),
+    fn price_should_not_change_when_liquidity_added(asset in asset_state(),
         amount in trade_amount(),
         stable_asset in stable_asset_state()
     ) {
@@ -324,7 +322,7 @@ proptest! {
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
     #[test]
-    fn remove_liquidity_prices(asset in asset_state(),
+    fn price_should_not_change_when_liquidity_removed(asset in asset_state(),
         position in position(),
         stable_asset in stable_asset_state()
     ) {

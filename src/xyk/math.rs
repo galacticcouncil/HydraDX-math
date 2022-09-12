@@ -65,7 +65,7 @@ pub fn calculate_out_given_in(
 }
 
 /// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves.
-/// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT)
+/// Formula : IN_RESERVE * AMOUNT_OUT / (OUT_RESERVE - AMOUNT_OUT) + 1
 ///
 /// - `in_reserve` - reserve amount of selling asset
 /// - `out_reserve` - reserve amount of buying asset
@@ -90,6 +90,7 @@ pub fn calculate_in_given_out(
     let buy_price_hp = numerator.checked_div(denominator).ok_or(Overflow)?;
 
     let result = to_balance!(buy_price_hp).ok();
+    // We are rounding up to prevent value leaking from the pool
     round_up!(result.ok_or(Overflow)?)
 }
 
