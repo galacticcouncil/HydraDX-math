@@ -458,7 +458,14 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         state_changes.asset.delta_shares,
         BalanceUpdate::Decrease(amount_to_remove)
     );
-
+    assert_eq!(
+        state_changes.asset.delta_protocol_shares,
+        BalanceUpdate::Increase(0u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_tvl,
+        BalanceUpdate::Decrease(12000000000000u128)
+    );
     assert_eq!(
         state_changes.delta_imbalance,
         BalanceUpdate::Increase(2000000000000u128)
@@ -475,6 +482,70 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
     );
 
     assert_eq!(state_changes.lp_hub_amount, 3174887892376u128);
+}
+
+#[test]
+fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_position_price() {
+    let asset_state = AssetReserveState {
+        reserve: 10 * UNIT,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+        tvl: 20 * UNIT,
+    };
+
+    let amount_to_remove = 2 * UNIT;
+    let state_asset = (6 * UNIT, 12 * UNIT);
+
+    let position = Position {
+        amount: 3 * UNIT,
+        shares: 3 * UNIT,
+        price: FixedU128::from_float(2.23),
+    };
+
+    let state_changes =
+        calculate_remove_liquidity_state_changes(&asset_state, amount_to_remove, &position, state_asset, false);
+
+    assert!(state_changes.is_some());
+
+    let state_changes = state_changes.unwrap();
+
+    assert_eq!(
+        state_changes.asset.delta_reserve,
+        BalanceUpdate::Decrease(1891252955083u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_hub_reserve,
+        BalanceUpdate::Decrease(3782505910166u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_shares,
+        BalanceUpdate::Decrease(1891252955083u128) // TODO: why different to amount as parameter ?
+    );
+    assert_eq!(
+        state_changes.asset.delta_protocol_shares,
+        BalanceUpdate::Increase(108747044917u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_tvl,
+        BalanceUpdate::Decrease(11891252955083u128)
+    );
+    assert_eq!(
+        state_changes.delta_imbalance,
+        BalanceUpdate::Increase(1891252955083u128)
+    );
+
+    assert_eq!(
+        state_changes.delta_position_reserve,
+        BalanceUpdate::Decrease(2000000000000u128)
+    );
+
+    assert_eq!(
+        state_changes.delta_position_shares,
+        BalanceUpdate::Decrease(amount_to_remove)
+    );
+
+    assert_eq!(state_changes.lp_hub_amount, 0u128);
 }
 
 #[test]
