@@ -14,8 +14,7 @@ use sp_std::ops::Sub;
 
 #[inline]
 fn amount_without_fee(amount: Balance, fee: Permill) -> Option<Balance> {
-    let fee_amount = fee.mul_floor(amount);
-    amount.checked_sub(fee_amount)
+    Some(Permill::from_percent(100).checked_sub(&fee)?.mul_floor(amount))
 }
 
 /// Calculate delta changes of a sell trade given current state of asset in and out.

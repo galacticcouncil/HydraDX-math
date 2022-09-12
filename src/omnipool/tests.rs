@@ -111,7 +111,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.asset_out.delta_reserve,
-        BalanceUpdate::Decrease(2627613941019u128)
+        BalanceUpdate::Decrease(2627613941018u128)
     );
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
@@ -181,7 +181,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.asset.delta_reserve,
-        BalanceUpdate::Decrease(1650000000000u128)
+        BalanceUpdate::Decrease(1649999999999u128)
     );
     assert_eq!(
         state_changes.asset.delta_hub_reserve,
@@ -190,7 +190,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7300000000000u128)
+        BalanceUpdate::Decrease(7299999999999u128)
     );
 }
 
@@ -375,7 +375,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(9063291139241u128)
+        BalanceUpdate::Decrease(9063291139240u128)
     );
 }
 
