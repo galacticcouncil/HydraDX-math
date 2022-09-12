@@ -98,7 +98,7 @@ fn in_given_out_should_work() {
             100 * prec,
             340 * prec,
             10_000_000,
-            120__000_000,
+            120_000_000,
             2 * prec,
             Ok(7336295524874),
             "Easy case",

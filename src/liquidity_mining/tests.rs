@@ -265,7 +265,7 @@ fn calculate_accumulated_rps_should_work() {
             FixedU128::from(678009825_u128),
             130956_u128,
             49126054_u128,
-            FixedU128::from_float(678010200.1340450_f64),
+            FixedU128::from_float(678010200.134045_f64),
         ),
         (
             FixedU128::from(579839575_u128),
@@ -331,13 +331,13 @@ fn calculate_accumulated_rps_should_work() {
             FixedU128::from(962034430_u128),
             196031_u128,
             40199198_u128,
-            FixedU128::from_float(962034635.0655151_f64),
+            FixedU128::from_float(962034635.065515_f64),
         ),
         (
             FixedU128::from(548598381_u128),
             457172_u128,
             37345481_u128,
-            FixedU128::from_float(548598462.6880320_f64),
+            FixedU128::from_float(548598462.688032_f64),
         ),
         (
             FixedU128::from(869164975_u128),
