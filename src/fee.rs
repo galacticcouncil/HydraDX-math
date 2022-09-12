@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn fee_calculations_should_work() {
-        let default_fee = (2, 1000).into();
+        let default_fee = (2, 1_000);
 
         assert_eq!(calculate_pool_trade_fee(1_000, default_fee), Some(2));
         assert_eq!(
@@ -32,7 +32,7 @@ mod tests {
             Some(2_000_000_000)
         );
 
-        let ten_percent_fee = (1, 10).into();
+        let ten_percent_fee = (1, 10);
 
         assert_eq!(calculate_pool_trade_fee(1_000, ten_percent_fee), Some(100));
         assert_eq!(
@@ -40,9 +40,9 @@ mod tests {
             Some(100_000_000_000)
         );
 
-        assert_eq!(calculate_pool_trade_fee(1_000, (1, 10).into()), Some(100));
+        assert_eq!(calculate_pool_trade_fee(1_000, (1, 10)), Some(100));
         assert_eq!(
-            calculate_pool_trade_fee(1_000_000_000_000, (1, 10).into()),
+            calculate_pool_trade_fee(1_000_000_000_000, (1, 10)),
             Some(100_000_000_000)
         );
 
@@ -57,18 +57,18 @@ mod tests {
             Some(34028236692093846346337460743176821145)
         );
 
-        let max_fee = (1, 1).into();
+        let max_fee = (1, 1);
 
         assert_eq!(calculate_pool_trade_fee(max_amount, max_fee), Some(max_amount));
         assert_eq!(calculate_pool_trade_fee(1_000, max_fee), Some(1_000));
 
-        assert_eq!(calculate_pool_trade_fee(max_amount, (1, 1).into()), Some(max_amount));
-        assert_eq!(calculate_pool_trade_fee(1_000, (1, 1).into()), Some(1_000));
+        assert_eq!(calculate_pool_trade_fee(max_amount, (1, 1)), Some(max_amount));
+        assert_eq!(calculate_pool_trade_fee(1_000, (1, 1)), Some(1_000));
 
         let zero_amount = 0u128;
         assert_eq!(calculate_pool_trade_fee(zero_amount, default_fee), Some(0));
 
-        let unrealistic_fee = (1, u32::MAX).into();
+        let unrealistic_fee = (1, u32::MAX);
 
         assert_eq!(
             calculate_pool_trade_fee(max_amount, unrealistic_fee),
@@ -76,24 +76,24 @@ mod tests {
         );
 
         assert_eq!(
-            calculate_pool_trade_fee(max_amount, (1, u32::MAX).into()),
+            calculate_pool_trade_fee(max_amount, (1, u32::MAX)),
             Some(79228162532711081671548469249)
         );
 
-        let unrealistic_fee = (u32::MAX, 1).into();
+        let unrealistic_fee = (u32::MAX, 1);
 
         assert_eq!(calculate_pool_trade_fee(max_amount, unrealistic_fee), None);
-        assert_eq!(calculate_pool_trade_fee(max_amount, (u32::MAX, 1).into()), None);
+        assert_eq!(calculate_pool_trade_fee(max_amount, (u32::MAX, 1)), None);
 
-        let zero_fee = (0, 0).into();
+        let zero_fee = (0, 0);
 
         assert_eq!(calculate_pool_trade_fee(max_amount, zero_fee), Some(0));
         assert_eq!(calculate_pool_trade_fee(1_000, zero_fee), Some(0));
 
-        assert_eq!(calculate_pool_trade_fee(max_amount, (0, 0).into()), Some(0));
-        assert_eq!(calculate_pool_trade_fee(1_000, (0, 0).into()), Some(0));
+        assert_eq!(calculate_pool_trade_fee(max_amount, (0, 0)), Some(0));
+        assert_eq!(calculate_pool_trade_fee(1_000, (0, 0)), Some(0));
 
-        assert_eq!(calculate_pool_trade_fee(max_amount, (1, 0).into()), Some(0));
-        assert_eq!(calculate_pool_trade_fee(1_000, (0, 1).into()), Some(0));
+        assert_eq!(calculate_pool_trade_fee(max_amount, (1, 0)), Some(0));
+        assert_eq!(calculate_pool_trade_fee(1_000, (0, 1)), Some(0));
     }
 }
