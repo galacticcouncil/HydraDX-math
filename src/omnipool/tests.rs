@@ -238,7 +238,10 @@ fn calculate_buy_should_work_when_correct_input_provided() {
         BalanceUpdate::Decrease(1250000000001u128)
     );
 
-    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(amount_to_buy));
+    assert_eq!(
+        state_changes.asset_out.delta_reserve,
+        BalanceUpdate::Decrease(amount_to_buy)
+    );
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
         BalanceUpdate::Increase(1250000000001u128)
@@ -291,7 +294,10 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
         BalanceUpdate::Decrease(1278608873546)
     );
 
-    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(amount_to_buy));
+    assert_eq!(
+        state_changes.asset_out.delta_reserve,
+        BalanceUpdate::Decrease(amount_to_buy)
+    );
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
         BalanceUpdate::Increase(1265822784811u128)
