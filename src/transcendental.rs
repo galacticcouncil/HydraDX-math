@@ -243,8 +243,8 @@ mod tests {
         let three = S::from_num(3);
         let four = S::from_num(4);
 
-        assert_eq!(pow::<S, D>(two, zero), Ok(one.into()));
-        assert_eq!(pow::<S, D>(zero, two), Ok(zero.into()));
+        assert_eq!(pow::<S, D>(two, zero), Ok(one));
+        assert_eq!(pow::<S, D>(zero, two), Ok(zero));
 
         let result: f64 = pow::<S, D>(two, three).unwrap().lossy_into();
         assert_relative_eq!(result, 8.0, epsilon = 1.0e-6);
@@ -252,7 +252,7 @@ mod tests {
         let result: f64 = pow::<S, D>(one / four, two).unwrap().lossy_into();
         assert_relative_eq!(result, 0.0625, epsilon = 1.0e-6);
 
-        assert_eq!(pow::<S, D>(two, one), Ok(two.into()));
+        assert_eq!(pow::<S, D>(two, one), Ok(two));
 
         let result: f64 = pow::<S, D>(one / four, one / two).unwrap().lossy_into();
         assert_relative_eq!(result, 0.5, epsilon = 1.0e-6);
