@@ -211,7 +211,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
         tvl: 20 * UNIT,
     };
 
-    let amount_to_buy = 1 * UNIT;
+    let amount_to_buy = UNIT;
     let asset_fee = Permill::from_percent(0);
     let protocol_fee = Permill::from_percent(0);
     let imbalance = 2 * UNIT;
@@ -238,7 +238,7 @@ fn calculate_buy_should_work_when_correct_input_provided() {
         BalanceUpdate::Decrease(1250000000001u128)
     );
 
-    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(1 * UNIT));
+    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(amount_to_buy));
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
         BalanceUpdate::Increase(1250000000001u128)
@@ -264,7 +264,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
         tvl: 20 * UNIT,
     };
 
-    let amount_to_buy = 1 * UNIT;
+    let amount_to_buy = UNIT;
     let asset_fee = Permill::from_percent(1);
     let protocol_fee = Permill::from_percent(1);
     let imbalance = 2 * UNIT;
@@ -291,7 +291,7 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
         BalanceUpdate::Decrease(1278608873546)
     );
 
-    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(1 * UNIT));
+    assert_eq!(state_changes.asset_out.delta_reserve, BalanceUpdate::Decrease(amount_to_buy));
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
         BalanceUpdate::Increase(1265822784811u128)
@@ -482,7 +482,7 @@ fn calculate_delta_imbalance_should_work_when_correct_input_provided() {
     };
 
     let amount = 2 * UNIT;
-    let imbalance = 1 * UNIT;
+    let imbalance = UNIT;
     let hub_reserve = 11 * UNIT;
 
     let delta_imbalance = calculate_delta_imbalance(&asset_state, amount, imbalance, hub_reserve);

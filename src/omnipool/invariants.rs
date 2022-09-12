@@ -26,7 +26,6 @@ fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
                 shares,
                 protocol_shares,
                 tvl,
-                ..Default::default()
             },
         )
 }
@@ -51,7 +50,7 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
     (trade_amount(), price()).prop_map(|(amount, price)| Position {
         amount,
         shares: amount,
-        price: price,
+        price,
     })
 }
 
