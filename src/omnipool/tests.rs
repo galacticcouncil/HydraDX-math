@@ -138,8 +138,14 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
     let amount_to_sell = 4 * UNIT;
     let asset_fee = Permill::from_percent(0);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
+    let state_changes =
+        calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -172,8 +178,14 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     let amount_to_sell = 4 * UNIT;
     let asset_fee = Permill::from_percent(1);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
+    let state_changes =
+        calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
