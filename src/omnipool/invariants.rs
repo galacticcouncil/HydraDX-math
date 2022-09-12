@@ -1,13 +1,12 @@
 use crate::assert_eq_approx;
 use crate::omnipool::types::{AssetReserveState, Position};
 use crate::omnipool::*;
-use crate::types::Balance;
 use crate::to_balance;
+use crate::types::Balance;
+use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
-use sp_arithmetic::{FixedU128, Permill, FixedPointNumber};
-use crate::MathError::Overflow;
-
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -19,8 +18,8 @@ macro_rules! assert_eq_approx_ordered {
             panic!($r);
         }
         let diff = to_balance!($x - $y).unwrap();
-        let diff_percent = FixedU128::from((diff,to_balance!($y).unwrap()));
-        let fixed_tolerance = FixedU128::from((TOLERANCE,ONE));
+        let diff_percent = FixedU128::from((diff, to_balance!($y).unwrap()));
+        let fixed_tolerance = FixedU128::from((TOLERANCE, ONE));
         if diff_percent > fixed_tolerance {
             panic!("\n{} not equal\n left: {:?}\nright: {:?}\n", $r, $x, $y);
         }
