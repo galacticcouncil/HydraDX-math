@@ -153,9 +153,6 @@ proptest! {
         let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
         let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
 
-        dbg!(y);
-        dbg!(reserve_a);
-
         assert!(y - 4 <= reserve_a);
         assert!(y >= reserve_a);
     }
@@ -178,9 +175,6 @@ proptest! {
 
         let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
         let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
-
-        dbg!(y);
-        dbg!(reserve_a);
 
         assert!(y - 4 <= reserve_a);
         assert!(y >= reserve_a);

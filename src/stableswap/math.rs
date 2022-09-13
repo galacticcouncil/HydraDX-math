@@ -310,11 +310,7 @@ pub(crate) fn calculate_y<const N: u8>(
 fn has_converged(v0: U256, v1: U256, precision: U256) -> bool {
     let diff = abs_diff(v0, v1);
 
-    if (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision) {
-        return true;
-    }
-
-    false
+    (v1 <= v0 && diff < precision) || (v1 > v0 && diff <= precision)
 }
 
 #[inline]
