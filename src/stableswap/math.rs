@@ -170,11 +170,11 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 }
 
 /// amplification * n^n where n is number of assets in pool.
-fn calculate_ann(len: usize, amplification: Balance) -> Option<Balance> {
+pub(crate) fn calculate_ann(len: usize, amplification: Balance) -> Option<Balance> {
     (0..len).try_fold(amplification, |acc, _| acc.checked_mul(len as u128))
 }
 
-fn calculate_y_given_in<const N: u8, const N_Y: u8>(
+pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
     amount: Balance,
     idx_in: usize,
     idx_out: usize,
@@ -197,7 +197,7 @@ fn calculate_y_given_in<const N: u8, const N_Y: u8>(
 }
 
 /// Calculate new amount of reserve IN given amount to be withdrawn from the pool
-fn calculate_y_given_out<const N: u8, const N_Y: u8>(
+pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
     amount: Balance,
     idx_in: usize,
     idx_out: usize,
@@ -295,7 +295,12 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance, precisio
     Balance::try_from(d).ok()
 }
 
-fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification: Balance, precision: Balance) -> Option<Balance> {
+pub(crate) fn calculate_y<const N: u8>(
+    xp: &[Balance],
+    d: Balance,
+    amplification: Balance,
+    precision: Balance,
+) -> Option<Balance> {
     let mut xp_hp: Vec<U256> = xp.iter().filter(|v| !(*v).is_zero()).map(|v| to_u256!(*v)).collect();
     xp_hp.sort();
 
@@ -354,350 +359,5 @@ fn abs_diff(d0: U256, d1: U256) -> U256 {
         d1 - d0
     } else {
         d0 - d1
-    }
-}
-
-#[cfg(test)]
-mod test_two_assets_math {
-    const D_ITERATIONS: u8 = 128;
-    const Y_ITERATIONS: u8 = 64;
-
-    use super::*;
-    use crate::stableswap::math::invariants::ONE;
-    use crate::types::Balance;
-
-    #[test]
-    fn test_ann() {
-        assert_eq!(calculate_ann(2, 1u128), Some(4u128));
-        assert_eq!(calculate_ann(2, 10u128), Some(40u128));
-        assert_eq!(calculate_ann(2, 100u128), Some(400u128));
-    }
-
-    #[test]
-    fn test_d() {
-        let precision = 1_u128;
-
-        let reserves = [1000u128, 1000u128];
-        assert_eq!(
-            calculate_d::<D_ITERATIONS>(&reserves, 1, precision),
-            Some(2000u128 + 2u128)
-        );
-
-        let reserves = [1_000_000_000_000_000_000_000u128, 1_000_000_000_000_000_000_000u128];
-        assert_eq!(
-            calculate_d::<D_ITERATIONS>(&reserves, 1, precision),
-            Some(2_000_000_000_000_000_000_000u128 + 2u128)
-        );
-    }
-
-    #[test]
-    fn test_d_with_zero_reserves() {
-        let precision = 1_u128;
-        let reserves = [0u128, 0u128];
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(0u128));
-    }
-
-    #[test]
-    fn test_y_given_in() {
-        let precision = 1_u128;
-        let reserves = [1000u128, 2000u128];
-
-        let amount_in = 100u128;
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(2942u128));
-        assert_eq!(
-            calculate_y_given_in::<D_ITERATIONS, Y_ITERATIONS>(amount_in, 0, 1, &reserves, 1, precision),
-            Some(2000u128 - 121u128)
-        );
-        assert_eq!(
-            calculate_d::<D_ITERATIONS>(&[1100u128, 2000u128 - 125u128], 1, precision),
-            Some(2942u128)
-        );
-    }
-
-    #[test]
-    fn test_y_given_out() {
-        let precision = 1_u128;
-        let reserves = [1000u128, 2000u128];
-
-        let amount_out = 100u128;
-
-        let expected_in = 83u128;
-
-        assert_eq!(calculate_d::<D_ITERATIONS>(&reserves, 1, precision), Some(2942u128));
-
-        assert_eq!(
-            calculate_y_given_out::<D_ITERATIONS, Y_ITERATIONS>(amount_out, 0, 1, &reserves, 1, precision),
-            Some(1000u128 + expected_in)
-        );
-        assert_eq!(
-            calculate_d::<D_ITERATIONS>(&[1000u128 + expected_in, 2000u128 - amount_out], 1, precision),
-            Some(2946u128)
-        );
-    }
-
-    #[test]
-    fn test_d_case() {
-        let amp = 400u128;
-
-        let precision = 1u128;
-
-        let result = calculate_d::<D_ITERATIONS>(&[500000000000008580273458u128, 10u128], amp, precision);
-
-        assert!(result.is_some());
-    }
-
-    #[test]
-    fn test_d_case2() {
-        let amp = 168u128;
-
-        let precision = 1u128;
-
-        let result = calculate_d::<D_ITERATIONS>(&[500000000000000000000010u128, 11u128], amp, precision);
-
-        assert!(result.is_some());
-    }
-
-    #[test]
-    fn test_case_03() {
-        let reserve_in: Balance = 95329220803912837655;
-        let reserve_out: Balance = 57374284583541134907;
-        let amp: u128 = 310;
-
-        let precision = 1u128;
-
-        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision);
-
-        assert!(d.is_some());
-    }
-
-    #[test]
-    fn test_shares() {
-        let precision = 1u128;
-        let amp = 100u128;
-
-        let initial_reserves = &[0u128, 0u128];
-        let updated_reserves = &[1000 * ONE, 0u128];
-
-        let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, 0u128);
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), 1000_000_000_000_000u128);
-    }
-    #[test]
-    fn remove_one_asset_should_work() {
-        let precision = 1u128;
-        let amp = 100u128;
-
-        let reserves = &[1000 * ONE, 2000u128];
-
-        let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
-            reserves,
-            100u128,
-            1,
-            3000u128,
-            amp,
-            precision,
-            Permill::from_percent(10),
-        );
-
-        assert!(result.is_some());
-
-        let result = result.unwrap();
-
-        assert_eq!(result, (168, 24));
-    }
-}
-
-#[cfg(test)]
-mod invariants {
-    use super::Balance;
-    use super::*;
-    use super::{calculate_in_given_out, calculate_out_given_in, calculate_shares};
-    use proptest::prelude::*;
-    use proptest::proptest;
-
-    pub const ONE: Balance = 1_000_000_000_000;
-
-    const D_ITERATIONS: u8 = 255;
-    const Y_ITERATIONS: u8 = 64;
-
-    const RESERVE_RANGE: (Balance, Balance) = (100_000 * ONE, 100_000_000 * ONE);
-    const LOW_RESERVE_RANGE: (Balance, Balance) = (10_u128, 11_u128);
-    const HIGH_RESERVE_RANGE: (Balance, Balance) = (500_000_000_000 * ONE, 500_000_000_001 * ONE);
-
-    fn trade_amount() -> impl Strategy<Value = Balance> {
-        1000..10000 * ONE
-    }
-
-    fn high_trade_amount() -> impl Strategy<Value = Balance> {
-        500_000_000_000 * ONE..500_000_000_001 * ONE
-    }
-
-    fn asset_reserve() -> impl Strategy<Value = Balance> {
-        RESERVE_RANGE.0..RESERVE_RANGE.1
-    }
-    fn low_asset_reserve() -> impl Strategy<Value = Balance> {
-        LOW_RESERVE_RANGE.0..LOW_RESERVE_RANGE.1
-    }
-    fn high_asset_reserve() -> impl Strategy<Value = Balance> {
-        HIGH_RESERVE_RANGE.0..HIGH_RESERVE_RANGE.1
-    }
-
-    fn amplification() -> impl Strategy<Value = Balance> {
-        2..10000u128
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn test_d_extreme(reserve_in in low_asset_reserve(),
-            reserve_out in high_asset_reserve(),
-            amp in amplification(),
-        ) {
-            let precision = 1u128;
-
-            let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision);
-
-            assert!(d.is_some());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn test_out_given_in_extreme(amount_in in high_trade_amount(),
-            reserve_in in low_asset_reserve(),
-            reserve_out in high_asset_reserve(),
-            amp in amplification(),
-        ) {
-            let precision = 1u128;
-
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
-
-            assert!(result.is_some());
-
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
-
-            assert!(d2 >= d1);
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn test_out_given_in(amount_in in trade_amount(),
-            reserve_in in asset_reserve(),
-            reserve_out in asset_reserve(),
-            amp in amplification(),
-        ) {
-            let precision = 1u128;
-
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-            let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
-
-            assert!(result.is_some());
-
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
-
-            assert!(d2 >= d1);
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn test_in_given_out(amount_out in trade_amount(),
-            reserve_in in asset_reserve(),
-            reserve_out in asset_reserve(),
-            amp in amplification(),
-        ) {
-            let precision = 1u128;
-
-            let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-            let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_out, amp, precision);
-
-            assert!(result.is_some());
-
-            let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], amp, precision).unwrap();
-
-            assert!(d2 >= d1);
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn test_add_liquidity(
-            amount_a in trade_amount(),
-            amount_b in trade_amount(),
-            reserve_a in asset_reserve(),
-            reserve_b in asset_reserve(),
-            amp in amplification(),
-            issuance in asset_reserve(),
-        ) {
-            let precision = 1u128;
-
-            let initial_reserves = &[reserve_a, reserve_b];
-            let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
-
-            let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
-
-            assert!(result.is_some());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn round_trip_d_y_5(reserve_a in asset_reserve(),
-            reserve_b in asset_reserve(),
-            reserve_c in asset_reserve(),
-            reserve_d in asset_reserve(),
-            reserve_e in asset_reserve(),
-            amp in amplification(),
-        ) {
-            let ann = amp * 3125u128;  // 5^5
-
-            let precision = 1u128;
-
-            let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
-            let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
-
-            dbg!(y);
-            dbg!(reserve_a);
-
-            assert!(y - 4 <= reserve_a);
-            assert!(y >= reserve_a);
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
-        #[test]
-        fn round_trip_d_y_4(reserve_a in asset_reserve(),
-            reserve_b in asset_reserve(),
-            reserve_c in asset_reserve(),
-            reserve_e in asset_reserve(),
-            amp in amplification(),
-        ) {
-            let ann = amp * 256u128;  // 4^4
-
-            let reserve_d = 0u128;
-
-            let precision = 1u128;
-
-            let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
-            let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
-
-            dbg!(y);
-            dbg!(reserve_a);
-
-            assert!(y - 4 <= reserve_a);
-            assert!(y >= reserve_a);
-        }
     }
 }
