@@ -1,6 +1,9 @@
 /target
+HydraDX-math-dev-docs
 **/node_modules
 **/dist
 .idea
 
 .DS_Store
+*.orig
+proptest-regressions

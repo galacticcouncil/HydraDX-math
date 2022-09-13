@@ -81,8 +81,8 @@ mod conversion_tests {
     #[test]
     fn test_conversion() {
         let one: u32 = 1;
-        assert_eq!(to_balance!(one), Ok(Balance::from(1u128)));
-        assert_eq!(to_lbp_weight!(one), Ok(LBPWeight::from(1u32)));
-        assert_eq!(round_up!(Balance::from(one)), Ok(Balance::from(2u128)));
+        assert_eq!(to_balance!(one), Ok(1u128));
+        assert_eq!(to_lbp_weight!(one), Ok(1u32));
+        assert_eq!(round_up!(Balance::from(one)), Ok(2u128));
     }
 }
