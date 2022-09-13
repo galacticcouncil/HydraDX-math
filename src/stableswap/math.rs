@@ -37,6 +37,7 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
     new_reserve_in.checked_sub(balances[idx_in])
 }
 
+/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
 pub fn calculate_shares<const N: u8>(
     initial_reserves: &[Balance],
     updated_reserves: &[Balance],
@@ -64,36 +65,7 @@ pub fn calculate_shares<const N: u8>(
     }
 }
 
-/// Given amount of shares and asset reserves, calculate corresponding amounts of each asset to be withdrawn.
-pub fn calculate_remove_liquidity_amounts(
-    reserves: &[Balance],
-    shares: Balance,
-    share_asset_issuance: Balance,
-) -> Option<Vec<Balance>> {
-    if share_asset_issuance.is_zero() {
-        return None;
-    }
-
-    let (shares_hp, issuance_hp) = to_u256!(shares, share_asset_issuance);
-
-    let calculate_amount = |asset_reserve: Balance| {
-        Balance::try_from(
-            to_u256!(asset_reserve)
-                .checked_mul(shares_hp)?
-                .checked_div(issuance_hp)?,
-        )
-        .ok()
-    };
-
-    let mut r = Vec::<Balance>::new();
-    for reserve in reserves {
-        r.push(calculate_amount(*reserve)?);
-    }
-
-    Some(r)
-}
-
-/// Given amount of shares and asset reserves, calculate corresponding amounts of each asset to be withdrawn.
+/// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     reserves: &[Balance],
     shares: Balance,
@@ -106,6 +78,11 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     if share_asset_issuance.is_zero() {
         return None;
     }
+
+    if asset_index > reserves.len(){
+        return None;
+    }
+
     let initial_d = calculate_d::<N>(reserves, amplification, precision)?;
 
     let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
@@ -182,6 +159,10 @@ pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
+    if idx_in > balances.len() || idx_out > balances.len(){
+        return None;
+    }
+
     let new_reserve_in = balances[idx_in].checked_add(amount)?;
 
     let d = calculate_d::<N>(balances, amplification, precision)?;
@@ -205,6 +186,9 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
+    if idx_in > balances.len() || idx_out > balances.len(){
+        return None;
+    }
     let new_reserve_out = balances[idx_out].checked_sub(amount)?;
 
     let d = calculate_d::<N>(balances, amplification, precision)?;
@@ -216,25 +200,6 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
         .collect();
 
     calculate_y::<N_Y>(&xp, d, amplification, precision)
-}
-
-/// Calculate required amount of asset b when adding liquidity of asset a.
-///
-/// Note: currently here to be backwards compatible with 2-asset support until decided how to do add liquidity
-///
-/// new_reserve_b = (reserve_a + amount) * reserve_b / reserve_a
-///
-/// required_amount = new_reserve_b - asset_b_reserve
-///
-pub fn calculate_asset_b_required(
-    asset_a_reserve: Balance,
-    asset_b_reserve: Balance,
-    updated_a_reserve: Balance,
-) -> Option<Balance> {
-    let (reserve_a, reserve_b, updated_reserve_a) = to_u256!(asset_a_reserve, asset_b_reserve, updated_a_reserve);
-    let updated_reserve_b =
-        Balance::try_from(updated_reserve_a.checked_mul(reserve_b)?.checked_div(reserve_a)?).ok()?;
-    updated_reserve_b.checked_sub(asset_b_reserve)
 }
 
 pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance, precision: Balance) -> Option<Balance> {
