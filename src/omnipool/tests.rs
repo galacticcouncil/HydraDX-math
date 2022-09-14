@@ -1,8 +1,8 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
-    calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_for_hub_asset_state_changes,
-    calculate_buy_state_changes, calculate_delta_imbalance, calculate_delta_imbalance_for_delta,
-    calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes, calculate_sell_state_changes,
+    calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
+    calculate_delta_imbalance, calculate_delta_imbalance_for_delta, calculate_remove_liquidity_state_changes,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -16,14 +16,12 @@ fn calculate_sell_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
     let asset_out_state = AssetReserveState {
         reserve: 5 * UNIT,
         hub_reserve: 5 * UNIT,
         shares: 20 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_sell = 4 * UNIT;
@@ -72,14 +70,12 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
     let asset_out_state = AssetReserveState {
         reserve: 5 * UNIT,
         hub_reserve: 5 * UNIT,
         shares: 20 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_sell = 4 * UNIT;
@@ -133,7 +129,6 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_sell = 4 * UNIT;
@@ -173,7 +168,6 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_sell = 4 * UNIT;
@@ -213,14 +207,12 @@ fn calculate_buy_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
     let asset_out_state = AssetReserveState {
         reserve: 5 * UNIT,
         hub_reserve: 5 * UNIT,
         shares: 20 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_buy = UNIT;
@@ -269,14 +261,12 @@ fn calculate_buy_with_fees_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
     let asset_out_state = AssetReserveState {
         reserve: 5 * UNIT,
         hub_reserve: 5 * UNIT,
         shares: 20 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_buy = UNIT;
@@ -330,7 +320,6 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_buy = 2 * UNIT;
@@ -370,7 +359,6 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_buy = 2 * UNIT;
@@ -410,25 +398,17 @@ fn calculate_add_liquidity_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_add = 2 * UNIT;
-    let state_asset = (6 * UNIT, 12 * UNIT);
     let imbalance = I129 {
         value: UNIT,
         negative: true,
     };
     let total_hub_reserve = 22 * UNIT;
 
-    let state_changes = calculate_add_liquidity_state_changes(
-        &asset_state,
-        amount_to_add,
-        state_asset,
-        false,
-        imbalance,
-        total_hub_reserve,
-    );
+    let state_changes =
+        calculate_add_liquidity_state_changes(&asset_state, amount_to_add, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -460,11 +440,9 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_remove = 2 * UNIT;
-    let state_asset = (6 * UNIT, 12 * UNIT);
 
     let imbalance = I129 {
         value: UNIT,
@@ -482,8 +460,6 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         &asset_state,
         amount_to_remove,
         &position,
-        state_asset,
-        false,
         imbalance,
         total_hub_reserve,
     );
@@ -508,10 +484,6 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         state_changes.asset.delta_protocol_shares,
         BalanceUpdate::Increase(0u128)
     );
-    assert_eq!(
-        state_changes.asset.delta_tvl,
-        BalanceUpdate::Decrease(12000000000000u128)
-    );
     assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(181818181818u128));
 
     assert_eq!(
@@ -534,11 +506,9 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount_to_remove = 2 * UNIT;
-    let state_asset = (6 * UNIT, 12 * UNIT);
 
     let imbalance = I129 {
         value: UNIT,
@@ -556,8 +526,6 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         &asset_state,
         amount_to_remove,
         &position,
-        state_asset,
-        false,
         imbalance,
         total_hub_reserve,
     );
@@ -582,10 +550,6 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         state_changes.asset.delta_protocol_shares,
         BalanceUpdate::Increase(108747044918u128)
     );
-    assert_eq!(
-        state_changes.asset.delta_tvl,
-        BalanceUpdate::Decrease(11891252955082u128)
-    );
     assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(171932086825u128));
 
     assert_eq!(
@@ -608,7 +572,6 @@ fn calculate_delta_imbalance_should_work_when_correct_input_provided() {
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount = 2 * UNIT;
@@ -625,27 +588,12 @@ fn calculate_delta_imbalance_should_work_when_correct_input_provided() {
 }
 
 #[test]
-fn calculate_tvl_should_work_when_correct_input_provided() {
-    let hub_reserve = 2 * UNIT;
-    let state_asset = (6 * UNIT, 12 * UNIT);
-
-    let delta_tvl = calculate_asset_tvl(hub_reserve, state_asset);
-
-    assert!(delta_tvl.is_some());
-
-    let delta_tvl = delta_tvl.unwrap();
-
-    assert_eq!(delta_tvl, 1000000000000u128);
-}
-
-#[test]
 fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided() {
     let asset_state = AssetReserveState {
         reserve: 10 * UNIT,
         hub_reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
-        tvl: 20 * UNIT,
     };
 
     let amount = 2 * UNIT;

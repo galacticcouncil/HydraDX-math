@@ -34,21 +34,13 @@ fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
         BALANCE_RANGE.0..BALANCE_RANGE.1,
         BALANCE_RANGE.0..BALANCE_RANGE.1,
         BALANCE_RANGE.0..BALANCE_RANGE.1,
-        BALANCE_RANGE.0..BALANCE_RANGE.1,
     )
-        .prop_map(
-            |(reserve, hub_reserve, shares, protocol_shares, tvl)| AssetReserveState {
-                reserve,
-                hub_reserve,
-                shares,
-                protocol_shares,
-                tvl,
-            },
-        )
-}
-
-fn asset_reserve() -> impl Strategy<Value = Balance> {
-    BALANCE_RANGE.0..BALANCE_RANGE.1
+        .prop_map(|(reserve, hub_reserve, shares, protocol_shares)| AssetReserveState {
+            reserve,
+            hub_reserve,
+            shares,
+            protocol_shares,
+        })
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
@@ -57,10 +49,6 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 
 fn price() -> impl Strategy<Value = FixedU128> {
     (0.1f64..2f64).prop_map(FixedU128::from_float)
-}
-
-fn stable_asset_state() -> impl Strategy<Value = (Balance, Balance)> {
-    (asset_reserve(), asset_reserve())
 }
 
 fn position() -> impl Strategy<Value = Position<Balance>> {
@@ -239,14 +227,12 @@ fn buy_update_invariants_no_fees_case() {
         hub_reserve: 10_000_000_000_000_000,
         shares: 10_000_000_000_000_000,
         protocol_shares: 10_000_000_000_000_000,
-        tvl: 10_000_000_000_000_000,
     };
     let asset_out = AssetReserveState {
         reserve: 10_000_000_000_000_000,
         hub_reserve: 89_999_999_999_999_991,
         shares: 10_000_000_000_000_000,
         protocol_shares: 10_000_000_000_000_000,
-        tvl: 10_000_000_000_000_000,
     };
     let amount = 1_000_000_000_000_000;
 
@@ -293,13 +279,10 @@ proptest! {
     #[test]
     fn price_should_not_change_when_liquidity_added(asset in asset_state(),
         amount in trade_amount(),
-        stable_asset in stable_asset_state(),
         imbalance in some_imbalance(),
     ) {
         let result = calculate_add_liquidity_state_changes(&asset,
             amount,
-            stable_asset,
-            false,
             imbalance,
             100 * ONE,
         );
@@ -336,14 +319,11 @@ proptest! {
     #[test]
     fn price_should_not_change_when_liquidity_removed(asset in asset_state(),
         position in position(),
-        stable_asset in stable_asset_state(),
         imbalance in some_imbalance(),
     ) {
         let result = calculate_remove_liquidity_state_changes(&asset,
             position.amount,
             &position,
-            stable_asset,
-            false,
             imbalance,
             100 * ONE,
         );
