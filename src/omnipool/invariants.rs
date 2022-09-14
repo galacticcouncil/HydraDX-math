@@ -171,9 +171,12 @@ proptest! {
     fn buy_hub_update_invariants_with_fees(asset_out in asset_state(),
         amount in trade_amount(),
         asset_fee in fee(),
+        imbalance in some_imbalance(),
     ) {
         let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
             asset_fee,
+            imbalance,
+            100 * ONE + asset_out.hub_reserve,
         );
 
         assert!(result.is_some());

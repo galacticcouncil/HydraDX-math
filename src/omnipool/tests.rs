@@ -162,7 +162,7 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7333333333333u128)
+        BalanceUpdate::Decrease(12972222222221u128)
     );
 }
 
@@ -202,7 +202,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7300000000000u128)
+        BalanceUpdate::Decrease(12972222222221u128)
     );
 }
 
@@ -335,8 +335,14 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
     let amount_to_buy = 2 * UNIT;
     let asset_fee = Permill::from_percent(0);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
+    let state_changes =
+        calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -353,7 +359,7 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(9000000000001u128)
+        BalanceUpdate::Decrease(15640000000002u128)
     );
 }
 
@@ -369,8 +375,14 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
     let amount_to_buy = 2 * UNIT;
     let asset_fee = Permill::from_percent(1);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
+    let state_changes =
+        calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -387,7 +399,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(9063291139241u128)
+        BalanceUpdate::Decrease(15733998209949u128)
     );
 }
 
