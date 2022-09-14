@@ -512,27 +512,27 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
 
     assert_eq!(
         state_changes.asset.delta_reserve,
-        BalanceUpdate::Decrease(1891252955083u128)
+        BalanceUpdate::Decrease(1891252955082u128)
     );
     assert_eq!(
         state_changes.asset.delta_hub_reserve,
-        BalanceUpdate::Decrease(3782505910166u128)
+        BalanceUpdate::Decrease(3782505910164u128)
     );
     assert_eq!(
         state_changes.asset.delta_shares,
-        BalanceUpdate::Decrease(1891252955083u128) // TODO: why different to amount as parameter ?
+        BalanceUpdate::Decrease(1891252955082u128) // TODO: why different to amount as parameter ?
     );
     assert_eq!(
         state_changes.asset.delta_protocol_shares,
-        BalanceUpdate::Increase(108747044917u128)
+        BalanceUpdate::Increase(108747044918u128)
     );
     assert_eq!(
         state_changes.asset.delta_tvl,
-        BalanceUpdate::Decrease(11891252955083u128)
+        BalanceUpdate::Decrease(11891252955082u128)
     );
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Increase(1891252955083u128)
+        BalanceUpdate::Increase(1891252955082u128)
     );
 
     assert_eq!(

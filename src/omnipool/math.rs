@@ -6,7 +6,7 @@ use crate::omnipool::types::{
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
+use num_traits::{CheckedDiv, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::{min, Ordering};
@@ -279,23 +279,10 @@ pub fn calculate_remove_liquidity_state_changes(
     let current_price = asset_state.price()?;
     let position_price = position.price;
 
-    // Protocol shares update
-    let delta_b = if current_price < position_price {
-        let sum = current_price.checked_add(&position_price)?;
-        let sub = position_price.checked_sub(&current_price)?;
-
-        sub.checked_div(&sum).and_then(|v| v.checked_mul_int(shares_removed))?
-    } else {
-        Balance::zero()
-    };
-
-    let delta_shares = shares_removed.checked_sub(delta_b)?;
-
     let (
         current_reserve_hp,
         current_hub_reserve_hp,
         current_shares_hp,
-        delta_shares_hp,
         shares_removed_hp,
         position_amount_hp,
         position_shares_hp,
@@ -305,13 +292,27 @@ pub fn calculate_remove_liquidity_state_changes(
         current_reserve,
         current_hub_reserve,
         current_shares,
-        delta_shares,
         shares_removed,
         position.amount,
         position.shares,
         stable_asset.0,
         stable_asset.1
     );
+
+    let p_x_r = U256::from(position_price.checked_mul_int(current_reserve)?);
+
+    // Protocol shares update
+    let delta_b_hp = if current_price < position_price {
+        let numer = p_x_r
+            .checked_sub(current_hub_reserve_hp)?
+            .checked_mul(shares_removed_hp)?;
+        let denom = p_x_r.checked_add(current_hub_reserve_hp)?;
+        numer.checked_div(denom)?.checked_add(U256::one())? // round up
+    } else {
+        U256::from(Balance::zero())
+    };
+
+    let delta_shares_hp = shares_removed_hp.checked_sub(delta_b_hp)?;
 
     let delta_reserve_hp = current_reserve_hp
         .checked_mul(delta_shares_hp)
@@ -336,6 +337,8 @@ pub fn calculate_remove_liquidity_state_changes(
     let delta_reserve = to_balance!(delta_reserve_hp).ok()?;
     let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
     let delta_position_amount = to_balance!(delta_position_amount_hp).ok()?;
+    let delta_shares = to_balance!(delta_shares_hp).ok()?;
+    let delta_b = to_balance!(delta_b_hp).ok()?;
 
     let delta_tvl = match adjusted_asset_tvl.cmp(&asset_state.tvl) {
         Ordering::Greater => BalanceUpdate::Increase(adjusted_asset_tvl.checked_sub(asset_state.tvl)?),
@@ -349,21 +352,10 @@ pub fn calculate_remove_liquidity_state_changes(
         // delta_q_a = -pi * ( 2pi / (pi + pa) * delta_s_a / Si * Ri + delta_r_a )
         // note: delta_s_a is < 0
 
-        let price_sum = current_price.checked_add(&position_price)?;
-
-        let double_current_price = current_price.checked_mul(&FixedU128::from(2))?;
-
-        let p1 = double_current_price.checked_div(&price_sum)?;
-
-        let p2 = current_reserve_hp
-            .checked_mul(shares_removed_hp)
-            .and_then(|v| v.checked_div(current_shares_hp))?;
-
-        let p2 = to_balance!(p2).ok()?;
-
-        let p3 = p1.checked_mul_int(p2)?;
-
-        current_price.checked_mul_int(p3.checked_sub(delta_reserve)?)?
+        let sub = current_hub_reserve_hp.checked_sub(p_x_r)?;
+        let sum = current_hub_reserve_hp.checked_add(p_x_r)?;
+        let div1 = current_hub_reserve_hp.checked_mul(sub)?.checked_div(sum)?;
+        to_balance!(div1.checked_mul(delta_shares_hp)?.checked_div(current_shares_hp)?).ok()?
     } else {
         Balance::zero()
     };
