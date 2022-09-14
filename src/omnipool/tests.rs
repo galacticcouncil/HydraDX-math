@@ -1,4 +1,4 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, I129, Position};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_for_hub_asset_state_changes,
     calculate_buy_state_changes, calculate_delta_imbalance, calculate_delta_imbalance_for_delta,
@@ -111,7 +111,7 @@ fn calculate_sell_with_fees_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.asset_out.delta_reserve,
-        BalanceUpdate::Decrease(2627613941019u128)
+        BalanceUpdate::Decrease(2627613941018u128)
     );
     assert_eq!(
         state_changes.asset_out.delta_hub_reserve,
@@ -181,7 +181,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.asset.delta_reserve,
-        BalanceUpdate::Decrease(1650000000000u128)
+        BalanceUpdate::Decrease(1649999999999u128)
     );
     assert_eq!(
         state_changes.asset.delta_hub_reserve,
@@ -190,7 +190,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7300000000000u128)
+        BalanceUpdate::Decrease(7299999999999u128)
     );
 }
 
@@ -544,23 +544,23 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
 
     assert_eq!(
         state_changes.asset.delta_reserve,
-        BalanceUpdate::Decrease(1891252955083u128)
+        BalanceUpdate::Decrease(1891252955082u128)
     );
     assert_eq!(
         state_changes.asset.delta_hub_reserve,
-        BalanceUpdate::Decrease(3782505910166u128)
+        BalanceUpdate::Decrease(3782505910164u128)
     );
     assert_eq!(
         state_changes.asset.delta_shares,
-        BalanceUpdate::Decrease(1891252955083u128) // TODO: why different to amount as parameter ?
+        BalanceUpdate::Decrease(1891252955082u128)
     );
     assert_eq!(
         state_changes.asset.delta_protocol_shares,
-        BalanceUpdate::Increase(108747044917u128)
+        BalanceUpdate::Increase(108747044918u128)
     );
     assert_eq!(
         state_changes.asset.delta_tvl,
-        BalanceUpdate::Decrease(11891252955083u128)
+        BalanceUpdate::Decrease(11891252955082u128)
     );
     assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(171932086825u128));
 

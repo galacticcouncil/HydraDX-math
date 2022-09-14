@@ -6,7 +6,7 @@ use crate::omnipool::types::{
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedDiv, One, Zero};
+use num_traits::{CheckedDiv, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::{min, Ordering};
