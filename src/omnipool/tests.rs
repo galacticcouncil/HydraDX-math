@@ -1,4 +1,4 @@
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, I129, Position};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_asset_tvl, calculate_buy_for_hub_asset_state_changes,
     calculate_buy_state_changes, calculate_delta_imbalance, calculate_delta_imbalance_for_delta,
@@ -138,8 +138,14 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
     let amount_to_sell = 4 * UNIT;
     let asset_fee = Permill::from_percent(0);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
+    let state_changes =
+        calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -156,7 +162,7 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7333333333333u128)
+        BalanceUpdate::Decrease(12972222222221u128)
     );
 }
 
@@ -172,8 +178,14 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     let amount_to_sell = 4 * UNIT;
     let asset_fee = Permill::from_percent(1);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee);
+    let state_changes =
+        calculate_sell_hub_state_changes(&asset_state, amount_to_sell, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -190,7 +202,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(7299999999999u128)
+        BalanceUpdate::Decrease(12972222222221u128)
     );
 }
 
@@ -323,8 +335,14 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
     let amount_to_buy = 2 * UNIT;
     let asset_fee = Permill::from_percent(0);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
+    let state_changes =
+        calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -341,7 +359,7 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(9000000000001u128)
+        BalanceUpdate::Decrease(15640000000002u128)
     );
 }
 
@@ -357,8 +375,14 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
     let amount_to_buy = 2 * UNIT;
     let asset_fee = Permill::from_percent(1);
+    let imbalance = I129 {
+        value: 2 * UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 40 * UNIT;
 
-    let state_changes = calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee);
+    let state_changes =
+        calculate_buy_for_hub_asset_state_changes(&asset_state, amount_to_buy, asset_fee, imbalance, total_hub_reserve);
 
     assert!(state_changes.is_some());
 
@@ -375,7 +399,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
 
     assert_eq!(
         state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(9063291139240u128)
+        BalanceUpdate::Decrease(15733998209949u128)
     );
 }
 
