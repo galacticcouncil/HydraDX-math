@@ -94,7 +94,7 @@ fn calculate_imbalance_in_hub_swap(
 
     let x1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
     let x2 = FixedU128::checked_from_rational(q_i, q_i_plus)?;
-    let y1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
+    let y1 = x1;
     let y2 = FixedU128::checked_from_rational(q_plus, q)?;
 
     let x = x1.checked_mul(&x2)?.checked_mul_int(q_plus)?;
