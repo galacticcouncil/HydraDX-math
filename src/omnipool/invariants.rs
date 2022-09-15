@@ -223,7 +223,7 @@ proptest! {
 
         assert_imbalance_update(&asset_out,
             &asset_out_state,
-            imbalance.clone(),
+            imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
             new_total_hub_reserve,
@@ -260,7 +260,7 @@ proptest! {
 
         assert_imbalance_update(&asset_out,
             &asset_out_state,
-            imbalance.clone(),
+            imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
             new_total_hub_reserve,
@@ -296,7 +296,7 @@ proptest! {
 
         assert_imbalance_update(&asset_out,
             &asset_out_state,
-            imbalance.clone(),
+            imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
             new_total_hub_reserve,
@@ -333,7 +333,7 @@ proptest! {
 
         assert_imbalance_update(&asset_out,
             &asset_out_state,
-            imbalance.clone(),
+            imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
             new_total_hub_reserve,
