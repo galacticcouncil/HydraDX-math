@@ -195,7 +195,7 @@ pub struct Position<Balance> {
     pub price: FixedU128,
 }
 
-#[derive(Debug)]
+#[derive(Clone,Copy, Debug)]
 pub struct I129<Balance> {
     pub value: Balance,
     pub negative: bool,

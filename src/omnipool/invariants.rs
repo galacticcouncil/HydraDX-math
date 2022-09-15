@@ -51,6 +51,11 @@ fn price() -> impl Strategy<Value = FixedU128> {
     (0.1f64..2f64).prop_map(FixedU128::from_float)
 }
 
+fn fee() -> impl Strategy<Value = Permill> {
+    (1u32..5u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
+        .prop_map(|(n, d)| Permill::from_rational(n, d))
+}
+
 fn position() -> impl Strategy<Value = Position<Balance>> {
     (trade_amount(), price()).prop_map(|(amount, price)| Position {
         amount,
@@ -66,7 +71,7 @@ fn some_imbalance() -> impl Strategy<Value = I129<Balance>> {
 fn assert_asset_invariant(
     old_state: &AssetReserveState<Balance>,
     new_state: &AssetReserveState<Balance>,
-    tolerance: FixedU128,
+    max_tolerance: Option<FixedU128>,
     desc: &str,
 ) {
     let new_s = U256::from(new_state.reserve) * U256::from(new_state.hub_reserve);
@@ -77,16 +82,26 @@ fn assert_asset_invariant(
 
     assert!(new_s >= old_s, "Invariant decreased for {}", desc);
 
-    let s1_u128 = Balance::try_from(s1).unwrap();
-    let s2_u128 = Balance::try_from(s2).unwrap();
+    if let Some(tolerance) = max_tolerance {
+        let s1_u128 = Balance::try_from(s1).unwrap();
+        let s2_u128 = Balance::try_from(s2).unwrap();
 
-    let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
-    assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
+        let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
+        assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
+    }
 }
-fn fee() -> impl Strategy<Value = Permill> {
-    // Allow values between 0.001 and 0.1
-    (0u32..1u32, prop_oneof![Just(1000u32), Just(10000u32), Just(100_000u32)])
-        .prop_map(|(n, d)| Permill::from_rational(n, d))
+
+fn assert_imbalance_update(
+    old_state: &AssetReserveState<Balance>,
+    new_state: &AssetReserveState<Balance>,
+    old_imbalance: I129<Balance>,
+    new_imbalance: I129<Balance>,
+    desc: &str,
+) {
+    let left = U256::from(old_state.hub_reserve - old_imbalance.value) * U256::from(new_state.reserve);
+    let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
+
+    assert!(left >= right, "{}", desc);
 }
 
 proptest! {
@@ -108,12 +123,12 @@ proptest! {
         let asset_in_state = asset_in.clone();
         let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
 
-        assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
+        assert_asset_invariant(&asset_in, &asset_in_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token in");
 
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
 
-        assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+        assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
     }
 }
 
@@ -138,11 +153,41 @@ proptest! {
 
         let asset_in_state = asset_in.clone();
         let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-        assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token in");
+        assert_asset_invariant(&asset_in, &asset_in_state,  None, "Sell update invariant - token in");
 
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-        assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+        assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn sell_hub_update_invariants_no_fees(asset_out in asset_state(),
+        amount in trade_amount(),
+        imbalance in some_imbalance(),
+    ) {
+        let result = calculate_sell_hub_state_changes(&asset_out, amount,
+            Permill::from_percent(0),
+            imbalance,
+            100 * ONE + asset_out.hub_reserve,
+        );
+
+        assert!(result.is_some());
+
+        let state_changes = result.unwrap();
+
+        let asset_out_state = asset_out.clone();
+        let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
+
+        assert_imbalance_update(&asset_out,
+            &asset_out_state,
+            imbalance.clone(),
+            I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            "sell hub imbalance invariant failed" );
+
+        assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
     }
 }
 
@@ -166,7 +211,44 @@ proptest! {
 
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-        assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+
+        assert_imbalance_update(&asset_out,
+            &asset_out_state,
+            imbalance.clone(),
+            I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            "sell hub imbalance invariant failed" );
+
+        assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn buy_hub_update_invariants_no_fees(asset_out in asset_state(),
+        amount in trade_amount(),
+        imbalance in some_imbalance(),
+    ) {
+        let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
+            Permill::from_percent(0),
+            imbalance,
+            100 * ONE + asset_out.hub_reserve,
+        );
+
+        assert!(result.is_some());
+
+        let state_changes = result.unwrap();
+
+        let asset_out_state = asset_out.clone();
+        let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
+
+        assert_imbalance_update(&asset_out,
+            &asset_out_state,
+            imbalance.clone(),
+            I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            "buy hub imbalance invariant failed" );
+
+       assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
     }
 }
 
@@ -190,7 +272,14 @@ proptest! {
 
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
-        assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Sell update invariant - token out");
+
+        assert_imbalance_update(&asset_out,
+            &asset_out_state,
+            imbalance.clone(),
+            I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            "buy hub imbalance invariant failed" );
+
+        assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
     }
 }
 
@@ -212,11 +301,11 @@ proptest! {
         if let Some(state_changes) = result {
             let asset_in_state = asset_in.clone();
             let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-            assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
+            assert_asset_invariant(&asset_in, &asset_in_state,  None, "Buy update invariant - token in");
 
             let asset_out_state = asset_out.clone();
             let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-            assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
+            assert_asset_invariant(&asset_out, &asset_out_state,  None, "Buy update invariant - token out");
         }
     }
 }
@@ -255,9 +344,8 @@ proptest! {
         amount in trade_amount()
     ) {
         let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
-
-        Permill::from_percent(0),
-        Permill::from_percent(0),
+            Permill::from_percent(0),
+            Permill::from_percent(0),
             Balance::default()
         );
 
@@ -265,11 +353,11 @@ proptest! {
         if let Some(state_changes) = result {
             let asset_in_state = asset_in.clone();
             let asset_in_state = asset_in_state.delta_update(&state_changes.asset_in).unwrap();
-            assert_asset_invariant(&asset_in, &asset_in_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token in");
+            assert_asset_invariant(&asset_in, &asset_in_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Buy update invariant - token in");
 
             let asset_out_state = asset_out.clone();
             let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
-            assert_asset_invariant(&asset_out, &asset_out_state,  FixedU128::from((TOLERANCE, ONE)), "Buy update invariant - token out");
+            assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Buy update invariant - token out");
         }
     }
 }
