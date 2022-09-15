@@ -115,7 +115,8 @@ pub fn calculate_sell_hub_state_changes(
     let y = y1
         .checked_mul(&x2)?
         .checked_mul(&y2)?
-        .checked_mul_int(imbalance_value)?;
+        .checked_mul_int(imbalance_value)?
+        .checked_add(1u128)?;
     let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
 
     let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;
@@ -173,7 +174,8 @@ pub fn calculate_buy_for_hub_asset_state_changes(
     let y = y1
         .checked_mul(&x2)?
         .checked_mul(&y2)?
-        .checked_mul_int(imbalance_value)?;
+        .checked_mul_int(imbalance_value)?
+        .checked_add(1u128)?;
     let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
 
     let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;
