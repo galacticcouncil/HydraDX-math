@@ -264,7 +264,7 @@ pub fn calculate_add_liquidity_state_changes(
         .checked_mul(amount_hp)
         .and_then(|v| v.checked_div(reserve_hp))?;
 
-    let delta_imbalance = calculate_delta_imbalance_for_delta(delta_hub_reserve, imbalance, total_hub_reserve)?;
+    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
 
     let delta_shares = to_balance!(delta_shares_hp).ok()?;
 
@@ -343,7 +343,7 @@ pub fn calculate_remove_liquidity_state_changes(
     let delta_shares = to_balance!(delta_shares_hp).ok()?;
     let delta_b = to_balance!(delta_b_hp).ok()?;
 
-    let delta_imbalance = calculate_delta_imbalance_for_delta(delta_hub_reserve, imbalance, total_hub_reserve)?;
+    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
 
     let hub_transferred = if current_price > position_price {
         // LP receives some hub asset
@@ -384,35 +384,9 @@ pub fn calculate_tvl(hub_reserve: Balance, stable_asset: (Balance, Balance)) -> 
     to_balance!(tvl).ok()
 }
 
+/// Calculate delta imbalance given delta hub reserve to be added to pool
 pub fn calculate_delta_imbalance(
-    asset_state: &AssetReserveState<Balance>,
-    amount: Balance,
-    imbalance: Balance,
-    hub_reserve: Balance,
-) -> Option<Balance> {
-    if amount == Balance::zero() || imbalance == Balance::zero() || hub_reserve == Balance::zero() {
-        return Some(Balance::default());
-    }
-
-    let (asset_reserve_hp, asset_hub_reserve_hp, amount_hp, imbalance_hp, hub_reserve_hp) = to_u256!(
-        asset_state.reserve,
-        asset_state.hub_reserve,
-        amount,
-        imbalance,
-        hub_reserve
-    );
-
-    let delta_imbalance_hp = asset_hub_reserve_hp
-        .checked_mul(imbalance_hp)
-        .and_then(|v| v.checked_div(asset_reserve_hp))
-        .and_then(|v| v.checked_mul(amount_hp))
-        .and_then(|v| v.checked_div(hub_reserve_hp))?;
-
-    to_balance!(delta_imbalance_hp).ok()
-}
-
-pub fn calculate_delta_imbalance_for_delta(
-    delta_asset_hub_reserve: Balance,
+    delta_hub_reserve: Balance,
     imbalance: I129<Balance>,
     hub_reserve: Balance,
 ) -> Option<Balance> {
@@ -424,10 +398,9 @@ pub fn calculate_delta_imbalance_for_delta(
         // currently support only negative imbalances
         return None;
     }
-    let (asset_hub_reserve_hp, imbalance_hp, hub_reserve_hp) =
-        to_u256!(delta_asset_hub_reserve, imbalance.value, hub_reserve);
+    let (delta_hub_hp, imbalance_hp, hub_reserve_hp) = to_u256!(delta_hub_reserve, imbalance.value, hub_reserve);
 
-    let delta_imbalance_hp = asset_hub_reserve_hp
+    let delta_imbalance_hp = delta_hub_hp
         .checked_mul(imbalance_hp)
         .and_then(|v| v.checked_div(hub_reserve_hp))?;
 

@@ -1,8 +1,8 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-    calculate_delta_imbalance, calculate_delta_imbalance_for_delta, calculate_remove_liquidity_state_changes,
-    calculate_sell_hub_state_changes, calculate_sell_state_changes,
+    calculate_delta_imbalance, calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes,
+    calculate_sell_state_changes,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -566,28 +566,6 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
 }
 
 #[test]
-fn calculate_delta_imbalance_should_work_when_correct_input_provided() {
-    let asset_state = AssetReserveState {
-        reserve: 10 * UNIT,
-        hub_reserve: 20 * UNIT,
-        shares: 10 * UNIT,
-        protocol_shares: 0u128,
-    };
-
-    let amount = 2 * UNIT;
-    let imbalance = UNIT;
-    let hub_reserve = 11 * UNIT;
-
-    let delta_imbalance = calculate_delta_imbalance(&asset_state, amount, imbalance, hub_reserve);
-
-    assert!(delta_imbalance.is_some());
-
-    let delta_imbalance = delta_imbalance.unwrap();
-
-    assert_eq!(delta_imbalance, 363636363636u128);
-}
-
-#[test]
 fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided() {
     let asset_state = AssetReserveState {
         reserve: 10 * UNIT,
@@ -605,7 +583,7 @@ fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided()
 
     let d = asset_state.hub_reserve * amount / asset_state.reserve;
 
-    let delta_imbalance = calculate_delta_imbalance_for_delta(d, imbalance, hub_reserve);
+    let delta_imbalance = calculate_delta_imbalance(d, imbalance, hub_reserve);
 
     assert!(delta_imbalance.is_some());
 
