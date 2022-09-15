@@ -96,8 +96,44 @@ fn assert_imbalance_update(
     new_state: &AssetReserveState<Balance>,
     old_imbalance: I129<Balance>,
     new_imbalance: I129<Balance>,
+    old_hub_reserve: Balance,
+    new_hub_reserve: Balance,
     desc: &str,
 ) {
+    let r_i = U256::from(old_state.reserve);
+    let q_i = U256::from(old_state.hub_reserve);
+
+    let r_i_plus = U256::from(new_state.reserve);
+    let q_i_plus = U256::from(new_state.hub_reserve);
+
+    let q = U256::from(old_hub_reserve);
+    let q_plus = U256::from(new_hub_reserve);
+
+    let imbalance = U256::from(old_imbalance.value);
+    let imbalance_plus = U256::from(old_imbalance.value);
+
+    let _left = r_i_plus * q_i * q_plus * (q - imbalance);
+    let _right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
+
+    //assert!(left >= right, "{}", desc);
+
+    let l_x = FixedU128::checked_from_rational(old_state.hub_reserve, old_hub_reserve)
+        .unwrap()
+        .checked_mul_int(old_imbalance.value)
+        .unwrap();
+    let r_x = FixedU128::checked_from_rational(new_state.hub_reserve, new_hub_reserve)
+        .unwrap()
+        .checked_mul_int(new_imbalance.value)
+        .unwrap();
+
+    let l_n = old_state.hub_reserve - l_x;
+    let r_n = new_state.hub_reserve - r_x;
+
+    let _left = FixedU128::checked_from_rational(l_n, old_state.reserve);
+    let _right = FixedU128::checked_from_rational(r_n, new_state.reserve);
+
+    //assert!(left >= right, "{}", desc);
+
     let left = U256::from(old_state.hub_reserve - old_imbalance.value) * U256::from(new_state.reserve);
     let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
 
@@ -168,10 +204,12 @@ proptest! {
         amount in trade_amount(),
         imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+
         let result = calculate_sell_hub_state_changes(&asset_out, amount,
             Permill::from_percent(0),
             imbalance,
-            100 * ONE + asset_out.hub_reserve,
+            total_hub_reserve,
         );
 
         assert!(result.is_some());
@@ -181,10 +219,14 @@ proptest! {
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 
+        let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
+
         assert_imbalance_update(&asset_out,
             &asset_out_state,
             imbalance.clone(),
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            total_hub_reserve,
+            new_total_hub_reserve,
             "sell hub imbalance invariant failed" );
 
         assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
@@ -199,10 +241,12 @@ proptest! {
         asset_fee in fee(),
         imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+
         let result = calculate_sell_hub_state_changes(&asset_out, amount,
             asset_fee,
             imbalance,
-            100 * ONE + asset_out.hub_reserve,
+            total_hub_reserve,
         );
 
         assert!(result.is_some());
@@ -212,10 +256,14 @@ proptest! {
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 
+        let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
+
         assert_imbalance_update(&asset_out,
             &asset_out_state,
             imbalance.clone(),
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            total_hub_reserve,
+            new_total_hub_reserve,
             "sell hub imbalance invariant failed" );
 
         assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
@@ -229,10 +277,12 @@ proptest! {
         amount in trade_amount(),
         imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+
         let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
             Permill::from_percent(0),
             imbalance,
-            100 * ONE + asset_out.hub_reserve,
+            total_hub_reserve,
         );
 
         assert!(result.is_some());
@@ -242,10 +292,14 @@ proptest! {
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 
+        let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
+
         assert_imbalance_update(&asset_out,
             &asset_out_state,
             imbalance.clone(),
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            total_hub_reserve,
+            new_total_hub_reserve,
             "buy hub imbalance invariant failed" );
 
        assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
@@ -260,10 +314,12 @@ proptest! {
         asset_fee in fee(),
         imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+
         let result = calculate_buy_for_hub_asset_state_changes(&asset_out, amount,
             asset_fee,
             imbalance,
-            100 * ONE + asset_out.hub_reserve,
+            total_hub_reserve,
         );
 
         assert!(result.is_some());
@@ -273,10 +329,14 @@ proptest! {
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
 
+        let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
+
         assert_imbalance_update(&asset_out,
             &asset_out_state,
             imbalance.clone(),
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            total_hub_reserve,
+            new_total_hub_reserve,
             "buy hub imbalance invariant failed" );
 
         assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
