@@ -70,6 +70,46 @@ pub fn calculate_sell_state_changes(
     })
 }
 
+fn calculate_imbalance_in_hub_swap(
+    total_hub_reserve: Balance,
+    asset_reserve: Balance,
+    asset_hub_reserve: Balance,
+    delta_reserve: Balance,
+    delta_hub_reserve: Balance,
+    imbalance: I129<Balance>,
+) -> Option<Balance> {
+    // IMBALANCE
+    // L+ = Q+ * fixed(Ri+ / Ri) * fixed(Qi / Qi+)   +  L * fixed(Ri+ / Ri) * fixed(Qi / Qi+) * fixed(Q+ / Q)  -  Q+
+    // L+ = Q+ * X1 * X2 + L *  Y1 * X2 * Y2 - Q+
+
+    let q = total_hub_reserve;
+    let r_i = asset_reserve;
+    let q_i = asset_hub_reserve;
+
+    let q_plus = total_hub_reserve.checked_add(delta_hub_reserve)?;
+    let r_i_plus = r_i.checked_sub(delta_reserve)?;
+    let q_i_plus = q_i.checked_add(delta_hub_reserve)?;
+
+    let imbalance_value = imbalance.value;
+
+    let x1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
+    let x2 = FixedU128::checked_from_rational(q_i, q_i_plus)?;
+    let y1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
+    let y2 = FixedU128::checked_from_rational(q_plus, q)?;
+
+    let x = x1.checked_mul(&x2)?.checked_mul_int(q_plus)?;
+    let y = y1
+        .checked_mul(&x2)?
+        .checked_mul(&y2)?
+        .checked_mul_int(imbalance_value)?
+        .checked_add(1u128)?;
+    let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
+
+    let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;
+
+    Some(delta_imbalance)
+}
+
 /// Calculate delta changes of a sell where asset_in is Hub Asset
 pub fn calculate_sell_hub_state_changes(
     asset_out_state: &AssetReserveState<Balance>,
@@ -92,34 +132,14 @@ pub fn calculate_sell_hub_state_changes(
     let delta_reserve_out = to_balance!(delta_reserve_out_hp).ok()?;
     let delta_reserve_out = amount_without_fee(delta_reserve_out, asset_fee)?;
 
-    // IMBALANCE
-    // L+ = Q+ * fixed(Ri+ / Ri) * fixed(Qi / Qi+)   +  L * fixed(Ri+ / Ri) * fixed(Qi / Qi+) * fixed(Q+ / Q)  -  Q+
-    // L+ = Q+ * X1 * X2 + L *  Y1 * X2 * Y2 - Q+
-
-    let q = total_hub_reserve;
-    let r_i = asset_out_state.reserve;
-    let q_i = asset_out_state.hub_reserve;
-
-    let q_plus = total_hub_reserve.checked_add(hub_asset_amount)?;
-    let r_i_plus = r_i.checked_sub(delta_reserve_out)?;
-    let q_i_plus = q_i.checked_add(hub_asset_amount)?;
-
-    let imbalance_value = imbalance.value;
-
-    let x1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
-    let x2 = FixedU128::checked_from_rational(q_i, q_i_plus)?;
-    let y1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
-    let y2 = FixedU128::checked_from_rational(q_plus, q)?;
-
-    let x = x1.checked_mul(&x2)?.checked_mul_int(q_plus)?;
-    let y = y1
-        .checked_mul(&x2)?
-        .checked_mul(&y2)?
-        .checked_mul_int(imbalance_value)?
-        .checked_add(1u128)?;
-    let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
-
-    let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;
+    let delta_imbalance = calculate_imbalance_in_hub_swap(
+        total_hub_reserve,
+        asset_out_state.reserve,
+        asset_out_state.hub_reserve,
+        delta_reserve_out,
+        hub_asset_amount,
+        imbalance,
+    )?;
 
     Some(HubTradeStateChange {
         asset: AssetStateChange {
@@ -151,34 +171,14 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 
     let delta_hub_reserve = to_balance!(delta_hub_reserve_hp).ok()?;
 
-    // IMBALANCE
-    // L+ = Q+ * fixed(Ri+ / Ri) * fixed(Qi / Qi+)   +  L * fixed(Ri+ / Ri) * fixed(Qi / Qi+) * fixed(Q+ / Q)  -  Q+
-    // L+ = Q+ * X1 * X2 + L *  Y1 * X2 * Y2 - Q+
-
-    let q = total_hub_reserve;
-    let r_i = asset_out_state.reserve;
-    let q_i = asset_out_state.hub_reserve;
-
-    let q_plus = total_hub_reserve.checked_add(delta_hub_reserve)?;
-    let r_i_plus = r_i.checked_sub(asset_out_amount)?;
-    let q_i_plus = q_i.checked_add(delta_hub_reserve)?;
-
-    let imbalance_value = imbalance.value;
-
-    let x1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
-    let x2 = FixedU128::checked_from_rational(q_i, q_i_plus)?;
-    let y1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
-    let y2 = FixedU128::checked_from_rational(q_plus, q)?;
-
-    let x = x1.checked_mul(&x2)?.checked_mul_int(q_plus)?;
-    let y = y1
-        .checked_mul(&x2)?
-        .checked_mul(&y2)?
-        .checked_mul_int(imbalance_value)?
-        .checked_add(1u128)?;
-    let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
-
-    let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;
+    let delta_imbalance = calculate_imbalance_in_hub_swap(
+        total_hub_reserve,
+        asset_out_state.reserve,
+        asset_out_state.hub_reserve,
+        asset_out_amount,
+        delta_hub_reserve,
+        imbalance,
+    )?;
 
     Some(HubTradeStateChange {
         asset: AssetStateChange {
