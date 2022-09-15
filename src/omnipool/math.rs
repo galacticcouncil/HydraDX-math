@@ -140,13 +140,8 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 ) -> Option<HubTradeStateChange<Balance>> {
     let hub_denominator = amount_without_fee(asset_out_state.reserve, asset_fee)?.checked_sub(asset_out_amount)?;
 
-    let (reserve_hp, hub_reserve_hp, amount_hp, hub_denominator_hp, total_hub_reserve_hp) = to_u256!(
-        asset_out_state.reserve,
-        asset_out_state.hub_reserve,
-        asset_out_amount,
-        hub_denominator,
-        total_hub_reserve
-    );
+    let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
+        to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
 
     let delta_hub_reserve_hp = hub_reserve_hp.checked_mul(amount_hp).and_then(|v| {
         v.checked_div(hub_denominator_hp)
