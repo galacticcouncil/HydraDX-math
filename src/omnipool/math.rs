@@ -92,17 +92,29 @@ fn calculate_imbalance_in_hub_swap(
 
     let imbalance_value = imbalance.value;
 
-    let x1 = FixedU128::checked_from_rational(r_i_plus, r_i)?;
-    let x2 = FixedU128::checked_from_rational(q_i, q_i_plus)?;
-    let y1 = x1;
-    let y2 = FixedU128::checked_from_rational(q_plus, q)?;
+    let x1_down = FixedU128::checked_from_rational(r_i_plus, r_i)?;
+    let x2_down = FixedU128::checked_from_rational(q_i, q_i_plus)?;
+    let y2_down = FixedU128::checked_from_rational(q_plus, q)?;
 
-    let x = x1.checked_mul(&x2)?.checked_mul_int(q_plus)?;
-    let y = y1
-        .checked_mul(&x2)?
-        .checked_mul(&y2)?
+    let x1_up = FixedU128::checked_from_rational(r_i_plus, r_i)?
+        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+    let x2_up = FixedU128::checked_from_rational(q_i, q_i_plus)?
+        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+    let y2_up = FixedU128::checked_from_rational(q_plus, q)?
+        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+
+    let x = x1_down.checked_mul(&x2_down)?.checked_mul_int(q_plus)?;
+    // let y = x1_down
+    //     .checked_mul(&x2_down)?
+    //     .checked_mul(&y2_down)?
+    //     .checked_mul_int(imbalance_value)?
+    //     .checked_add(1u128)?;
+    let y = x1_up
+        .checked_mul(&x2_up)?
+        .checked_mul(&y2_up)?
         .checked_mul_int(imbalance_value)?
         .checked_add(1u128)?;
+
     let imbalance_plus = q_plus.checked_sub(x.checked_sub(y)?)?;
 
     let delta_imbalance = imbalance_plus.checked_sub(imbalance_value)?;

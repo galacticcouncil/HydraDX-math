@@ -27,6 +27,7 @@ macro_rules! assert_eq_approx_ordered {
 }
 
 const BALANCE_RANGE: (Balance, Balance) = (100_000 * ONE, 10_000_000 * ONE);
+const HIGH_BALANCE_RANGE: (Balance, Balance) = (900_000_000_000 * ONE, 900_000_000_001 * ONE);
 
 fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
     (
@@ -34,6 +35,21 @@ fn asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
         BALANCE_RANGE.0..BALANCE_RANGE.1,
         BALANCE_RANGE.0..BALANCE_RANGE.1,
         BALANCE_RANGE.0..BALANCE_RANGE.1,
+    )
+        .prop_map(|(reserve, hub_reserve, shares, protocol_shares)| AssetReserveState {
+            reserve,
+            hub_reserve,
+            shares,
+            protocol_shares,
+        })
+}
+
+fn high_asset_state() -> impl Strategy<Value = AssetReserveState<Balance>> {
+    (
+        HIGH_BALANCE_RANGE.0..HIGH_BALANCE_RANGE.1,
+        HIGH_BALANCE_RANGE.0..HIGH_BALANCE_RANGE.1,
+        HIGH_BALANCE_RANGE.0..HIGH_BALANCE_RANGE.1,
+        HIGH_BALANCE_RANGE.0..HIGH_BALANCE_RANGE.1,
     )
         .prop_map(|(reserve, hub_reserve, shares, protocol_shares)| AssetReserveState {
             reserve,
@@ -66,6 +82,11 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
 
 fn some_imbalance() -> impl Strategy<Value = I129<Balance>> {
     (0..10000 * ONE).prop_map(|value| I129 { value, negative: true })
+}
+
+fn high_imbalance() -> impl Strategy<Value = I129<Balance>> {
+    (800_000_000_000 * ONE..800_000_000_001 * ONE)
+        .prop_map(|value| I129 { value, negative: true })
 }
 
 fn assert_asset_invariant(
@@ -138,6 +159,59 @@ fn assert_imbalance_update(
     let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
 
     assert!(left >= right, "{}", desc);
+}
+
+fn assert_imbalance_update_extreme(
+    old_state: &AssetReserveState<Balance>,
+    new_state: &AssetReserveState<Balance>,
+    old_imbalance: I129<Balance>,
+    new_imbalance: I129<Balance>,
+    old_hub_reserve: Balance,
+    new_hub_reserve: Balance,
+    desc: &str,
+) {
+    let r_i = U256::from(old_state.reserve);
+    let q_i = U256::from(old_state.hub_reserve);
+
+    let r_i_plus = U256::from(new_state.reserve);
+    let q_i_plus = U256::from(new_state.hub_reserve);
+
+    let q = U256::from(old_hub_reserve);
+    let q_plus = U256::from(new_hub_reserve);
+
+    let imbalance = U256::from(old_imbalance.value);
+    let imbalance_plus = U256::from(new_imbalance.value);
+
+    // let left = r_i_plus * q_i * q_plus * (q - imbalance);
+    // let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
+    //
+    // dbg!(left);
+    // dbg!(right);
+    //
+    // assert!(left >= right, "{}", desc);
+
+    let l_x = FixedU128::checked_from_rational(old_state.hub_reserve, old_hub_reserve)
+        .unwrap()
+        .checked_mul_int(old_imbalance.value)
+        .unwrap();
+    let r_x = FixedU128::checked_from_rational(new_state.hub_reserve, new_hub_reserve)
+        .unwrap()
+        .checked_mul_int(new_imbalance.value)
+        .unwrap();
+
+    let l_n = old_state.hub_reserve - l_x;
+    let r_n = new_state.hub_reserve - r_x;
+
+    let left = FixedU128::checked_from_rational(l_n, old_state.reserve);
+    let right = FixedU128::checked_from_rational(r_n, new_state.reserve);
+
+    assert!(left >= right, "{}", desc);
+    // assert!(false);
+
+    // let left = U256::from(old_state.hub_reserve - old_imbalance.value) * U256::from(new_state.reserve);
+    // let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
+
+    // assert!(left >= right, "{}", desc);
 }
 
 proptest! {
@@ -222,6 +296,42 @@ proptest! {
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
         assert_imbalance_update(&asset_out,
+            &asset_out_state,
+            imbalance,
+            I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
+            total_hub_reserve,
+            new_total_hub_reserve,
+            "sell hub imbalance invariant failed" );
+
+        assert_asset_invariant(&asset_out, &asset_out_state,  Some(FixedU128::from((TOLERANCE, ONE))), "Sell update invariant - token out");
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn sell_hub_update_invariants_no_fees_extreme(asset_out in high_asset_state(),
+        amount in trade_amount(),
+        imbalance in high_imbalance(),
+    ) {
+        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+
+        let result = calculate_sell_hub_state_changes(&asset_out, amount,
+            Permill::from_percent(0),
+            imbalance,
+            total_hub_reserve,
+        );
+
+        assert!(result.is_some());
+
+        let state_changes = result.unwrap();
+
+        let asset_out_state = asset_out.clone();
+        let asset_out_state = asset_out_state.delta_update(&state_changes.asset).unwrap();
+
+        let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
+
+        assert_imbalance_update_extreme(&asset_out,
             &asset_out_state,
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
