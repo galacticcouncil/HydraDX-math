@@ -6,3 +6,5 @@ pub use lbp::*;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod invariants;
