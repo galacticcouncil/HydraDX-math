@@ -170,6 +170,7 @@ fn assert_imbalance_update_extreme(
     new_hub_reserve: Balance,
     desc: &str,
 ) {
+    /*
     let r_i = U256::from(old_state.reserve);
     let q_i = U256::from(old_state.hub_reserve);
 
@@ -182,13 +183,10 @@ fn assert_imbalance_update_extreme(
     let imbalance = U256::from(old_imbalance.value);
     let imbalance_plus = U256::from(new_imbalance.value);
 
-    // let left = r_i_plus * q_i * q_plus * (q - imbalance);
-    // let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
-    //
-    // dbg!(left);
-    // dbg!(right);
-    //
-    // assert!(left >= right, "{}", desc);
+    let left = r_i_plus * q_i * q_plus * (q - imbalance);
+    let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
+    assert!(left >= right, "{}", desc);
+     */
 
     let l_x = FixedU128::checked_from_rational(old_state.hub_reserve, old_hub_reserve)
         .unwrap()
@@ -206,12 +204,6 @@ fn assert_imbalance_update_extreme(
     let right = FixedU128::checked_from_rational(r_n, new_state.reserve);
 
     assert!(left >= right, "{}", desc);
-    // assert!(false);
-
-    // let left = U256::from(old_state.hub_reserve - old_imbalance.value) * U256::from(new_state.reserve);
-    // let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
-
-    // assert!(left >= right, "{}", desc);
 }
 
 proptest! {

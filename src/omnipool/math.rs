@@ -6,7 +6,7 @@ use crate::omnipool::types::{
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
-use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
+use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::min;
@@ -94,21 +94,15 @@ fn calculate_imbalance_in_hub_swap(
 
     let x1_down = FixedU128::checked_from_rational(r_i_plus, r_i)?;
     let x2_down = FixedU128::checked_from_rational(q_i, q_i_plus)?;
-    let y2_down = FixedU128::checked_from_rational(q_plus, q)?;
 
     let x1_up = FixedU128::checked_from_rational(r_i_plus, r_i)?
-        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+        .checked_add(&FixedU128::checked_from_rational(1, FixedU128::DIV)?)?;
     let x2_up = FixedU128::checked_from_rational(q_i, q_i_plus)?
-        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+        .checked_add(&FixedU128::checked_from_rational(1, FixedU128::DIV)?)?;
     let y2_up = FixedU128::checked_from_rational(q_plus, q)?
-        + FixedU128::checked_from_rational(1, FixedU128::DIV)?;
+        .checked_add(&FixedU128::checked_from_rational(1, FixedU128::DIV)?)?;
 
     let x = x1_down.checked_mul(&x2_down)?.checked_mul_int(q_plus)?;
-    // let y = x1_down
-    //     .checked_mul(&x2_down)?
-    //     .checked_mul(&y2_down)?
-    //     .checked_mul_int(imbalance_value)?
-    //     .checked_add(1u128)?;
     let y = x1_up
         .checked_mul(&x2_up)?
         .checked_mul(&y2_up)?
