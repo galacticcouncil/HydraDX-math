@@ -48,7 +48,7 @@ pub fn calculate_spot_price(
     to_balance!(spot_price)
 }
 
-fn convert_to_fixed(value: Balance) -> FixedBalance {
+pub fn convert_to_fixed(value: Balance) -> FixedBalance {
     if value == Balance::from(1u32) {
         return FixedBalance::from_num(1);
     }
@@ -59,7 +59,7 @@ fn convert_to_fixed(value: Balance) -> FixedBalance {
     FixedBalance::from_num(f) + (FixedBalance::from_num(r) / HYDRA_ONE)
 }
 
-fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
+pub fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
     let w: Balance = value.int().to_num();
     let frac = value.frac();
     let frac: Balance = frac.checked_mul_int(HYDRA_ONE)?.int().to_num();
@@ -79,6 +79,11 @@ macro_rules! to_balance_from_fixed {
     ($x:expr) => {
         convert_from_fixed($x).ok_or(Overflow)
     };
+}
+
+fn round_up_fixed(value: FixedBalance) -> Result<FixedBalance, MathError> {
+    let prec = FixedBalance::from_num(0.00000000001);
+    value.checked_add(prec).ok_or(Overflow)
 }
 
 /// Calculating selling price given reserve of selling asset and reserve of buying asset.
@@ -105,21 +110,38 @@ pub fn calculate_out_given_in(
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
 
+    // We are correctly rounding this down
     let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
 
-    let one = FixedBalance::from_num(1);
-    let ir = one
-        .checked_div(
-            one.checked_add((amount.checked_div(in_reserve)).ok_or(Overflow)?)
-                .ok_or(Overflow)?,
-        )
-        .ok_or(Overflow)?;
+    // We round this up
+    // This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
+    // that was sold to the pool, i.e. 'amount'
+    let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
+    let ir = round_up_fixed(in_reserve.checked_div(new_in_reserve).ok_or(Overflow)?)?;
+
+    let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
+    assert!(ir.checked_mul(t1).unwrap() >= in_reserve);
 
     let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
-    let ir = FixedBalance::from_num(1).checked_sub(ir).ok_or(Overflow)?;
+    // We round this up
+    let new_out_reserve_calc = round_up_fixed(out_reserve.checked_mul(ir).ok_or(Overflow)?)?;
 
-    let r = out_reserve.checked_mul(ir).ok_or(Overflow)?;
+    let r = out_reserve - new_out_reserve_calc;
+
+    let new_out_reserve = out_reserve.checked_sub(r).unwrap();
+    dbg!(ir);
+    dbg!(new_out_reserve);
+    dbg!(new_out_reserve_calc);
+    assert!(new_out_reserve >= new_out_reserve_calc);
+
+    let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
+    let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
+
+    dbg!(out_delta);
+    dbg!(out_delta_calc);
+
+    assert!(out_delta <= out_delta_calc);
 
     to_balance_from_fixed!(r)
 }
