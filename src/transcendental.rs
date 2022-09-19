@@ -76,7 +76,7 @@ where
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShrAssign + Shr,
 {
-    let log2_e = S::from_str("1.442695").map_err(|_| ())?;
+    let log2_e = S::from_num(fixed::consts::LOG2_E);
     let log_result = log2::<S, D>(operand)?;
     Ok((log_result.0 / D::from(log2_e), log_result.1))
 }
@@ -92,8 +92,7 @@ where
         return Ok(D::from_num(1));
     };
     if operand == S::from_num(1) {
-        //TODO: make this as const somewhere
-        let e = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
+        let e = S::from_num(fixed::consts::E);
         return Ok(D::from(e));
     };
 
@@ -179,7 +178,8 @@ mod tests {
         type S = U64F64;
         type D = U64F64;
 
-        let e = S::from_str("2.718281828459045235360287471352662497757").unwrap();
+        // let e = S::from_str("2.718281828459045235360287471352662497757").unwrap();
+        let e = S::from_num(fixed::consts::E);
 
         let zero = S::from_num(0);
         let one = S::from_num(1);
