@@ -102,17 +102,6 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
 
     let y_hp = to_u256!(y);
 
-    /*
-       // Deposit x + withdraw y would charge about same
-        // fees as a swap. Otherwise, one could exchange w/o paying fees.
-        // And this formula leads to exactly that equality
-        // fee = pool_fee * n_coins / (4 * (n_coins - 1))
-        let fee = pool_fee
-            .checked_mul(&n_coins)?
-            .checked_div(&four.checked_mul(&n_coins.checked_sub(&one)?)?)?;
-    */
-
-    //let fee = Balance::zero();
     let mut reserves_reduced: Vec<Balance> = Vec::new();
     let mut asset_reserve: Balance = Balance::zero();
 
