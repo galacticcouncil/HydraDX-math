@@ -6,12 +6,7 @@ use crate::stableswap::*;
 use crate::types::Balance;
 use sp_arithmetic::Permill;
 
-#[test]
-fn test_ann() {
-    assert_eq!(calculate_ann(2, 1u128), Some(4u128));
-    assert_eq!(calculate_ann(2, 10u128), Some(40u128));
-    assert_eq!(calculate_ann(2, 100u128), Some(400u128));
-}
+
 
 #[test]
 fn test_d() {

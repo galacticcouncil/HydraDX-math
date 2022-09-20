@@ -51,6 +51,10 @@ pub fn calculate_shares<const N: u8>(
     precision: Balance,
     share_issuance: Balance,
 ) -> Option<Balance> {
+    if initial_reserves.len() != updated_reserves.len() {
+        return None;
+    }
+
     let initial_d = calculate_d::<N>(initial_reserves, amplification, precision)?;
 
     // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
@@ -65,7 +69,7 @@ pub fn calculate_shares<const N: u8>(
         // if first liquidity added
         Some(updated_d)
     } else {
-        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d - initial_d, initial_d);
+        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
         let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
         Balance::try_from(share_amount).ok()
     }
@@ -86,6 +90,10 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     }
 
     if asset_index >= reserves.len() {
+        return None;
+    }
+
+    if shares > share_asset_issuance {
         return None;
     }
 
