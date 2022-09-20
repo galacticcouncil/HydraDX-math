@@ -16,6 +16,9 @@ pub fn calculate_out_given_in<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
+    if idx_in >= balances.len() || idx_out >= balances.len() {
+        return None;
+    }
     let new_reserve_out =
         calculate_y_given_in::<N, N_Y>(amount_in, idx_in, idx_out, balances, amplification, precision)?;
     balances[idx_out].checked_sub(new_reserve_out)
@@ -32,6 +35,9 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
+    if idx_in >= balances.len() || idx_out >= balances.len() {
+        return None;
+    }
     let new_reserve_in =
         calculate_y_given_out::<N, N_Y>(amount_out, idx_in, idx_out, balances, amplification, precision)?;
     new_reserve_in.checked_sub(balances[idx_in])
@@ -79,7 +85,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         return None;
     }
 
-    if asset_index > reserves.len() {
+    if asset_index >= reserves.len() {
         return None;
     }
 
@@ -148,7 +154,7 @@ pub(crate) fn calculate_y_given_in<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    if idx_in > balances.len() || idx_out > balances.len() {
+    if idx_in >= balances.len() || idx_out >= balances.len() {
         return None;
     }
 
@@ -175,7 +181,7 @@ pub(crate) fn calculate_y_given_out<const N: u8, const N_Y: u8>(
     amplification: Balance,
     precision: Balance,
 ) -> Option<Balance> {
-    if idx_in > balances.len() || idx_out > balances.len() {
+    if idx_in >= balances.len() || idx_out >= balances.len() {
         return None;
     }
     let new_reserve_out = balances[idx_out].checked_sub(amount)?;
