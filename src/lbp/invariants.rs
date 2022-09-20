@@ -8,6 +8,7 @@ use crate::transcendental::pow;
 use crate::MathError::Overflow;
 
 use fixed::types::U4F124 as FixedRatio;
+use crate::to_balance;
 
 pub const ONE: Balance = 1_000_000_000_000;
 const TOLERANCE: Balance = 1_000;
@@ -132,6 +133,44 @@ proptest! {
             FixedU128::from((TOLERANCE,ONE)),
             "out given in"
         );
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
+    #[test]
+    fn out_given_in_nonexploitable( reserve_a in asset_reserve(),
+        reserve_b in asset_reserve(),
+        weight_a in get_weight(),
+        weight_b in get_weight(),
+        amount in trade_amount(),
+    ) {
+
+        let amount_b_out = crate::lbp::calculate_out_given_in(reserve_a, reserve_b, weight_a, weight_b, amount).unwrap();
+        let amount_a_out = crate::lbp::calculate_out_given_in(reserve_b - amount_b_out, reserve_a + amount, weight_b, weight_a, amount_b_out).unwrap();
+        dbg!(amount);
+        dbg!(amount_a_out);
+        assert!(amount_a_out <= amount, "Trading is exploitable");
+        assert_eq_approx!(amount_a_out, amount, 500, "out_given_in_nonexploitable")
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(10000))]
+    #[test]
+    fn in_given_out_nonexploitable( reserve_a in asset_reserve(),
+        reserve_b in asset_reserve(),
+        weight_a in get_weight(),
+        weight_b in get_weight(),
+        amount_b_out in trade_amount(),
+    ) {
+
+        let amount_a_in = crate::lbp::calculate_in_given_out(reserve_a, reserve_b, weight_a, weight_b, amount_b_out).unwrap();
+        let amount_a_out = crate::lbp::calculate_out_given_in(reserve_b - amount_b_out, reserve_a + amount_a_in, weight_b, weight_a, amount_b_out).unwrap();
+        dbg!(amount_a_in);
+        dbg!(amount_a_out);
+        assert!(amount_a_out <= amount_a_in, "Trading is exploitable");
+        assert_eq_approx!(amount_a_out, amount_a_in, 500, "in_given_out_nonexploitable")
     }
 }
 
