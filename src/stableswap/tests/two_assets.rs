@@ -6,8 +6,6 @@ use crate::stableswap::*;
 use crate::types::Balance;
 use sp_arithmetic::Permill;
 
-
-
 #[test]
 fn test_d() {
     let precision = 1_u128;
