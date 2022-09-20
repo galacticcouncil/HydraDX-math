@@ -105,7 +105,7 @@ fn calculate_shares_should_work_when_correct_input_provided() {
     let initial_balances = [10_000u128; MAX_BALANCES];
     let mut updated_balances = [10_000u128; MAX_BALANCES];
 
-    updated_balances[2] = updated_balances[2] + 5000u128;
+    updated_balances[2] += 5000u128;
 
     let issuance: Balance = 100_000;
 
@@ -126,7 +126,7 @@ fn calculate_shares_should_work_when_share_issuance_is_zero() {
     let initial_balances = [0; MAX_BALANCES];
     let mut updated_balances = [10_000u128; MAX_BALANCES];
 
-    updated_balances[2] = updated_balances[2] + 5000u128;
+    updated_balances[2] += 5000u128;
 
     let issuance: Balance = 0;
 
@@ -147,7 +147,7 @@ fn calculate_shares_should_fail_when_balances_len_is_not_equal() {
     let initial_balances = [10_000u128; MAX_BALANCES + 1];
     let mut updated_balances = [10_000u128; MAX_BALANCES];
 
-    updated_balances[2] = updated_balances[2] + 5000u128;
+    updated_balances[2] += 5000u128;
 
     let issuance: Balance = 100_000;
 
@@ -164,7 +164,7 @@ fn calculate_shares_should_fail_when_updated_balances_are_less() {
     let initial_balances = [10_000u128; MAX_BALANCES];
     let mut updated_balances = [10_000u128; MAX_BALANCES];
 
-    updated_balances[2] = updated_balances[2] - 5000u128;
+    updated_balances[2] -= 5000u128;
 
     let issuance: Balance = 100_000;
 
@@ -355,7 +355,7 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
     let initial_balances = [10_000u128; MAX_BALANCES];
     let mut updated_balances = [10_000u128; MAX_BALANCES];
 
-    updated_balances[2] = updated_balances[2] + 5000u128;
+    updated_balances[2] += 5000u128;
 
     let issuance: Balance = 100_000;
 

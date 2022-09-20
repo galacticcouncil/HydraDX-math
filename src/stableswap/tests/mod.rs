@@ -1,5 +1,5 @@
 mod invariants;
-mod tests;
+mod multi_assets;
 mod two_assets;
 
 use crate::types::Balance;
