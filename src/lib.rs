@@ -16,7 +16,6 @@ pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod stableswap;
-pub mod stableswap_v1;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
