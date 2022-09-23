@@ -25,10 +25,13 @@ where
     let mut x = operand;
     let mut result = D::from_num(0).to_bits();
     let lsb = (D::from_num(1) >> D::FRAC_NBITS).to_bits();
-
+    dbg!(x);
+    dbg!(result);
     while x >= two {
         result += lsb;
         x = rs(x);
+        dbg!(result);
+        dbg!(x);
     }
 
     if x == D::from_num(1) {
@@ -38,6 +41,8 @@ where
     for _i in (0..D::FRAC_NBITS).rev() {
         x *= x;
         result <<= lsb;
+        dbg!(D::from_bits(result));
+        dbg!(x);
         if x >= two {
             result |= lsb;
             x = rs(x);
@@ -100,12 +105,15 @@ where
     let mut result = operand + D::from_num(1);
     let mut term = operand;
 
-    result = (2..D::FRAC_NBITS).try_fold(result, |acc, i| -> Result<D, ()> {
+    let max_iter = D::FRAC_NBITS.checked_mul(3_u32).unwrap();
+
+    result = (2..max_iter).try_fold(result, |acc, i| -> Result<D, ()> {
         term = term.checked_mul(operand).ok_or(())?;
         term = term.checked_div(D::from_num(i)).ok_or(())?;
+        dbg!(acc);
         acc.checked_add(term).ok_or(())
     })?;
-
+    dbg!(result);
     if neg {
         result = D::from_num(1).checked_div(result).ok_or(())?;
     }
@@ -170,6 +178,7 @@ mod tests {
     use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
+    use proptest::prelude::*;
 
     use super::{exp, log2, pow, powi};
 
@@ -206,6 +215,7 @@ mod tests {
         let one = S::from_num(1);
         let two = S::from_num(2);
         let four = S::from_num(4);
+        let fifteen = S::from_num(15);
 
         assert_eq!(log2::<S, D>(zero), Err(()));
 
@@ -213,6 +223,12 @@ mod tests {
         assert_eq!(log2(one / four), Ok((D::from_num(two), true)));
         assert_eq!(log2(S::from_num(0.5)), Ok((D::from_num(one), true)));
         assert_eq!(log2(S::from_num(1.0 / 0.5)), Ok((D::from_num(one), false)));
+        assert_eq!(log2(four), Ok((D::from_num(two), false)));
+        let test: S = log2(fifteen).unwrap().0;
+        dbg!(test);
+        assert!(test < four);
+        assert!(test > one + two);
+        assert!(false);
     }
 
     #[test]
@@ -250,21 +266,129 @@ mod tests {
         assert_relative_eq!(result, 8.0, epsilon = 1.0e-6);
 
         let result: f64 = pow::<S, D>(one / four, two).unwrap().lossy_into();
-        assert_relative_eq!(result, 0.0625, epsilon = 1.0e-6);
+        assert_relative_eq!(result, 0.0625, epsilon = 1.0e-40);
 
         assert_eq!(pow::<S, D>(two, one), Ok(two));
 
         let result: f64 = pow::<S, D>(one / four, one / two).unwrap().lossy_into();
         assert_relative_eq!(result, 0.5, epsilon = 1.0e-6);
 
-        assert_eq!(
-            pow(S::from_num(22.1234), S::from_num(2.1)),
-            Ok(D::from_num(667.097035126091))
-        );
+        let result: f64 = pow::<S, D>(three / four, two).unwrap().lossy_into();
+        dbg!(result);
+        assert!(false);
 
-        assert_eq!(
-            pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
-            Ok(D::from_num(0.978604513883))
-        );
+
+        // assert_eq!(
+        //     pow(S::from_num(22.1234), S::from_num(2.1)),
+        //     Ok(D::from_num(667.097035126091))
+        // );
+        //
+        // assert_eq!(
+        //     pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
+        //     Ok(D::from_num(0.978604513883))
+        // );
     }
+
+    fn test_accuracy(operand: FixedBalance, exponent: FixedBalance, tolerance: FixedBalance, correct_res: FixedBalance) -> bool {
+
+        let result: FixedBalance = pow(operand, exponent).unwrap();
+        let mut diff = FixedBalance::from_num(0);
+        if result > correct_res {
+            diff = result - correct_res;
+        }
+        else {
+            diff = correct_res - result;
+        }
+        dbg!(diff);
+        diff < tolerance
+    }
+
+    #[test]
+    fn pow_is_accurate() {
+        type S = FixedBalance;
+        type D = FixedBalance;
+
+        let zero = S::from_num(0);
+        let one = S::from_num(1);
+        let two = S::from_num(2);
+        let three = S::from_num(3);
+        let four = S::from_num(4);
+
+
+        assert!(test_accuracy(
+            three / four,
+            one / two,
+            S::from_num(1e-10),
+            S::from_str("0.8660254037844386467637231707529361834714026269051903140279034897").unwrap()
+        ));
+
+        let fifty = S::from_num(50);
+        assert!(test_accuracy(
+            three / four,
+            fifty,
+            S::from_num(1e-10),
+            S::from_str("0.00000056632165642693762466511469614514625558471568813088481766926").unwrap()
+        ));
+
+        let reserve_ratio = S::from_num(0.999);
+        let ninetynine = S::from_num(99);
+        assert!(test_accuracy(
+            reserve_ratio,
+            ninetynine,
+            S::from_num(2e-10),
+            S::from_str("0.9056978449586677097419565628027531009013898061396095388150196582").unwrap()
+        ));
+
+        let reserve_ratio = S::from_num(1.5);
+        let exponent = S::from_num(10);
+        assert!(test_accuracy(
+            reserve_ratio,
+            exponent,
+            S::from_num(2e-9),
+            S::from_str("57.6650390625").unwrap()
+        ));
+        //
+        // let reserve_ratio = S::from_num(1.5);
+        // let exponent = S::from_num(100);
+        // assert!(test_accuracy(
+        //     reserve_ratio,
+        //     exponent,
+        //     S::from_num(2e-9),
+        //     S::from_str("3325.25673007965087890625").unwrap()
+        // ));
+
+        let reserve_ratio = S::from_num(1.5);
+        let exponent = S::from_num(100);
+        assert!(test_accuracy(
+            reserve_ratio,
+            exponent,
+            S::from_num(2e-10),
+            S::from_str("406561177535215237.397279707567041671010387890632379763429051").unwrap()
+        ));
+
+        assert!(false);
+    }
+
+    fn get_balance() -> impl Strategy<Value = u128> {
+        1_000_000u128..1_000_000_000_000_000_000_000_000u128
+    }
+
+    fn get_weight() -> impl Strategy<Value = u32> {
+        1..100u32
+    }
+
+    fn get_bal_ratio() -> impl Strategy<Value = FixedBalance> {
+        (3000_u128..6000u128).prop_map(|x| FixedBalance::from_num(x) / FixedBalance::from_num(4000))
+    }
+
+    fn get_bal_ratio_lt_one() -> impl Strategy<Value = FixedBalance> {
+        (3000_u128..4000u128).prop_map(|x| FixedBalance::from_num(x) / FixedBalance::from_num(4000))
+    }
+
+    fn get_weight_ratio() -> impl Strategy<Value = FixedBalance> {
+        (1_u32..9900_u32).prop_map(|x| FixedBalance::from_num(x) / FixedBalance::from_num(100))
+    }
+
+
+
 }

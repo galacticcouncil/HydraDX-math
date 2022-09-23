@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use proptest::prelude::*;
 use crate::lbp::lbp;
 use crate::types::{Balance, FixedBalance};
@@ -58,17 +59,31 @@ fn assert_asset_invariant(
     let old_pool_balance_a = lbp::convert_to_fixed(old_state.0);
     let old_pool_balance_b = lbp::convert_to_fixed(old_state.1);
 
-    let weight_a = lbp::convert_to_fixed(weights.0 as Balance);
-    let weight_b = lbp::convert_to_fixed(weights.1 as Balance);
-    let weight_ratio = weight_a.checked_div(weight_b).unwrap();
+    let weight_a = FixedBalance::from_num(weights.0 as u32);
+    let weight_b = FixedBalance::from_num(weights.1 as u32);
+    let weight_sum = weight_a.checked_add(weight_b).unwrap();
+    let weight_a_norm = weight_a.checked_div(weight_sum).unwrap();
+    let weight_b_norm = weight_b.checked_div(weight_sum).unwrap();
+    let old_weighted_reserve_a: FixedBalance = pow(old_pool_balance_a, weight_a_norm).unwrap();
+    let old_weighted_reserve_b: FixedBalance = pow(old_pool_balance_b, weight_b_norm).unwrap();
+    let old_invariant = old_weighted_reserve_a.checked_mul(old_weighted_reserve_b).unwrap();
+    let new_weighted_reserve_a: FixedBalance = pow(new_pool_balance_a, weight_a_norm).unwrap();
+    let new_weighted_reserve_b: FixedBalance = pow(new_pool_balance_b, weight_b_norm).unwrap();
+    let new_invariant = new_weighted_reserve_a.checked_mul(new_weighted_reserve_b).unwrap();
 
-
-
-    let reserve_ratio = old_pool_balance_a.checked_div(new_pool_balance_a).unwrap();
-    let reserve_ratio_pow = pow(reserve_ratio, weight_ratio).map_err(|_| Overflow).unwrap();
-
-    let new_pool_balance_b_calc = old_pool_balance_b.checked_mul(reserve_ratio_pow).unwrap();
-    assert!(new_pool_balance_b >= new_pool_balance_b_calc, "Invariant decreased for {}", desc);
+    dbg!(old_invariant);
+    dbg!(new_invariant);
+    if old_invariant > new_invariant {
+        let diff = old_invariant - new_invariant;
+        let diff_pct = diff.checked_div(old_invariant).unwrap();
+        let tolerance = FixedBalance::from_str("0.000001").unwrap();
+        assert!(diff_pct <= tolerance, "{}", desc);
+    } else {
+        let diff = new_invariant - old_invariant;
+        let diff_pct = diff.checked_div(old_invariant).unwrap();
+        let tolerance = FixedBalance::from_str("0.000001").unwrap();
+        assert!(diff_pct <= tolerance, "{}", desc);
+    }
 
     // let new_weighted_reserve_for_asset_a: FixedBalance  = pow(new_pool_balance_a, weight_a).unwrap();
     // let new_weighted_reserve_for_asset_b: FixedBalance  = pow(new_pool_balance_b, weight_b).unwrap();

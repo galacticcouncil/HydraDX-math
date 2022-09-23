@@ -6,6 +6,8 @@ use crate::{
     MathError::{Overflow, ZeroDuration, ZeroReserve, ZeroWeight},
 };
 
+use fixed::types::I11F53 as FixedRatio;
+
 use core::convert::From;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
@@ -130,21 +132,110 @@ pub fn calculate_out_given_in(
     let r = out_reserve - new_out_reserve_calc;
 
     let new_out_reserve = out_reserve.checked_sub(r).unwrap();
-    dbg!(ir);
-    dbg!(new_out_reserve);
-    dbg!(new_out_reserve_calc);
-    assert!(new_out_reserve >= new_out_reserve_calc);
 
     let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
     let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
 
-    dbg!(out_delta);
-    dbg!(out_delta_calc);
-
-    assert!(out_delta <= out_delta_calc);
-
     to_balance_from_fixed!(r)
 }
+
+// // Taylor series expansion of x^a near x = 1, for a > 0
+// pub fn pow_expand_near_one(operand: FixedRatio, exponent: FixedRatio) -> Result<FixedBalance, MathError> {
+//
+//     let lsb = FixedBalance::from_num(1) >> FixedBalance::FRAC_NBITS;
+//     let a = exponent;
+//     let one = FixedRatio::from_num(1);
+//     let mut term = FixedRatio::from_num(1);
+//     let mut i = 1_u32;
+//     let mut sum = FixedBalance::from_num(1);
+//     while term > lsb {
+//         let offset = FixedRatio::from_num(i - 1);
+//         let mult_a = a.checked_sub(offset).ok_or(Overflow)?;
+//         let mult_b = operand.checked_sub(one).ok_or(Overflow)?;
+//
+//         term = term * (exponent - i + 1) * (operand - 1) / i;
+//
+//         i = i.checked_add(1_u32).ok_or(Overflow)?;
+//     }
+//
+//
+//     let one = FixedBalance::from_num(1);
+//     let two = FixedBalance::from_num(2);
+//     let three = FixedBalance::from_num(3);
+//     let four = FixedBalance::from_num(4);
+//     let five = FixedBalance::from_num(5);
+//     let six = FixedBalance::from_num(6);
+//     let seven = FixedBalance::from_num(7);
+//     let eight = FixedBalance::from_num(8);
+//     let nine = FixedBalance::from_num(9);
+//     let ten = FixedBalance::from_num(10);
+//
+//     let mut result = one;
+//     let mut term = one;
+//     let mut i = one;
+//     let mut exponent = exponent;
+//
+//     while term > FixedBalance::from_num(0.00000000001) {
+//         term = term.checked_mul(operand.checked_div(i).ok_or(Overflow)?).ok_or(Overflow)?;
+//         term = term.checked_mul(exponent).ok_or(Overflow)?;
+//         exponent = exponent.checked_div(i).ok_or(Overflow)?;
+//         result = result.checked_add(term).ok_or(Overflow)?;
+//         i = i.checked_add(one).ok_or(Overflow)?;
+//     }
+//
+//     Ok(result)
+// }
+
+/// Calculating selling price given reserve of selling asset and reserve of buying asset.
+///
+/// - `in_reserve` - reserve amount of selling asset
+/// - `out_reserve` - reserve amount of buying asset
+/// - `in_weight` - pool weight of selling asset
+/// - `out_weight` - pool weight of buying asset
+/// - `amount` - amount
+///
+/// Returns None in case of error
+// pub fn calculate_out_given_in_2(
+//     in_reserve: Balance,
+//     out_reserve: Balance,
+//     in_weight: LBPWeight,
+//     out_weight: LBPWeight,
+//     amount: Balance,
+// ) -> Result<Balance, MathError> {
+//     ensure!(out_weight != 0, ZeroWeight);
+//     ensure!(in_weight != 0, ZeroWeight);
+//     ensure!(out_reserve != 0, ZeroReserve);
+//     ensure!(in_reserve != 0, ZeroWeight);
+//
+//     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
+//         to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
+//
+//     // We are correctly rounding this down
+//     let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
+//
+//     // We round this up
+//     // This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
+//     // that was sold to the pool, i.e. 'amount'
+//     let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
+//     let ir = round_up_fixed(in_reserve.checked_div(new_in_reserve).ok_or(Overflow)?)?;
+//
+//     let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
+//     assert!(ir.checked_mul(t1).unwrap() >= in_reserve);
+//
+//     let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
+//
+//     // We round this up
+//     let new_out_reserve_calc = round_up_fixed(out_reserve.checked_mul(ir).ok_or(Overflow)?)?;
+//
+//     let r = out_reserve - new_out_reserve_calc;
+//
+//     let new_out_reserve = out_reserve.checked_sub(r).unwrap();
+//
+//     let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
+//     let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
+//
+//     to_balance_from_fixed!(r)
+// }
 
 /// Calculating buying price given reserve of selling asset and reserve of buying asset.
 /// Formula :
