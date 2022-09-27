@@ -19,6 +19,7 @@ pub mod stableswap;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
+mod test_pow_accuracy;
 
 #[macro_export]
 macro_rules! ensure {
