@@ -20,6 +20,9 @@ pub mod transcendental;
 pub mod types;
 pub mod xyk;
 
+#[cfg(test)]
+mod test_pow_accuracy;
+
 #[macro_export]
 macro_rules! ensure {
     ($e:expr, $f:expr) => {
