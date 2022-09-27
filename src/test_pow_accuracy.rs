@@ -53,6 +53,30 @@ fn pow_should_be_accurate() {
     let expected = S::from_str("0.4948386596002072598628979069820787304054003895127352976965977151").unwrap();
     assert!(ensure_accuracy(result, expected, tolerance));
 
+    let result: D = pow::<S, D>(S::from_num(1.005), S::from_num(10.0)).unwrap();
+    let expected = S::from_str("1.051140132040790642597666015625").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(1.005), S::from_num(50.0)).unwrap();
+    let expected = S::from_str("1.2832258149353700670586533926923805486020509173525849626129737972").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(1.005), S::from_num(100.0)).unwrap();
+    let expected = S::from_str("1.6466684921165446282600673335123931068636055297235559730494365670").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(0.995), S::from_num(10.0)).unwrap();
+    let expected = S::from_str("0.951110130465771892558603515625").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(0.995), S::from_num(50.0)).unwrap();
+    let expected = S::from_str("0.7783125570686420679754776224422212745909394450869053879050670229").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(0.995), S::from_num(100.0)).unwrap();
+    let expected = S::from_str("0.6057704364907282158922353367345217405582623216796229641872524576").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
     let result: D = pow::<S, D>(S::from_num(1.001), S::from_num(10.0)).unwrap();
     let expected = S::from_str("1.010045120210252210120045010001").unwrap();
     assert!(ensure_accuracy(result, expected, tolerance));
@@ -65,6 +89,14 @@ fn pow_should_be_accurate() {
     let expected = S::from_str("1.1051156977207679683791052371188401894348988003480476139953393312").unwrap();
     assert!(ensure_accuracy(result, expected, tolerance));
 
+    let result: D = pow::<S, D>(S::from_num(1.001), S::from_num(200.0)).unwrap();
+    let expected = S::from_str("1.2212807053488598010206041529512175425342504642645791616601001048").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(1.001), S::from_num(500.0)).unwrap();
+    let expected = S::from_str("1.6483094164130387741510320575015722415830725719070958553581810817").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
     let result: D = pow::<S, D>(S::from_num(0.999), S::from_num(10.0)).unwrap();
     let expected = S::from_str("0.990044880209748209880044990001").unwrap();
     assert!(ensure_accuracy(result, expected, tolerance));
@@ -75,6 +107,14 @@ fn pow_should_be_accurate() {
 
     let result: D = pow::<S, D>(S::from_num(0.999), S::from_num(100.0)).unwrap();
     let expected = S::from_str("0.9047921471137090420322146062399503478004884163334699292762046385").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(0.999), S::from_num(200.0)).unwrap();
+    let expected = S::from_str("0.8186488294786357055602111397290924927485430169330959883317503095").unwrap();
+    assert!(ensure_accuracy(result, expected, tolerance));
+
+    let result: D = pow::<S, D>(S::from_num(0.999), S::from_num(500.0)).unwrap();
+    let expected = S::from_str("0.6063789448611850050363609973246236495685079090784912711325476959").unwrap();
     assert!(ensure_accuracy(result, expected, tolerance));
 
 
