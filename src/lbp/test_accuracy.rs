@@ -8,6 +8,7 @@ fn calculate_out_given_in_should_be_accurate() {
     let reserves = (2000 * ONE, 1000 * ONE);
     let weights: (u32, u32) = (80_000_000, 20_000_000);
     let amount: u128 = 10 * ONE;
+    let tolerance: u128 = 100_000_000;
 
     //WOLF: -19.752478743433
     let expected: u128 = 19752478743433;
@@ -17,6 +18,9 @@ fn calculate_out_given_in_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    dbg!(tolerance * diff);
+    // assert!(diff < 197524);
+    assert!(diff < 1975247);
 
     let reserves = (22222 * ONE, 6580 * ONE);
     let weights: (u32, u32) = (89_000_000, 11_000_000);
@@ -30,6 +34,10 @@ fn calculate_out_given_in_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    if result > expected {
+        assert!(diff < 24203047);
+    }
+
 
     let reserves = (100000123456789000, 23452123456789000);
     let weights: (u32, u32) = (22_000_000, 88_000_000);
@@ -43,6 +51,26 @@ fn calculate_out_given_in_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    if result > expected {
+        assert!(diff < 58273672);
+    }
+
+    // High weight ratio, balance ratio close to 1
+    let reserves = (100000123456789000, 23452123456789000);
+    let weights: (u32, u32) = (99_500_000, 500_000);
+    let amount: u128 = 1000;
+
+    //WOLF: 46669.668062089813917327336377667114622151128379938920973767151076...
+    let expected: u128 = 46669668062089813;
+    let result = calculate_out_given_in(reserves.0, reserves.1, weights.0, weights.1, amount).unwrap();
+    dbg!(result);
+    dbg!(expected);
+
+    let diff = expected.abs_diff(result);
+    dbg!(diff);
+    if result > expected {
+        assert!(diff < 46669668062);
+    }
 }
 
 #[test]
@@ -59,6 +87,9 @@ fn calculate_in_given_out_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    if result < expected {
+        assert!(diff < 5031486);
+    }
 
     let reserves = (22222 * ONE, 6580 * ONE);
     let weights: (u32, u32) = (89_000_000, 11_000_000);
@@ -72,6 +103,9 @@ fn calculate_in_given_out_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    if result < expected {
+        assert!(diff < 4229260);
+    }
 
     let reserves = (100000123456789000, 23452123456789000);
     let weights: (u32, u32) = (22_000_000, 88_000_000);
@@ -85,4 +119,7 @@ fn calculate_in_given_out_should_be_accurate() {
 
     let diff = expected.abs_diff(result);
     dbg!(diff);
+    if result < expected {
+        assert!(diff < 19044309012);
+    }
 }
