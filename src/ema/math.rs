@@ -1,11 +1,10 @@
-
 use crate::types::{Balance, Price};
 
 use num_traits::CheckedMul;
 use sp_arithmetic::traits::One;
-use sp_arithmetic::FixedU128;
-use sp_arithmetic::FixedPointNumber;
 use sp_arithmetic::traits::Saturating;
+use sp_arithmetic::FixedPointNumber;
+use sp_arithmetic::FixedU128;
 
 /// Calculate the iterated exponential moving average for the given prices.
 /// `iterations` is the number of iterations of the EMA to calculate.
@@ -20,7 +19,12 @@ pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothi
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Option<Balance> {
+pub fn iterated_balance_ema(
+    iterations: u32,
+    prev: Balance,
+    incoming: Balance,
+    smoothing: FixedU128,
+) -> Option<Balance> {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     balance_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -29,7 +33,12 @@ pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, s
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_volume_ema(iterations: u32, prev: (Balance, Balance, Balance, Balance), incoming: (Balance, Balance, Balance, Balance), smoothing: FixedU128) -> Option<(Balance, Balance, Balance, Balance)> {
+pub fn iterated_volume_ema(
+    iterations: u32,
+    prev: (Balance, Balance, Balance, Balance),
+    incoming: (Balance, Balance, Balance, Balance),
+    smoothing: FixedU128,
+) -> Option<(Balance, Balance, Balance, Balance)> {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     volume_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -54,8 +63,7 @@ pub fn exp_smoothing_and_complement(smoothing: FixedU128, iterations: u32) -> (F
 /// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
 /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA. See
 /// https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA (N = period).
-pub fn smoothing_from_period(period: u64) -> FixedU128
-{
+pub fn smoothing_from_period(period: u64) -> FixedU128 {
     FixedU128::saturating_from_rational(2u64, period.saturating_add(One::one()))
 }
 
@@ -98,7 +106,7 @@ pub fn balance_ema(prev: Balance, prev_weight: FixedU128, incoming: Balance, wei
 pub fn volume_ema(
     prev: (Balance, Balance, Balance, Balance),
     prev_weight: FixedU128,
-    incoming:(Balance, Balance, Balance, Balance),
+    incoming: (Balance, Balance, Balance, Balance),
     weight: FixedU128,
 ) -> Option<(Balance, Balance, Balance, Balance)> {
     debug_assert!(prev_weight + weight == Price::one());

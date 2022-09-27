@@ -45,28 +45,10 @@ fn ema_works() {
     assert_eq!(next_balance, 5u128);
 
     // volume
-    let start_volume = (
-        4u128,
-         1u128,
-         8u128,
-         0u128,
-    );
-    let incoming_volume = (
-        8u128,
-         1u128,
-         4u128,
-         0u128,
-    );
+    let start_volume = (4u128, 1u128, 8u128, 0u128);
+    let incoming_volume = (8u128, 1u128, 4u128, 0u128);
     let next_volume = volume_ema(start_volume, complement, incoming_volume, alpha).unwrap();
-    assert_eq!(
-        next_volume,
-        (
-            5u128,
-             1u128,
-             7u128,
-             0u128
-        )
-    );
+    assert_eq!(next_volume, (5u128, 1u128, 7u128, 0u128));
 }
 
 #[test]
