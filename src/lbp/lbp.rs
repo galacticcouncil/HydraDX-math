@@ -7,6 +7,7 @@ use crate::{
 };
 
 use core::convert::From;
+use num_traits::Zero;
 
 use crate::types::{Balance, FixedBalance, LBPWeight, HYDRA_ONE};
 
@@ -67,6 +68,11 @@ fn convert_from_fixed(value: FixedBalance) -> Option<Balance> {
     Some(r)
 }
 
+fn round_up_fixed(value: FixedBalance) -> Result<FixedBalance, MathError> {
+    let prec = FixedBalance::from_num(0.00000000001);
+    value.checked_add(prec).ok_or(Overflow)
+}
+
 #[macro_export]
 macro_rules! to_fixed_balance{
     ($($x:expr),+) => (
@@ -102,24 +108,46 @@ pub fn calculate_out_given_in(
     ensure!(out_reserve != 0, ZeroReserve);
     ensure!(in_reserve != 0, ZeroWeight);
 
+    if amount.is_zero() {
+        return Ok(0u128);
+    }
+
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
 
+    // We are correctly rounding this down
     let weight_ratio = in_weight.checked_div(out_weight).ok_or(Overflow)?;
 
-    let one = FixedBalance::from_num(1);
-    let ir = one
-        .checked_div(
-            one.checked_add((amount.checked_div(in_reserve)).ok_or(Overflow)?)
-                .ok_or(Overflow)?,
-        )
-        .ok_or(Overflow)?;
+    // We round this up
+    // This ratio being closer to one (i.e. rounded up) minimizes the impact of the asset
+    // that was sold to the pool, i.e. 'amount'
+    let new_in_reserve = in_reserve.checked_add(amount).ok_or(Overflow)?;
+    let ir = round_up_fixed(in_reserve.checked_div(new_in_reserve).ok_or(Overflow)?)?;
+
+    let t1 = amount.checked_add(in_reserve).ok_or(Overflow)?;
+    if ir.checked_mul(t1).ok_or(Overflow)? < in_reserve {
+        return Err(Overflow);
+    }
 
     let ir = crate::transcendental::pow(ir, weight_ratio).map_err(|_| Overflow)?;
 
-    let ir = FixedBalance::from_num(1).checked_sub(ir).ok_or(Overflow)?;
+    // We round this up
+    let new_out_reserve_calc = round_up_fixed(out_reserve.checked_mul(ir).ok_or(Overflow)?)?;
 
-    let r = out_reserve.checked_mul(ir).ok_or(Overflow)?;
+    let r = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
+
+    let new_out_reserve = out_reserve.checked_sub(r).unwrap();
+
+    if new_out_reserve < new_out_reserve_calc {
+        return Err(Overflow);
+    }
+
+    let out_delta = out_reserve.checked_sub(new_out_reserve).ok_or(Overflow)?;
+    let out_delta_calc = out_reserve.checked_sub(new_out_reserve_calc).ok_or(Overflow)?;
+
+    if out_delta > out_delta_calc {
+        return Err(Overflow);
+    }
 
     to_balance_from_fixed!(r)
 }

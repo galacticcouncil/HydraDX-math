@@ -38,7 +38,7 @@ fn spot_price_should_work() {
 #[test]
 fn out_given_in_should_work() {
     let cases = vec![
-        (1000, 2000, 500, 500, 100, Ok(178), "Easy case"),
+        (1000, 2000, 500, 500, 100, Ok(170), "Easy case"),
         (0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
         (
             Balance::MAX,
@@ -46,7 +46,7 @@ fn out_given_in_should_work() {
             LBPWeight::MAX,
             LBPWeight::MAX,
             Balance::MAX,
-            Ok(170141183460469231731687303715884105726),
+            Err(Overflow),
             "max",
         ),
         (1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
