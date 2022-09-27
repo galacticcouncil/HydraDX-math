@@ -172,14 +172,21 @@ pub fn calculate_in_given_out(
     let (in_weight, out_weight, amount, in_reserve, out_reserve) =
         to_fixed_balance!(in_weight as u128, out_weight as u128, amount, in_reserve, out_reserve);
 
-    let weight_ratio = out_weight.checked_div(in_weight).ok_or(Overflow)?;
-    let diff = out_reserve.checked_sub(amount).ok_or(Overflow)?;
-    let y = out_reserve.checked_div(diff).ok_or(Overflow)?;
+    let weight_ratio = round_up_fixed(out_weight.checked_div(in_weight).ok_or(Overflow)?)?;
+
+    let new_out_reserve = out_reserve.checked_sub(amount).ok_or(Overflow)?;
+    // We are correctly rounding this down
+    let y = out_reserve.checked_div(new_out_reserve).ok_or(Overflow)?;
+
     let y1: FixedBalance = crate::transcendental::pow(y, weight_ratio).map_err(|_| Overflow)?;
+
     let y2 = y1.checked_sub(FixedBalance::from_num(1u128)).ok_or(Overflow)?;
+
     let r = in_reserve.checked_mul(y2).ok_or(Overflow)?;
 
-    to_balance_from_fixed!(r)
+    let amount_in = round_up_fixed(r)?;
+
+    to_balance_from_fixed!(amount_in)
 }
 
 /// Calculating weight at any given block in an interval using linear interpolation.
