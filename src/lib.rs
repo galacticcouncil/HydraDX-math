@@ -16,10 +16,13 @@ pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod stableswap;
+pub mod test_utils;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
-pub mod test_utils;
+
+#[cfg(test)]
+mod test_pow_accuracy;
 
 #[macro_export]
 macro_rules! ensure {
