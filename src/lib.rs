@@ -12,6 +12,7 @@ extern crate std;
 #[macro_use]
 extern crate approx;
 
+pub mod ema;
 pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
