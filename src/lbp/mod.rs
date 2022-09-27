@@ -6,3 +6,4 @@ pub use lbp::*;
 
 #[cfg(test)]
 mod tests;
+mod test_accuracy;
