@@ -17,7 +17,6 @@ fn calculate_ann_should_work_when_correct_values_provided() {
 
 #[test]
 fn calculate_out_given_in_should_work_when_max_supported_nbr_of_balances_is_provided() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -27,8 +26,7 @@ fn calculate_out_given_in_should_work_when_max_supported_nbr_of_balances_is_prov
 
     let amount_in: Balance = 2_000u128;
 
-    let result =
-        calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, idx_in, idx_out, amount_in, amp, precision);
+    let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, idx_in, idx_out, amount_in, amp);
 
     assert!(result.is_some());
     let result = result.unwrap();
@@ -38,27 +36,23 @@ fn calculate_out_given_in_should_work_when_max_supported_nbr_of_balances_is_prov
 
 #[test]
 fn calculate_out_given_in_should_fail_when_asset_idx_is_incorrect() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
 
     let amount_in: Balance = 2_000u128;
 
-    let result =
-        calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, MAX_BALANCES, 1, amount_in, amp, precision);
+    let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, MAX_BALANCES, 1, amount_in, amp);
 
     assert!(result.is_none());
 
-    let result =
-        calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, 1, MAX_BALANCES, amount_in, amp, precision);
+    let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&balances, 1, MAX_BALANCES, amount_in, amp);
 
     assert!(result.is_none());
 }
 
 #[test]
 fn calculate_in_given_out_should_work_when_max_supported_nbr_of_balances_is_provided() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -68,8 +62,7 @@ fn calculate_in_given_out_should_work_when_max_supported_nbr_of_balances_is_prov
 
     let amount_out: Balance = 2_000u128;
 
-    let result =
-        calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, idx_in, idx_out, amount_out, amp, precision);
+    let result = calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, idx_in, idx_out, amount_out, amp);
 
     assert!(result.is_some());
     let result = result.unwrap();
@@ -79,27 +72,23 @@ fn calculate_in_given_out_should_work_when_max_supported_nbr_of_balances_is_prov
 
 #[test]
 fn calculate_in_given_out_should_fail_when_asset_idx_is_incorrect() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
 
     let amount_out: Balance = 2_000u128;
 
-    let result =
-        calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, MAX_BALANCES, 1, amount_out, amp, precision);
+    let result = calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, MAX_BALANCES, 1, amount_out, amp);
 
     assert!(result.is_none());
 
-    let result =
-        calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, 1, MAX_BALANCES, amount_out, amp, precision);
+    let result = calculate_in_given_out::<D_ITERATIONS, Y_ITERATIONS>(&balances, 1, MAX_BALANCES, amount_out, amp);
 
     assert!(result.is_none());
 }
 
 #[test]
 fn calculate_shares_should_work_when_correct_input_provided() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let initial_balances = [10_000u128; MAX_BALANCES];
@@ -109,7 +98,7 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 
     let issuance: Balance = 100_000;
 
-    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, precision, issuance);
+    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
 
     assert!(result.is_some());
 
@@ -120,7 +109,6 @@ fn calculate_shares_should_work_when_correct_input_provided() {
 
 #[test]
 fn calculate_shares_should_work_when_share_issuance_is_zero() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let initial_balances = [0; MAX_BALANCES];
@@ -130,7 +118,7 @@ fn calculate_shares_should_work_when_share_issuance_is_zero() {
 
     let issuance: Balance = 0;
 
-    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, precision, issuance);
+    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
 
     assert!(result.is_some());
 
@@ -141,7 +129,6 @@ fn calculate_shares_should_work_when_share_issuance_is_zero() {
 
 #[test]
 fn calculate_shares_should_fail_when_balances_len_is_not_equal() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let initial_balances = [10_000u128; MAX_BALANCES + 1];
@@ -151,14 +138,13 @@ fn calculate_shares_should_fail_when_balances_len_is_not_equal() {
 
     let issuance: Balance = 100_000;
 
-    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, precision, issuance);
+    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
 
     assert!(result.is_none());
 }
 
 #[test]
 fn calculate_shares_should_fail_when_updated_balances_are_less() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let initial_balances = [10_000u128; MAX_BALANCES];
@@ -168,14 +154,13 @@ fn calculate_shares_should_fail_when_updated_balances_are_less() {
 
     let issuance: Balance = 100_000;
 
-    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, precision, issuance);
+    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
 
     assert!(result.is_none());
 }
 
 #[test]
 fn calculate_withdraw_one_asset_should_work_when_max_supported_nbr_of_balances_is_provided() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -193,7 +178,6 @@ fn calculate_withdraw_one_asset_should_work_when_max_supported_nbr_of_balances_i
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -205,7 +189,6 @@ fn calculate_withdraw_one_asset_should_work_when_max_supported_nbr_of_balances_i
 
 #[test]
 fn calculate_withdraw_one_asset_should_work_when_fee_is_zero() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -223,7 +206,6 @@ fn calculate_withdraw_one_asset_should_work_when_fee_is_zero() {
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -235,7 +217,6 @@ fn calculate_withdraw_one_asset_should_work_when_fee_is_zero() {
 
 #[test]
 fn calculate_withdraw_one_asset_should_work_when_fee_hundred_percent() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -253,7 +234,6 @@ fn calculate_withdraw_one_asset_should_work_when_fee_hundred_percent() {
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -266,7 +246,6 @@ fn calculate_withdraw_one_asset_should_work_when_fee_hundred_percent() {
 
 #[test]
 fn calculate_withdraw_one_asset_should_fail_share_issuance_is_zero() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -284,7 +263,6 @@ fn calculate_withdraw_one_asset_should_fail_share_issuance_is_zero() {
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -293,7 +271,6 @@ fn calculate_withdraw_one_asset_should_fail_share_issuance_is_zero() {
 
 #[test]
 fn calculate_withdraw_one_asset_should_fail_when_share_issuance_is_less_then_withdrawal() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -311,7 +288,6 @@ fn calculate_withdraw_one_asset_should_fail_when_share_issuance_is_less_then_wit
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -320,7 +296,6 @@ fn calculate_withdraw_one_asset_should_fail_when_share_issuance_is_less_then_wit
 
 #[test]
 fn calculate_withdraw_one_asset_should_fail_asset_index_is_outside_boundaries() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let balances = [10_000u128; MAX_BALANCES];
@@ -338,7 +313,6 @@ fn calculate_withdraw_one_asset_should_fail_asset_index_is_outside_boundaries() 
         asset_index,
         issuance,
         amp,
-        precision,
         fee,
     );
 
@@ -347,7 +321,6 @@ fn calculate_withdraw_one_asset_should_fail_asset_index_is_outside_boundaries() 
 
 #[test]
 fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares() {
-    let precision = 1_u128;
     let amp = 100_u128;
 
     let fee = Permill::from_percent(0);
@@ -359,7 +332,7 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
 
     let issuance: Balance = 100_000;
 
-    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, precision, issuance);
+    let result = calculate_shares::<D_ITERATIONS>(&initial_balances, &updated_balances, amp, issuance);
     let shares = result.unwrap();
 
     let result = calculate_withdraw_one_asset::<D_ITERATIONS, Y_ITERATIONS>(
@@ -368,7 +341,6 @@ fn calculate_withdraw_should_return_correct_amount_when_removing_provided_shares
         2,
         issuance + shares,
         amp,
-        precision,
         fee,
     );
 

@@ -40,9 +40,7 @@ proptest! {
         reserve_out in high_asset_reserve(),
         amp in amplification(),
     ) {
-        let precision = 1u128;
-
-        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision);
+        let d = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp);
 
         assert!(d.is_some());
     }
@@ -56,15 +54,13 @@ proptest! {
         reserve_out in high_asset_reserve(),
         amp in amplification(),
     ) {
-        let precision = 1u128;
+        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
 
-        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-        let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
+        let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp);
 
         assert!(result.is_some());
 
-        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
+        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp).unwrap();
 
         assert!(d2 >= d1);
     }
@@ -78,15 +74,13 @@ proptest! {
         reserve_out in asset_reserve(),
         amp in amplification(),
     ) {
-        let precision = 1u128;
+        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
 
-        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-        let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp, precision);
+        let result = calculate_out_given_in::<D_ITERATIONS, Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_in, amp);
 
         assert!(result.is_some());
 
-        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp, precision).unwrap();
+        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + amount_in, reserve_out - result.unwrap() ], amp).unwrap();
 
         assert!(d2 >= d1);
     }
@@ -100,15 +94,13 @@ proptest! {
         reserve_out in asset_reserve(),
         amp in amplification(),
     ) {
-        let precision = 1u128;
+        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp).unwrap();
 
-        let d1 = calculate_d::<D_ITERATIONS>(&[reserve_in, reserve_out], amp, precision).unwrap();
-
-        let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_out, amp, precision);
+        let result = calculate_in_given_out::<D_ITERATIONS,Y_ITERATIONS>(&[reserve_in, reserve_out],0,1, amount_out, amp);
 
         assert!(result.is_some());
 
-        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], amp, precision).unwrap();
+        let d2 = calculate_d::<D_ITERATIONS>(&[reserve_in + result.unwrap(), reserve_out - amount_out ], amp).unwrap();
 
         assert!(d2 >= d1);
     }
@@ -125,12 +117,10 @@ proptest! {
         amp in amplification(),
         issuance in asset_reserve(),
     ) {
-        let precision = 1u128;
-
         let initial_reserves = &[reserve_a, reserve_b];
         let updated_reserves = &[reserve_a.checked_add(amount_a).unwrap(), reserve_b.checked_add(amount_b).unwrap()];
 
-        let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, precision, issuance);
+        let result = calculate_shares::<D_ITERATIONS>(initial_reserves, updated_reserves, amp, issuance);
 
         assert!(result.is_some());
     }
@@ -148,10 +138,8 @@ proptest! {
     ) {
         let ann = amp * 3125u128;  // 5^5
 
-        let precision = 1u128;
-
-        let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
-        let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
+        let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann).unwrap();
+        let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann).unwrap();
 
         assert!(y - 4 <= reserve_a);
         assert!(y >= reserve_a);
@@ -171,10 +159,8 @@ proptest! {
 
         let reserve_d = 0u128;
 
-        let precision = 1u128;
-
-        let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann, precision).unwrap();
-        let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann, precision).unwrap();
+        let d = calculate_d::<D_ITERATIONS>(&[reserve_a, reserve_b, reserve_c, reserve_d, reserve_e], ann).unwrap();
+        let y = calculate_y::<Y_ITERATIONS>(&[reserve_b, reserve_c, reserve_d, reserve_e], d, ann).unwrap();
 
         assert!(y - 4 <= reserve_a);
         assert!(y >= reserve_a);
