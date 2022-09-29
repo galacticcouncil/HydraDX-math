@@ -44,6 +44,40 @@ pub fn calculate_in_given_out<const N: u8, const N_Y: u8>(
     new_reserve_in.checked_sub(balances[idx_in])
 }
 
+/// Calculating amount to be received from the pool given the amount to be sent to the pool and both reserves and apply a fee.
+pub fn calculate_out_given_in_with_fee<const N: u8, const N_Y: u8>(
+    balances: &[Balance],
+    idx_in: usize,
+    idx_out: usize,
+    amount_in: Balance,
+    amplification: Balance,
+    fee: Permill,
+) -> Option<(Balance, Balance)> {
+    let amount_out = calculate_out_given_in::<N, N_Y>(balances, idx_in, idx_out, amount_in, amplification)?;
+    let fee_amount = calculate_fee_amount(amount_out, fee, Rounding::Down);
+
+    let amount_out = amount_out.checked_sub(fee_amount)?;
+
+    Some((amount_out, fee_amount))
+}
+
+/// Calculating amount to be sent to the pool given the amount to be received from the pool and both reserves with fee applied.
+pub fn calculate_in_given_out_with_fee<const N: u8, const N_Y: u8>(
+    balances: &[Balance],
+    idx_in: usize,
+    idx_out: usize,
+    amount_out: Balance,
+    amplification: Balance,
+    fee: Permill,
+) -> Option<(Balance, Balance)> {
+    let amount_in = calculate_in_given_out::<N, N_Y>(balances, idx_in, idx_out, amount_out, amplification)?;
+    let fee_amount = calculate_fee_amount(amount_in, fee, Rounding::Up);
+
+    let amount_in = amount_in.checked_add(fee_amount)?;
+
+    Some((amount_in, fee_amount))
+}
+
 /// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
 pub fn calculate_shares<const N: u8>(
     initial_reserves: &[Balance],
@@ -315,5 +349,17 @@ fn abs_diff(d0: U256, d1: U256) -> U256 {
         d1 - d0
     } else {
         d0 - d1
+    }
+}
+
+enum Rounding {
+    Down,
+    Up,
+}
+
+fn calculate_fee_amount(amount: Balance, fee: Permill, rounding: Rounding) -> Balance {
+    match rounding {
+        Rounding::Down => fee.mul_floor(amount),
+        Rounding::Up => fee.mul_ceil(amount),
     }
 }
