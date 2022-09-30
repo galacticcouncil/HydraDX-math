@@ -184,7 +184,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::types::FixedBalance;
-    use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
 
