@@ -13,13 +13,6 @@ fn inner_between_one_and_div() -> impl Strategy<Value = u128> {
     1..FixedU128::DIV
 }
 
-#[test]
-fn fixed() {
-    assert!(FixedU128::from_inner(1) > FixedU128::zero());
-    assert!(FixedU128::from_inner(FixedU128::DIV) == FixedU128::one());
-    assert!(FixedU128::from_inner(u128::MAX) == FixedU128::max_value());
-}
-
 fn inner_for_non_zero_fixed() -> impl Strategy<Value = u128> {
     1..u128::MAX
 }
