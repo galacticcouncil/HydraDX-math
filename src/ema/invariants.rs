@@ -3,7 +3,7 @@ use crate::types::{Balance, Price};
 
 use proptest::prelude::*;
 use sp_arithmetic::{
-    traits::One,
+    traits::{One, Zero},
     FixedPointNumber, FixedU128,
 };
 
@@ -65,6 +65,17 @@ proptest! {
         let balance = iterated_balance_ema(iterations, prev_balance, incoming_balance, smoothing);
         prop_assert!(balance.is_some());
         prop_assert!(balance.unwrap() <= incoming_balance);
+    }
+}
+
+proptest! {
+    #[test]
+    fn smoothing_is_greater_zero(
+        period in 0_u64..2_000_000_000_000_000_000,
+    ) {
+        let smoothing = smoothing_from_period(period);
+        prop_assert!(smoothing > FixedU128::zero());
+        prop_assert!(smoothing <= FixedU128::one());
     }
 }
 

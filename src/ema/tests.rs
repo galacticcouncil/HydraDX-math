@@ -3,7 +3,7 @@ use super::*;
 use crate::types::Price;
 
 use num_traits::{One, Zero};
-use sp_arithmetic::FixedPointNumber;
+use sp_arithmetic::{FixedU128, FixedPointNumber, traits::Saturating};
 
 #[test]
 fn ema_stays_stable_if_the_value_does_not_change() {
@@ -60,4 +60,20 @@ fn ema_does_not_saturate() {
     let incoming_balance = u128::MAX;
     let next_balance = balance_ema(start_balance, complement, incoming_balance, alpha);
     assert_eq!(next_balance, Some(incoming_balance));
+}
+
+#[test]
+fn exp_smoothing_and_complement_works() {
+    let smoothing = smoothing_from_period(7);
+    let (alpha, complement) = exp_smoothing_and_complement(smoothing, 10);
+    let expected_complement = FixedU128::saturating_from_rational(3_u8, 4_u8).saturating_pow(10);
+    assert_eq!(complement, expected_complement);
+    assert_eq!(alpha, FixedU128::one() - expected_complement);
+}
+
+#[test]
+fn smoothing_from_period_works() {
+    let period = 0;
+    let alpha = smoothing_from_period(period);
+    assert_eq!(alpha, FixedU128::one());
 }

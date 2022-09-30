@@ -64,7 +64,7 @@ pub fn exp_smoothing_and_complement(smoothing: FixedU128, iterations: u32) -> (F
 /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA. See
 /// https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA (N = period).
 pub fn smoothing_from_period(period: u64) -> FixedU128 {
-    FixedU128::saturating_from_rational(2u64, period.saturating_add(One::one()))
+    FixedU128::saturating_from_rational(2u64, period.max(1).saturating_add(1))
 }
 
 /// Calculate the next exponential moving average for the given prices.
