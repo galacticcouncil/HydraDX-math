@@ -7,12 +7,9 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
+// Strategy for generating a random fixed point number between near 0 and 1.
 fn inner_between_one_and_div() -> impl Strategy<Value = u128> {
     1..FixedU128::DIV
-}
-
-fn non_zero_balance() -> impl Strategy<Value = Balance> {
-    any::<Balance>().prop_filter("balance should be greater than 0", |b| b > &0)
 }
 
 // Tests
@@ -40,7 +37,7 @@ proptest! {
     #[test]
     fn one_balance_iteration_ema_is_same_as_simple_version(
         smoothing in inner_between_one_and_div(),
-        (prev_balance, incoming_balance) in (non_zero_balance(), non_zero_balance())
+        (prev_balance, incoming_balance) in (any::<Balance>(), any::<Balance>())
     ) {
         // work around lack of `Strategy` impl for `FixedU128`
         let smoothing = FixedU128::from_inner(smoothing);
