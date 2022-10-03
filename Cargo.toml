@@ -22,6 +22,11 @@ rand_xoshiro = "0.4"
 criterion = "0.3"
 approx = "0.3.0"
 proptest = "1.0.0"
+rug = "1.17.0"
+
+[dependencies.rug]
+default-features = false
+features = ["integer", "rational", "float"]
 
 [features]
 default = ["std"]

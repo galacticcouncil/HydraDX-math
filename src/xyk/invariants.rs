@@ -2,9 +2,10 @@ use crate::types::Balance;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::FixedU128;
+use rug::{Assign, Integer, Float, Rational};
 
 pub const ONE: Balance = 1_000_000_000_000;
-const TOLERANCE: Balance = 1_000;
+const TOLERANCE: f64 = 1e-9;
 
 #[macro_export]
 macro_rules! assert_eq_approx {
@@ -17,7 +18,7 @@ macro_rules! assert_eq_approx {
 }
 
 fn asset_reserve() -> impl Strategy<Value = Balance> {
-    1000 * ONE..10_000_000 * ONE
+    1000 * ONE..1_000_000_000 * ONE
 }
 
 fn trade_amount() -> impl Strategy<Value = Balance> {
@@ -27,22 +28,24 @@ fn trade_amount() -> impl Strategy<Value = Balance> {
 fn assert_asset_invariant(
     old_state: (Balance, Balance),
     new_state: (Balance, Balance),
-    tolerance: FixedU128,
+    tolerance: f64,
     desc: &str,
 ) {
-    let new_s = U256::from(new_state.0) * U256::from(new_state.1);
-    let s1 = new_s.integer_sqrt();
+    let new_state_x = Integer::from(new_state.0);
+    let new_state_y = Integer::from(new_state.1);
+    let old_state_x = Integer::from(old_state.0);
+    let old_state_y = Integer::from(old_state.1);
 
-    let old_s = U256::from(old_state.0) * U256::from(old_state.1);
-    let s2 = old_s.integer_sqrt();
+    let new_s = new_state_x * new_state_y;
+    let old_s = old_state_x * old_state_y;
 
+    // This checks that the invariant never decreases
     assert!(new_s >= old_s, "Invariant decreased for {}", desc);
 
-    let s1_u128 = Balance::try_from(s1).unwrap();
-    let s2_u128 = Balance::try_from(s2).unwrap();
+    let inv_ratio = Rational::from((new_s, old_s));
+    let diff = inv_ratio - 1;
 
-    let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
-    assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
+    assert!(diff <= tolerance, "Invariant difference above tolerance for {}", desc);
 }
 
 proptest! {
@@ -56,7 +59,7 @@ proptest! {
 
         assert_asset_invariant((asset_in_reserve, asset_out_reserve),
             (asset_in_reserve + amount, asset_out_reserve - amount_out),
-            FixedU128::from((TOLERANCE,ONE)),
+            TOLERANCE,
             "out given in"
         );
     }
@@ -73,7 +76,7 @@ proptest! {
 
         assert_asset_invariant((asset_in_reserve, asset_out_reserve),
             (asset_in_reserve + amount_in, asset_out_reserve - amount),
-            FixedU128::from((TOLERANCE,ONE)),
+            TOLERANCE,
             "in given out"
         );
     }
@@ -89,14 +92,13 @@ proptest! {
     ) {
         let amount_b = crate::xyk::calculate_liquidity_in(asset_a_reserve, asset_b_reserve, amount).unwrap();
 
-        let p0 = FixedU128::from((asset_a_reserve, asset_b_reserve));
-        let p1 = FixedU128::from((asset_a_reserve + amount, asset_b_reserve + amount_b));
+        let p0 = Rational::from((asset_a_reserve, asset_b_reserve));
+        let p1 = Rational::from((asset_a_reserve + amount, asset_b_reserve + amount_b));
 
         // Price should not change
-        assert_eq_approx!(p0,
-            p1,
-            FixedU128::from_float(0.0000000001),
-            "Price has changed after add liquidity");
+        let mut diff = p1 - p0;
+        diff.abs_mut();
+        assert!(diff <= TOLERANCE, "Price has changed after add liquidity");
 
         let shares = crate::xyk::calculate_shares(asset_a_reserve, amount, issuance).unwrap();
 
@@ -104,22 +106,12 @@ proptest! {
         //delta_S / S <= delta_X / X
         //delta_S / S <= delta_Y / Y
 
-        let s = U256::from(issuance);
-        let delta_s = U256::from(shares);
-        let delta_x = U256::from(amount);
-        let delta_y = U256::from(amount_b);
-        let x = U256::from(asset_a_reserve);
-        let y = U256::from(asset_b_reserve);
+        let shares_ratio = Rational::from((shares, issuance));
+        let asset_a_ratio = Rational::from((amount, asset_a_reserve));
+        let asset_b_ratio = Rational::from((amount_b, asset_b_reserve));
 
-        let l =  delta_s * x;
-        let r =  s * delta_x;
-
-        assert!(l <= r);
-
-        let l =  delta_s * y;
-        let r =  s * delta_y;
-
-        assert!(l <= r);
+        assert!(shares_ratio <= asset_a_ratio, "Shares ratio is greater than asset a ratio");
+        assert!(shares_ratio <= asset_b_ratio, "Shares ratio is greater than asset b ratio");
     }
 }
 
@@ -133,34 +125,23 @@ proptest! {
     ) {
         let (amount_a, amount_b) = crate::xyk::calculate_liquidity_out(asset_a_reserve, asset_b_reserve, shares, issuance).unwrap();
 
-        let p0 = FixedU128::from((asset_a_reserve, asset_b_reserve));
-        let p1 = FixedU128::from((asset_a_reserve - amount_a, asset_b_reserve - amount_b));
+        let p0 = Rational::from((asset_a_reserve, asset_b_reserve));
+        let p1 = Rational::from((asset_a_reserve - amount_a, asset_b_reserve - amount_b));
 
         // Price should not change
-        assert_eq_approx!(p0,
-            p1,
-            FixedU128::from_float(0.0000000001),
-            "Price has changed after add liquidity");
+        let mut diff = p1 - p0;
+        diff.abs_mut();
+        assert!(diff <= TOLERANCE, "Price has changed after add liquidity");
 
         // The following must hold when removing liquidity
         // delta_S / S >= delta_X / X
         // delta_S / S >= delta_Y / Y
 
-        let s = U256::from(issuance);
-        let delta_s = U256::from(shares);
-        let delta_x = U256::from(amount_a);
-        let delta_y = U256::from(amount_b);
-        let x = U256::from(asset_a_reserve);
-        let y = U256::from(asset_b_reserve);
+        let shares_ratio = Rational::from((shares, issuance));
+        let asset_a_ratio = Rational::from((amount_a, asset_a_reserve));
+        let asset_b_ratio = Rational::from((amount_b, asset_b_reserve));
 
-        let l =  delta_s * x;
-        let r =  s * delta_x;
-
-        assert!(l >= r);
-
-        let l =  delta_s * y;
-        let r =  s * delta_y;
-
-        assert!(l >= r);
+        assert!(shares_ratio >= asset_a_ratio, "Shares ratio is greater than asset a ratio");
+        assert!(shares_ratio >= asset_b_ratio, "Shares ratio is greater than asset b ratio");
     }
 }
