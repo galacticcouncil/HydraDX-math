@@ -85,8 +85,7 @@ fn some_imbalance() -> impl Strategy<Value = I129<Balance>> {
 }
 
 fn high_imbalance() -> impl Strategy<Value = I129<Balance>> {
-    (800_000_000_000 * ONE..800_000_000_001 * ONE)
-        .prop_map(|value| I129 { value, negative: true })
+    (800_000_000_000 * ONE..800_000_000_001 * ONE).prop_map(|value| I129 { value, negative: true })
 }
 
 fn assert_asset_invariant(
