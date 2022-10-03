@@ -137,28 +137,6 @@ fn assert_imbalance_update(
     let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
 
     assert!(left >= right, "{}", desc);
-
-    let l_x = FixedU128::checked_from_rational(old_state.hub_reserve, old_hub_reserve)
-        .unwrap()
-        .checked_mul_int(old_imbalance.value)
-        .unwrap();
-    let r_x = FixedU128::checked_from_rational(new_state.hub_reserve, new_hub_reserve)
-        .unwrap()
-        .checked_mul_int(new_imbalance.value)
-        .unwrap();
-
-    let l_n = old_state.hub_reserve - l_x;
-    let r_n = new_state.hub_reserve - r_x;
-
-    let left = FixedU128::checked_from_rational(l_n, old_state.reserve);
-    let right = FixedU128::checked_from_rational(r_n, new_state.reserve);
-
-    assert!(left >= right, "{}", desc);
-
-    let left = U256::from(old_state.hub_reserve - old_imbalance.value) * U256::from(new_state.reserve);
-    let right = U256::from(new_state.hub_reserve - new_imbalance.value) * U256::from(old_state.reserve);
-
-    assert!(left >= right, "{}", desc);
 }
 
 fn assert_imbalance_update_extreme(

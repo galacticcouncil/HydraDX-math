@@ -165,7 +165,10 @@ pub fn calculate_buy_for_hub_asset_state_changes(
     imbalance: I129<Balance>,
     total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
-    let hub_denominator = amount_without_fee(asset_out_state.reserve, asset_fee)?.checked_sub(asset_out_amount)?;
+    let hub_denominator = Permill::from_percent(100)
+        .checked_sub(&asset_fee)?
+        .mul_floor(asset_out_state.reserve)
+        .checked_sub(asset_out_amount)?;
 
     let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
         to_u256!(asset_out_state.hub_reserve, asset_out_amount, hub_denominator);
@@ -319,7 +322,7 @@ pub fn calculate_remove_liquidity_state_changes(
         position.shares
     );
 
-    let p_x_r = U256::from(position_price.checked_mul_int(current_reserve)?);
+    let p_x_r = U256::from(position_price.checked_mul_int(current_reserve)?).checked_add(U256::one())?;
 
     // Protocol shares update
     let delta_b_hp = if current_price < position_price {
