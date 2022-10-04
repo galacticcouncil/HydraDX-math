@@ -124,10 +124,6 @@ pub fn calculate_sell_hub_state_changes(
     imbalance: I129<Balance>,
     total_hub_reserve: Balance,
 ) -> Option<HubTradeStateChange<Balance>> {
-    if !imbalance.negative {
-        return None;
-    }
-
     let (reserve_hp, hub_reserve_hp, amount_hp) =
         to_u256!(asset_out_state.reserve, asset_out_state.hub_reserve, hub_asset_amount);
 
