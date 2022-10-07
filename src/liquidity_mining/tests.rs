@@ -378,6 +378,17 @@ fn calculate_accumulated_rps_should_work() {
         calculate_accumulated_rps(FixedU128::from(1_u128), 0, 10_000_u128),
         Err(crate::MathError::DivisionByZero)
     );
+
+    //rounding check
+    assert_eq!(
+        calculate_accumulated_rps(
+            FixedU128::from(0_u128),
+            5_285_892_814_623_878_169_850_251_600_000_000_u128,
+            5_285_892_814_623_836_473_811_814_630_000_000_u128
+        )
+        .unwrap(),
+        FixedU128::from_inner(999_999_999_999_992_111_u128)
+    );
 }
 
 #[test]
