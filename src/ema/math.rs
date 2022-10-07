@@ -1,16 +1,12 @@
 use crate::types::{Balance, Price};
 
-use num_traits::CheckedMul;
-use sp_arithmetic::traits::One;
-use sp_arithmetic::traits::Saturating;
-use sp_arithmetic::FixedPointNumber;
-use sp_arithmetic::FixedU128;
+use sp_arithmetic::{FixedU128, FixedPointNumber, traits::{One, Saturating}};
 
 /// Calculate the iterated exponential moving average for the given prices.
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: FixedU128) -> Option<Price> {
+pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: FixedU128) -> Price {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     price_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -24,7 +20,7 @@ pub fn iterated_balance_ema(
     prev: Balance,
     incoming: Balance,
     smoothing: FixedU128,
-) -> Option<Balance> {
+) -> Balance {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     balance_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -38,7 +34,7 @@ pub fn iterated_volume_ema(
     prev: (Balance, Balance, Balance, Balance),
     incoming: (Balance, Balance, Balance, Balance),
     smoothing: FixedU128,
-) -> Option<(Balance, Balance, Balance, Balance)> {
+) -> (Balance, Balance, Balance, Balance) {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     volume_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -69,33 +65,33 @@ pub fn smoothing_from_period(period: u64) -> FixedU128 {
 
 /// Calculate the next exponential moving average for the given prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
-pub fn price_ema(prev: Price, prev_weight: FixedU128, incoming: Price, weight: FixedU128) -> Option<Price> {
+pub fn price_ema(prev: Price, prev_weight: FixedU128, incoming: Price, weight: FixedU128) -> Price {
     debug_assert!(prev_weight + weight == Price::one());
-    // Safe to use bare `+` because `prev_weight + weight == 1`.
-    // `prev_value * prev_weight + incoming_value * weight`
-    let price = prev.checked_mul(&prev_weight)? + incoming.checked_mul(&weight)?;
-    Some(price)
+    // Safe to use bare `+` and `*` because `prev_weight + weight == 1`.
+    prev * prev_weight + incoming * weight
 }
 
 /// Calculate the next exponential moving average for the given balances.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is the weight of the new value, `prev_weight` is the weight of the previous value.
-pub fn balance_ema(prev: Balance, prev_weight: FixedU128, incoming: Balance, weight: FixedU128) -> Option<Balance> {
+///
+/// Note: Incurs rounding errors iff exactly one of the balance values is small and the other is
+/// big, but the relative error is small because the other value is greater than `u64::MAX`.
+pub fn balance_ema(prev: Balance, prev_weight: FixedU128, incoming: Balance, weight: FixedU128) -> Balance {
     debug_assert!(prev_weight + weight == Price::one());
-    // Safe to use bare `+` because `prev_weight + apha == 1`.
-    // `prev_value * prev_weight + incoming_value * weight`
-    let new_value = if prev < Balance::from(u64::MAX) && incoming < Balance::from(u64::MAX) {
-        // We use `checked_mul` in combination with `Price::from` to avoid rounding errors induced
-        // by using `checked_mul_int` with small values.
-        (prev_weight.checked_mul(&Price::from(prev))? + weight.checked_mul(&Price::from(incoming))?)
+    // Safe to use bare `+` and `*` because `prev_weight + weight == 1`.
+    // Equivalent to `prev_value * prev_weight + incoming_value * weight`
+    if prev < Balance::from(u64::MAX) && incoming < Balance::from(u64::MAX) {
+        // We use `*` in combination with `FixedU128::from` to avoid rounding errors induced by
+        // using `mul_int` with small values.
+        (prev_weight * FixedU128::from(prev) + weight * FixedU128::from(incoming))
             .saturating_mul_int(Balance::one())
     } else {
-        // We use `checked_mul_int` to avoid saturating the fixed point type for big balance values.
+        // We use `mul_int` to avoid saturating the fixed point type for big balance values.
         // Note: Incurs rounding errors for small balance values, but the relative error is small
         // because the other value is greater than `u64::MAX`.
-        prev_weight.checked_mul_int(prev)? + weight.checked_mul_int(incoming)?
-    };
-    Some(new_value)
+        prev_weight.saturating_mul_int(prev) + weight.saturating_mul_int(incoming)
+    }
 }
 
 /// Calculate the next exponential moving average for the given volumes.
@@ -108,15 +104,14 @@ pub fn volume_ema(
     prev_weight: FixedU128,
     incoming: (Balance, Balance, Balance, Balance),
     weight: FixedU128,
-) -> Option<(Balance, Balance, Balance, Balance)> {
+) -> (Balance, Balance, Balance, Balance) {
     debug_assert!(prev_weight + weight == Price::one());
     let (prev_a_in, prev_b_out, prev_a_out, prev_b_in) = prev;
     let (a_in, b_out, a_out, b_in) = incoming;
-    let volume = (
-        balance_ema(prev_a_in, prev_weight, a_in, weight)?,
-        balance_ema(prev_b_out, prev_weight, b_out, weight)?,
-        balance_ema(prev_a_out, prev_weight, a_out, weight)?,
-        balance_ema(prev_b_in, prev_weight, b_in, weight)?,
-    );
-    Some(volume)
+    (
+        balance_ema(prev_a_in, prev_weight, a_in, weight),
+        balance_ema(prev_b_out, prev_weight, b_out, weight),
+        balance_ema(prev_a_out, prev_weight, a_out, weight),
+        balance_ema(prev_b_in, prev_weight, b_in, weight),
+    )
 }
