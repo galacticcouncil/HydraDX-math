@@ -302,6 +302,17 @@ pub fn calculate_remove_liquidity_state_changes(
     let current_price = asset_state.price()?;
     let position_price = position.price;
 
+    // Due to rounding in checked_from_rational used to calculate price, adjust the current price
+    // to prevent additional rounding issues
+    let current_price = if position_price.checked_mul_int(current_reserve)?.checked_sub(u128::one())? > current_hub_reserve {
+        current_price.checked_sub(&FixedU128::from_inner(u128::one()))?
+    }else if position_price.checked_mul_int(current_reserve)?.checked_add(u128::one())? < current_hub_reserve {
+        current_price.checked_add(&FixedU128::from_inner(u128::one()))?
+    }
+    else{
+        current_price
+    };
+
     let (
         current_reserve_hp,
         current_hub_reserve_hp,
