@@ -3,7 +3,7 @@ use super::*;
 use crate::types::Price;
 
 use num_traits::{Bounded, One, Zero};
-use sp_arithmetic::{FixedU128, FixedPointNumber, traits::Saturating};
+use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 
 #[test]
 fn ema_stays_stable_if_the_value_does_not_change() {

@@ -1,6 +1,9 @@
 use crate::types::{Balance, Price};
 
-use sp_arithmetic::{FixedU128, FixedPointNumber, traits::{One, Saturating}};
+use sp_arithmetic::{
+    traits::{One, Saturating},
+    FixedPointNumber, FixedU128,
+};
 
 /// Calculate the iterated exponential moving average for the given prices.
 /// `iterations` is the number of iterations of the EMA to calculate.
@@ -15,12 +18,7 @@ pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothi
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_balance_ema(
-    iterations: u32,
-    prev: Balance,
-    incoming: Balance,
-    smoothing: FixedU128,
-) -> Balance {
+pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Balance {
     let (exp_smoothing, exp_complement) = exp_smoothing_and_complement(smoothing, iterations);
     balance_ema(prev, exp_complement, incoming, exp_smoothing)
 }
@@ -84,8 +82,7 @@ pub fn balance_ema(prev: Balance, prev_weight: FixedU128, incoming: Balance, wei
     if prev < Balance::from(u64::MAX) && incoming < Balance::from(u64::MAX) {
         // We use `*` in combination with `FixedU128::from` to avoid rounding errors induced by
         // using `mul_int` with small values.
-        (prev_weight * FixedU128::from(prev) + weight * FixedU128::from(incoming))
-            .saturating_mul_int(Balance::one())
+        (prev_weight * FixedU128::from(prev) + weight * FixedU128::from(incoming)).saturating_mul_int(Balance::one())
     } else {
         // We use `mul_int` to avoid saturating the fixed point type for big balance values.
         // Note: Incurs rounding errors for small balance values, but the relative error is small

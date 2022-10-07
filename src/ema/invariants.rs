@@ -53,7 +53,7 @@ proptest! {
     fn new_oracle_is_between_old_and_new_value(
         smoothing in inner_between_one_and_div(),
         iterations in any::<u32>(),
-        (prev_balance, incoming_balance) in 
+        (prev_balance, incoming_balance) in
             (0..(Balance::MAX - 1)).prop_perturb(|n, mut rng| (n, rng.gen_range(n..Balance::MAX)))
     ) {
         // work around lack of `Strategy` impl for `FixedU128`
@@ -75,4 +75,3 @@ proptest! {
         prop_assert!(smoothing <= FixedU128::one());
     }
 }
-
