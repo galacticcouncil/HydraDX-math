@@ -75,3 +75,29 @@ proptest! {
         prop_assert!(smoothing <= FixedU128::one());
     }
 }
+
+use rug::{Rational, Integer};
+use std::ops::Mul;
+use rug::ops::DivRounding;
+
+pub fn rug_balance_ma(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
+    let prev_weight = Rational::one() - weight.clone();
+    let (num, den) = ((prev_weight.mul(prev)) + weight.mul(incoming)).into_numer_denom();
+    num.div_floor(den).into()
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn no_precision_loss_for_small_values(
+        smoothing in inner_between_one_and_div(),
+        (prev_balance, incoming_balance) in (0..Balance::from(u64::MAX), 0..Balance::from(u64::MAX))
+    ) {
+        // work around lack of `Strategy` impl for `FixedU128`
+        let smoothing = FixedU128::from_inner(smoothing);
+        // actual test
+        let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
+        let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
+        prop_assert!(Integer::from(balance) == rug_balance);
+    }
+}

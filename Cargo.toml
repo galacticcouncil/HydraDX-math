@@ -22,6 +22,7 @@ rand_xoshiro = "0.6.0"
 criterion = "0.4.0"
 approx = "0.5.1"
 proptest = "1.0.0"
+rug = { version = "1.17.0", features = ["num-traits"] }
 
 [features]
 default = ["std"]
