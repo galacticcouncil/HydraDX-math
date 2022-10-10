@@ -101,3 +101,29 @@ proptest! {
         prop_assert!(Integer::from(balance) == rug_balance);
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn no_precision_loss_for_small_values_in_extreme_smoothing_value_cases(
+        (prev_balance, incoming_balance) in (0..Balance::from(u64::MAX), 0..Balance::from(u64::MAX))
+    ) {
+        {
+            // work around lack of `Strategy` impl for `FixedU128`
+            let smoothing = FixedU128::from_inner(1);
+            // actual test
+            let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
+            let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
+            prop_assert!(Integer::from(balance) == rug_balance);
+        }
+
+        {
+            // work around lack of `Strategy` impl for `FixedU128`
+            let smoothing = FixedU128::from_inner(FixedU128::DIV - 1);
+            // actual test
+            let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
+            let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
+            prop_assert!(Integer::from(balance) == rug_balance);
+        }
+    }
+}
