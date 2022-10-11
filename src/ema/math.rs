@@ -60,7 +60,7 @@ pub fn smoothing_from_period(period: u64) -> FixedU128 {
 /// Calculate the next moving average for the given prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
-/// 
+///
 /// Note: Rounding is slightly biased towards `prev`.
 /// (`FixedU128::mul` rounds to the nearest representable value, rounding down on equidistance.
 /// See [doc comment here](https://github.com/paritytech/substrate/blob/ce10b9f29353e89fc3e59d447041bb29622def3f/primitives/arithmetic/src/fixed_point.rs#L670-L671).)
@@ -79,7 +79,7 @@ pub fn price_ema(prev: Price, incoming: Price, weight: FixedU128) -> Price {
 /// Calculate the next moving average for the given balances.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
-/// 
+///
 /// Note: Rounding is biased towards `prev`.
 pub fn balance_ema(prev: Balance, incoming: Balance, weight: FixedU128) -> Balance {
     debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
@@ -115,21 +115,20 @@ pub fn volume_ema(
     )
 }
 
-
 #[cfg(test)]
 pub mod high_precision {
     use super::*;
 
-    use rug::{Rational, Integer};
-    use std::ops::Mul;
     use rug::ops::DivRounding;
+    use rug::{Integer, Rational};
+    use std::ops::Mul;
 
     pub fn fixed_to_rational(f: FixedU128) -> Rational {
         Rational::from((f.into_inner(), FixedU128::DIV))
     }
 
     /// Calculate the next moving average for the given balances by using arbitrary precision math.
-    /// 
+    ///
     /// Note: Rounding is biased towards `prev`.
     pub fn rug_balance_ma(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
         if incoming >= prev {

@@ -53,7 +53,7 @@ fn ema_works() {
 fn price_ema_boundary_values() {
     let alpha = Price::saturating_from_rational(1, 2);
     debug_assert!(alpha <= Price::one());
-    
+
     // previously zero, incoming max
     let next_price = price_ema(Price::zero(), Price::max_value(), alpha);
     assert_eq!(next_price, Price::max_value() / 2.into());
@@ -62,7 +62,6 @@ fn price_ema_boundary_values() {
     // previously max, incoming zero
     let next_price = price_ema(Price::max_value(), Price::zero(), alpha);
     assert_eq!(next_price, Price::max_value() / 2.into() + bias);
-    
 }
 
 #[test]
