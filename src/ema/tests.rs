@@ -9,15 +9,14 @@ use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 fn ema_stays_stable_if_the_value_does_not_change() {
     let alpha = smoothing_from_period(7);
     debug_assert!(alpha <= Price::one());
-    let complement = Price::one() - alpha;
 
     let start_price = Price::saturating_from_integer(4u32);
     let incoming_price = start_price;
-    let next_price = price_ema(start_price, complement, incoming_price, alpha);
+    let next_price = price_ema(start_price, incoming_price, alpha);
     assert_eq!(next_price, start_price);
     let start_balance = 4u32.into();
     let incoming_balance = start_balance;
-    let next_balance = balance_ema(start_balance, complement, incoming_balance, alpha);
+    let next_balance = balance_ema(start_balance, incoming_balance, alpha);
     assert_eq!(next_balance, start_balance);
 }
 
@@ -25,29 +24,28 @@ fn ema_stays_stable_if_the_value_does_not_change() {
 fn ema_works() {
     let alpha = smoothing_from_period(7);
     debug_assert!(alpha <= Price::one());
-    let complement = Price::one() - alpha;
 
     // price
     let start_price = 4.into();
     let incoming_price = 8.into();
-    let next_price = price_ema(start_price, complement, incoming_price, alpha);
+    let next_price = price_ema(start_price, incoming_price, alpha);
     assert_eq!(next_price, 5.into());
 
     let start_price = Price::saturating_from_rational(4, 100);
     let incoming_price = Price::saturating_from_rational(8, 100);
-    let next_price = price_ema(start_price, complement, incoming_price, alpha);
+    let next_price = price_ema(start_price, incoming_price, alpha);
     assert_eq!(next_price, Price::saturating_from_rational(5, 100));
 
     // balance
     let start_balance = 4u128;
     let incoming_balance = 8u128;
-    let next_balance = balance_ema(start_balance, complement, incoming_balance, alpha);
+    let next_balance = balance_ema(start_balance, incoming_balance, alpha);
     assert_eq!(next_balance, 5u128);
 
     // volume
     let start_volume = (4u128, 1u128, 8u128, 0u128);
     let incoming_volume = (8u128, 1u128, 4u128, 0u128);
-    let next_volume = volume_ema(start_volume, complement, incoming_volume, alpha);
+    let next_volume = volume_ema(start_volume, incoming_volume, alpha);
     assert_eq!(next_volume, (5u128, 1u128, 7u128, 0u128));
 }
 
@@ -55,31 +53,33 @@ fn ema_works() {
 fn price_ema_boundary_values() {
     let alpha = Price::saturating_from_rational(1, 2);
     debug_assert!(alpha <= Price::one());
-    let complement = Price::one() - alpha;
-
-    let start_price = Price::max_value();
-    let incoming_price = Price::zero();
-    let next_price = price_ema(start_price, complement, incoming_price, alpha);
+    
+    // previously zero, incoming max
+    let next_price = price_ema(Price::zero(), Price::max_value(), alpha);
     assert_eq!(next_price, Price::max_value() / 2.into());
+    // the oracle is biased towards the previous value
+    let bias = Price::saturating_from_rational(1, Price::DIV);
+    // previously max, incoming zero
+    let next_price = price_ema(Price::max_value(), Price::zero(), alpha);
+    assert_eq!(next_price, Price::max_value() / 2.into() + bias);
+    
 }
 
 #[test]
 fn ema_does_not_saturate_on_big_balances() {
     let alpha = Price::one();
-    let complement = Price::zero();
 
     let start_balance = u128::MAX;
     let incoming_balance = u128::MAX;
-    let next_balance = balance_ema(start_balance, complement, incoming_balance, alpha);
+    let next_balance = balance_ema(start_balance, incoming_balance, alpha);
     assert_eq!(next_balance, incoming_balance);
 }
 
 #[test]
-fn exp_smoothing_and_complement_works() {
+fn exp_smoothing_works() {
     let smoothing = smoothing_from_period(7);
-    let (alpha, complement) = exp_smoothing_and_complement(smoothing, 10);
+    let alpha = exp_smoothing(smoothing, 10);
     let expected_complement = FixedU128::saturating_from_rational(3_u8, 4_u8).saturating_pow(10);
-    assert_eq!(complement, expected_complement);
     assert_eq!(alpha, FixedU128::one() - expected_complement);
 }
 

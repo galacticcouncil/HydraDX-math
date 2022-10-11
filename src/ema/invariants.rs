@@ -1,7 +1,9 @@
 use crate::ema::*;
 use crate::types::{Balance, Price};
+use high_precision::fixed_to_rational;
 
 use proptest::prelude::*;
+use rug::{Integer, Rational};
 use sp_arithmetic::{
     traits::{One, Zero},
     FixedPointNumber, FixedU128,
@@ -14,7 +16,6 @@ fn inner_between_one_and_div() -> impl Strategy<Value = u128> {
 
 // Tests
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(
         smoothing in inner_between_one_and_div(),
@@ -26,8 +27,7 @@ proptest! {
         let incoming_price = Price::from_inner(incoming_price);
         // actual test
         let iter_price = iterated_price_ema(1, prev_price, incoming_price, smoothing);
-        let complement = FixedU128::one() - smoothing;
-        let simple_price = price_ema(prev_price, complement, incoming_price, smoothing);
+        let simple_price = price_ema(prev_price, incoming_price, smoothing);
         prop_assert_eq!(iter_price, simple_price);
     }
 }
@@ -42,8 +42,7 @@ proptest! {
         let smoothing = FixedU128::from_inner(smoothing);
         // actual test
         let iter_balance = iterated_balance_ema(1, prev_balance, incoming_balance, smoothing);
-        let complement = FixedU128::one() - smoothing;
-        let simple_balance = balance_ema(prev_balance, complement, incoming_balance, smoothing);
+        let simple_balance = balance_ema(prev_balance, incoming_balance, smoothing);
         prop_assert_eq!(iter_balance, simple_balance);
     }
 }
@@ -67,7 +66,7 @@ proptest! {
 
 proptest! {
     #[test]
-    fn smoothing_is_greater_zero(
+    fn smoothing_is_greater_zero_and_less_equal_one(
         period in 0_u64..2_000_000_000_000_000_000,
     ) {
         let smoothing = smoothing_from_period(period);
@@ -76,54 +75,65 @@ proptest! {
     }
 }
 
-use rug::{Rational, Integer};
-use std::ops::Mul;
-use rug::ops::DivRounding;
-
-pub fn rug_balance_ma(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
-    let prev_weight = Rational::one() - weight.clone();
-    let (num, den) = ((prev_weight.mul(prev)) + weight.mul(incoming)).into_numer_denom();
-    num.div_floor(den).into()
-}
-
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
-    fn no_precision_loss_for_small_values(
+    fn no_precision_loss_for_small_balance_values(
         smoothing in inner_between_one_and_div(),
         (prev_balance, incoming_balance) in (0..Balance::from(u64::MAX), 0..Balance::from(u64::MAX))
     ) {
         // work around lack of `Strategy` impl for `FixedU128`
         let smoothing = FixedU128::from_inner(smoothing);
         // actual test
-        let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
-        let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
-        prop_assert!(Integer::from(balance) == rug_balance);
+        let balance = balance_ema(prev_balance, incoming_balance, smoothing);
+        let rug_balance = high_precision::rug_balance_ma(
+            prev_balance, incoming_balance,  fixed_to_rational(smoothing));
+        prop_assert_eq!(Integer::from(balance), rug_balance);
     }
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
-    fn no_precision_loss_for_small_values_in_extreme_smoothing_value_cases(
+    fn no_precision_loss_for_small_balance_values_in_extreme_smoothing_value_cases(
         (prev_balance, incoming_balance) in (0..Balance::from(u64::MAX), 0..Balance::from(u64::MAX))
     ) {
         {
             // work around lack of `Strategy` impl for `FixedU128`
             let smoothing = FixedU128::from_inner(1);
             // actual test
-            let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
-            let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
-            prop_assert!(Integer::from(balance) == rug_balance);
+            let balance = balance_ema(prev_balance, incoming_balance, smoothing);
+            let rug_balance = high_precision::rug_balance_ma(
+                prev_balance, incoming_balance,  fixed_to_rational(smoothing));
+            prop_assert_eq!(Integer::from(balance), rug_balance);
         }
 
         {
             // work around lack of `Strategy` impl for `FixedU128`
             let smoothing = FixedU128::from_inner(FixedU128::DIV - 1);
             // actual test
-            let balance = balance_ema(prev_balance, FixedU128::one() - smoothing, incoming_balance, smoothing);
-            let rug_balance = rug_balance_ma(prev_balance, incoming_balance, Rational::from((smoothing.into_inner(), FixedU128::DIV)));
-            prop_assert!(Integer::from(balance) == rug_balance);
+            let balance = balance_ema(prev_balance, incoming_balance, smoothing);
+            let rug_balance = high_precision::rug_balance_ma(
+                prev_balance, incoming_balance,  fixed_to_rational(smoothing));
+            prop_assert_eq!(Integer::from(balance), rug_balance);
         }
+    }
+}
+
+proptest! {
+    #[test]
+    fn no_precision_loss_for_prices(
+        smoothing in inner_between_one_and_div(),
+        (prev_price, incoming_price) in (0..u128::MAX, 0..u128::MAX)
+    ) {
+        // work around lack of `Strategy` impl for `FixedU128`
+        let smoothing = FixedU128::from_inner(smoothing);
+        let prev_price = Price::from_inner(prev_price);
+        let incoming_price = Price::from_inner(incoming_price);
+        // actual test
+        let price = price_ema(prev_price, incoming_price, smoothing);
+        let rug_price = high_precision::rug_price_ma(prev_price, incoming_price, fixed_to_rational(smoothing));
+        let epsilon = Rational::from((1, Price::DIV));
+        let price = fixed_to_rational(price);
+        prop_assert!(price <= rug_price.clone() + epsilon.clone());
+        prop_assert!(price >= rug_price - epsilon);
     }
 }
