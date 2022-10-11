@@ -1,6 +1,7 @@
 use proptest::prelude::*;
 use crate::lbp::lbp;
 use super::super::test_utils::assert_eq_approx;
+use primitive_types::U256;
 
 fn start_blocks() -> impl Strategy<Value = u32> {
 	0..100u32
@@ -11,11 +12,11 @@ fn end_blocks() -> impl Strategy<Value = u32> {
 }
 
 fn initial_weight() -> impl Strategy<Value = u32> {
-	1000..1500u32
+	1_000_000..10_000_000u32
 }
 
 fn final_weight() -> impl Strategy<Value = u32> {
-	1500..2000u32
+	40_000_000..60_000_000u32
 }
 
 fn block_number() -> impl Strategy<Value = u32> {
@@ -36,13 +37,13 @@ proptest! {
 		//Arrange
 		let weight  = lbp::calculate_linear_weights(start_x,end_x,start_y,end_y,at).unwrap();
 
-		let a1 = at - start_x;
-		let a2 = end_y - start_y;
+		let a1 = U256::from(at) - U256::from(start_x);
+		let a2 = U256::from(end_y) - U256::from(start_y);
 
-		let b1 = weight - start_y;
-		let b2 = end_x - start_x;
+		let b1 = U256::from(weight) - U256::from(start_y);
+		let b2 = U256::from(end_x) - U256::from(start_x);
 
 		//Act and Assert
-		assert_eq_approx!(a1*a2, b1*b2, 500, "The invariant does not hold")
+		assert_eq_approx!(a1*a2, b1*b2, U256::from(500), "The invariant does not hold")
 	}
 }
