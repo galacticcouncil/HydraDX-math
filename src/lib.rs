@@ -68,6 +68,7 @@ pub enum MathError {
     ZeroWeight,
     ZeroReserve,
     ZeroDuration,
+    DivisionByZero,
 }
 
 #[cfg(test)]
