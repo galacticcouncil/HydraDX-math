@@ -8,4 +8,4 @@ macro_rules! assert_eq_approx {
     }};
 }
 
-pub(crate) use assert_eq_approx;    // <-- the trick
+pub(crate) use assert_eq_approx; // <-- the trick
