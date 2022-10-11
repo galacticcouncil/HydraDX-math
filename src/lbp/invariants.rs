@@ -44,6 +44,6 @@ proptest! {
         let b2 = U256::from(end_x) - U256::from(start_x);
 
         //Act and Assert
-        assert_eq_approx!(a1*a2, b1*b2, U256::from(500), "The invariant does not hold")
+        assert_eq_approx!(a1*a2, b1*b2, U256::from(300), "The invariant does not hold")
     }
 }
