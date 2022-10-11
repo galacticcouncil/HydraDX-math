@@ -41,8 +41,7 @@ pub fn exp_smoothing(smoothing: FixedU128, iterations: u32) -> FixedU128 {
     // in order to determine the iterated smoothing factor we exponentiate the complement
     let exp_complement = complement.saturating_pow(iterations as usize);
     debug_assert!(exp_complement <= FixedU128::one());
-    let exp_smoothing = FixedU128::one() - exp_complement;
-    exp_smoothing
+    FixedU128::one() - exp_complement
 }
 
 /// Calculates smoothing factor alpha for an exponential moving average based on `period`:
