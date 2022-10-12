@@ -163,7 +163,7 @@ pub fn calculate_buy_for_hub_asset_state_changes(
 ) -> Option<HubTradeStateChange<Balance>> {
     let hub_denominator = Permill::from_percent(100)
         .checked_sub(&asset_fee)?
-        .mul_floor(asset_out_state.reserve)
+        .mul_ceil(asset_out_state.reserve)
         .checked_sub(asset_out_amount)?;
 
     let (hub_reserve_hp, amount_hp, hub_denominator_hp) =
