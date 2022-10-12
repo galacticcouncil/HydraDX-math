@@ -23,7 +23,6 @@ fn block_number() -> impl Strategy<Value = u32> {
     100..200u32
 }
 
-
 //Spec: https://www.notion.so/Property-Tests-7b506add39ea48fc8f68ecd18391e30a#9bbed73541c84e45a9855360aeee1f9b
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
