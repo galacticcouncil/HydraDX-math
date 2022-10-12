@@ -23,27 +23,28 @@ fn block_number() -> impl Strategy<Value = u32> {
     100..200u32
 }
 
+
 //Spec: https://www.notion.so/Property-Tests-7b506add39ea48fc8f68ecd18391e30a#9bbed73541c84e45a9855360aeee1f9b
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]
     fn calculate_linear_weights(
-        start_x in start_blocks(),
-        end_x in end_blocks(),
-        start_y in initial_weight(),
-        end_y in final_weight(),
+        start_x_block in start_blocks(),
+        end_x_block in end_blocks(),
+        start_y_weight in initial_weight(),
+        end_y_weight in final_weight(),
         at in block_number()
     ) {
         //Arrange
-        let weight  = lbp::calculate_linear_weights(start_x,end_x,start_y,end_y,at).unwrap();
+        let weight  = lbp::calculate_linear_weights(start_x_block,end_x_block,start_y_weight,end_y_weight,at).unwrap();
 
-        let a1 = U256::from(at) - U256::from(start_x);
-        let a2 = U256::from(end_y) - U256::from(start_y);
+        let a1 = U256::from(at) - U256::from(start_x_block);
+        let a2 = U256::from(end_y_weight) - U256::from(start_y_weight);
 
-        let b1 = U256::from(weight) - U256::from(start_y);
-        let b2 = U256::from(end_x) - U256::from(start_x);
+        let b1 = U256::from(weight) - U256::from(start_y_weight);
+        let b2 = U256::from(end_x_block) - U256::from(start_x_block);
 
         //Act and Assert
-        assert_eq_approx!(a1*a2, b1*b2, U256::from(300), "The invariant does not hold")
+        assert_eq_approx!(a1*a2, b1*b2, U256::from(b2), "The invariant does not hold")
     }
 }
