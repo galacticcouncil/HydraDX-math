@@ -3,12 +3,15 @@ use crate::lbp::lbp;
 use primitive_types::U256;
 use proptest::prelude::*;
 
+const MIN_START_BLOCK: u32 = 0;
+const MAX_END_BLOCK: u32 = 300;
+
 fn start_blocks() -> impl Strategy<Value = u32> {
-    0..100u32
+    MIN_START_BLOCK..100u32
 }
 
 fn end_blocks() -> impl Strategy<Value = u32> {
-    200..300u32
+    200..MAX_END_BLOCK
 }
 
 fn initial_weight() -> impl Strategy<Value = u32> {
@@ -44,6 +47,6 @@ proptest! {
         let b2 = U256::from(end_x_block) - U256::from(start_x_block);
 
         //Act and Assert
-        assert_eq_approx!(a1*a2, b1*b2, U256::from(b2), "The invariant does not hold")
+        assert_eq_approx!(a1*a2, b1*b2, U256::from(MAX_END_BLOCK - MIN_START_BLOCK), "The invariant does not hold")
     }
 }
