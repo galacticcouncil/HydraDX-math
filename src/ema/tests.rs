@@ -129,7 +129,7 @@ fn exponential_smoothing_small_period() {
 fn exponential_accuracy() {
     let smoothing = smoothing_from_period(100_800); // weekly oracle
     let rug_smoothing = fixed_to_rational(smoothing);
-    let iterations = 100;
+    let iterations = 100_000;
     let start_balance = 1e12 as Balance;
     let incoming_balance = 1e21 as Balance;
     let mut next_balance = start_balance;
