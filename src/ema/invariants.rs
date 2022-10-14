@@ -27,7 +27,7 @@ proptest! {
         let smoothing = FixedU128::from_inner(smoothing);
         let price = Price::from_inner(price);
         // actual test
-        let next_price = price_moving_average(price, price, smoothing);
+        let next_price = price_weighted_average(price, price, smoothing);
         prop_assert_eq!(next_price, price);
     }
 }
@@ -41,7 +41,7 @@ proptest! {
         // work around lack of `Strategy` impl for `FixedU128`
         let smoothing = FixedU128::from_inner(smoothing);
         // actual test
-        let next_balance = balance_moving_average(balance, balance, smoothing);
+        let next_balance = balance_weighted_average(balance, balance, smoothing);
         prop_assert_eq!(next_balance, balance);
     }
 }
@@ -58,7 +58,7 @@ proptest! {
         let incoming_price = Price::from_inner(incoming_price);
         // actual test
         let iter_price = iterated_price_ema(1, prev_price, incoming_price, smoothing);
-        let simple_price = price_moving_average(prev_price, incoming_price, smoothing);
+        let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
         prop_assert_eq!(iter_price, simple_price);
     }
 }
@@ -73,7 +73,7 @@ proptest! {
         let smoothing = FixedU128::from_inner(smoothing);
         // actual test
         let iter_balance = iterated_balance_ema(1, prev_balance, incoming_balance, smoothing);
-        let simple_balance = balance_moving_average(prev_balance, incoming_balance, smoothing);
+        let simple_balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
         prop_assert_eq!(iter_balance, simple_balance);
     }
 }
@@ -115,7 +115,7 @@ proptest! {
         // work around lack of `Strategy` impl for `FixedU128`
         let smoothing = FixedU128::from_inner(smoothing);
         // actual test
-        let balance = balance_moving_average(prev_balance, incoming_balance, smoothing);
+        let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
         let rug_balance = high_precision::rug_balance_ma(
             prev_balance, incoming_balance,  fixed_to_rational(smoothing));
         prop_assert_eq!(Integer::from(balance), rug_balance);
@@ -131,7 +131,7 @@ proptest! {
             // work around lack of `Strategy` impl for `FixedU128`
             let smoothing = FixedU128::from_inner(1);
             // actual test
-            let balance = balance_moving_average(prev_balance, incoming_balance, smoothing);
+            let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
             let rug_balance = high_precision::rug_balance_ma(
                 prev_balance, incoming_balance,  fixed_to_rational(smoothing));
             prop_assert_eq!(Integer::from(balance), rug_balance);
@@ -141,7 +141,7 @@ proptest! {
             // work around lack of `Strategy` impl for `FixedU128`
             let smoothing = FixedU128::from_inner(FixedU128::DIV - 1);
             // actual test
-            let balance = balance_moving_average(prev_balance, incoming_balance, smoothing);
+            let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
             let rug_balance = high_precision::rug_balance_ma(
                 prev_balance, incoming_balance,  fixed_to_rational(smoothing));
             prop_assert_eq!(Integer::from(balance), rug_balance);
@@ -160,7 +160,7 @@ proptest! {
         let prev_price = Price::from_inner(prev_price);
         let incoming_price = Price::from_inner(incoming_price);
         // actual test
-        let price = price_moving_average(prev_price, incoming_price, smoothing);
+        let price = price_weighted_average(prev_price, incoming_price, smoothing);
         let rug_price = high_precision::rug_price_ma(prev_price, incoming_price, fixed_to_rational(smoothing));
         let epsilon = Rational::from((1, Price::DIV));
         let price = fixed_to_rational(price);

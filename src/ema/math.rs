@@ -10,7 +10,7 @@ use sp_arithmetic::{
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
 pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: FixedU128) -> Price {
-    price_moving_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    price_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
 /// Calculate the iterated exponential moving average for the given balances.
@@ -18,7 +18,7 @@ pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothi
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
 pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Balance {
-    balance_moving_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    balance_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
 /// Calculate the iterated exponential moving average for the given volumes.
@@ -31,7 +31,7 @@ pub fn iterated_volume_ema(
     incoming: (Balance, Balance, Balance, Balance),
     smoothing: FixedU128,
 ) -> (Balance, Balance, Balance, Balance) {
-    volume_moving_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    volume_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
 /// Calculate the smoothing factor for a period from a given combination of original smoothing
@@ -73,7 +73,7 @@ pub fn smoothing_from_period(period: u64) -> FixedU128 {
 /// Note: Rounding is slightly biased towards `prev`.
 /// (`FixedU128::mul` rounds to the nearest representable value, rounding down on equidistance.
 /// See [doc comment here](https://github.com/paritytech/substrate/blob/ce10b9f29353e89fc3e59d447041bb29622def3f/primitives/arithmetic/src/fixed_point.rs#L670-L671).)
-pub fn price_moving_average(prev: Price, incoming: Price, weight: FixedU128) -> Price {
+pub fn price_weighted_average(prev: Price, incoming: Price, weight: FixedU128) -> Price {
     debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
@@ -90,7 +90,7 @@ pub fn price_moving_average(prev: Price, incoming: Price, weight: FixedU128) -> 
 /// `weight` is how much weight to give the new value.
 ///
 /// Note: Rounding is biased towards `prev`.
-pub fn balance_moving_average(prev: Balance, incoming: Balance, weight: FixedU128) -> Balance {
+pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: FixedU128) -> Balance {
     debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
@@ -106,9 +106,9 @@ pub fn balance_moving_average(prev: Balance, incoming: Balance, weight: FixedU12
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
-/// Note: Just delegates to `balance_moving_average` under the hood.
+/// Note: Just delegates to `balance_weighted_average` under the hood.
 /// Note: Rounding is biased towards `prev`.
-pub fn volume_moving_average(
+pub fn volume_weighted_average(
     prev: (Balance, Balance, Balance, Balance),
     incoming: (Balance, Balance, Balance, Balance),
     weight: FixedU128,
@@ -117,10 +117,10 @@ pub fn volume_moving_average(
     let (prev_a_in, prev_b_out, prev_a_out, prev_b_in) = prev;
     let (a_in, b_out, a_out, b_in) = incoming;
     (
-        balance_moving_average(prev_a_in, a_in, weight),
-        balance_moving_average(prev_b_out, b_out, weight),
-        balance_moving_average(prev_a_out, a_out, weight),
-        balance_moving_average(prev_b_in, b_in, weight),
+        balance_weighted_average(prev_a_in, a_in, weight),
+        balance_weighted_average(prev_b_out, b_out, weight),
+        balance_weighted_average(prev_a_out, a_out, weight),
+        balance_weighted_average(prev_b_in, b_in, weight),
     )
 }
 
