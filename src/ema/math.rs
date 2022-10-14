@@ -128,6 +128,7 @@ pub fn volume_weighted_average(
 pub(crate) mod high_precision {
     use super::*;
 
+    use num_traits::Pow;
     use rug::ops::DivRounding;
     use rug::{Integer, Rational};
     use std::ops::Mul;
@@ -135,6 +136,15 @@ pub(crate) mod high_precision {
     /// Convert a fixed point number to an arbitrary precision rational number.
     pub fn fixed_to_rational(f: FixedU128) -> Rational {
         Rational::from((f.into_inner(), FixedU128::DIV))
+    }
+
+    pub fn rug_exp_smoothing(smoothing: FixedU128, iterations: u32) -> Rational {
+        debug_assert!(smoothing <= FixedU128::one());
+        let complement = Rational::one() - fixed_to_rational(smoothing);
+        // in order to determine the iterated smoothing factor we exponentiate the complement
+        let exp_complement = complement.pow(iterations);
+        debug_assert!(exp_complement <= Rational::one());
+        Rational::one() - exp_complement
     }
 
     /// Calculate the next moving average for the given balances by using arbitrary precision math.
