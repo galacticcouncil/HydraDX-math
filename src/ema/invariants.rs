@@ -9,12 +9,43 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-// Strategy for generating a random fixed point number between near 0 and 1.
+/// Strategy for generating a random fixed point number between near 0 and 1.
+///
+/// Note: Working around the lack of strategies for `FixedU128` by generating an integer.
 fn inner_between_one_and_div() -> impl Strategy<Value = u128> {
     1..FixedU128::DIV
 }
 
 // Tests
+proptest! {
+    #[test]
+    fn price_ema_stays_stable_if_the_value_does_not_change(
+        smoothing in inner_between_one_and_div(),
+        price in any::<u128>()
+    ) {
+        // work around lack of `Strategy` impl for `FixedU128`
+        let smoothing = FixedU128::from_inner(smoothing);
+        let price = Price::from_inner(price);
+        // actual test
+        let next_price = price_moving_average(price, price, smoothing);
+        prop_assert_eq!(next_price, price);
+    }
+}
+
+proptest! {
+    #[test]
+    fn balance_ema_stays_stable_if_the_value_does_not_change(
+        smoothing in inner_between_one_and_div(),
+        balance in any::<Balance>()
+    ) {
+        // work around lack of `Strategy` impl for `FixedU128`
+        let smoothing = FixedU128::from_inner(smoothing);
+        // actual test
+        let next_balance = balance_moving_average(balance, balance, smoothing);
+        prop_assert_eq!(next_balance, balance);
+    }
+}
+
 proptest! {
     #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(

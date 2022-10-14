@@ -6,21 +6,6 @@ use num_traits::{Bounded, One, Zero};
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 
 #[test]
-fn ema_stays_stable_if_the_value_does_not_change() {
-    let alpha = smoothing_from_period(7);
-    debug_assert!(alpha <= Price::one());
-
-    let start_price = Price::saturating_from_integer(4u32);
-    let incoming_price = start_price;
-    let next_price = price_moving_average(start_price, incoming_price, alpha);
-    assert_eq!(next_price, start_price);
-    let start_balance = 4u32.into();
-    let incoming_balance = start_balance;
-    let next_balance = balance_moving_average(start_balance, incoming_balance, alpha);
-    assert_eq!(next_balance, start_balance);
-}
-
-#[test]
 fn ema_works() {
     let alpha = smoothing_from_period(7);
     debug_assert!(alpha <= Price::one());
