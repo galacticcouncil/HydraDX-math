@@ -66,7 +66,7 @@ pub fn smoothing_from_period(period: u64) -> FixedU128 {
     FixedU128::saturating_from_rational(2u64, period.max(1).saturating_add(1))
 }
 
-/// Calculate the next moving average for the given prices.
+/// Calculate a weighted average for the given prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
@@ -85,7 +85,7 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: FixedU128) -
     }
 }
 
-/// Calculate the next moving average for the given balances.
+/// Calculate a weighted average for the given balances.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
@@ -102,7 +102,7 @@ pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: FixedU
     }
 }
 
-/// Calculate the next moving average for the given volumes.
+/// Calculate a weighted average for the given volumes.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
@@ -125,7 +125,7 @@ pub fn volume_weighted_average(
 }
 
 #[cfg(test)]
-pub mod high_precision {
+pub(crate) mod high_precision {
     use super::*;
 
     use rug::ops::DivRounding;
