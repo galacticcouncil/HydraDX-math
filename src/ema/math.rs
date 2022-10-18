@@ -150,7 +150,7 @@ pub(crate) mod high_precision {
     /// Calculate the next moving average for the given balances by using arbitrary precision math.
     ///
     /// Note: Rounding is biased towards `prev`.
-    pub fn rug_balance_ma(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
+    pub fn rug_balance_weighted_average(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
         if incoming >= prev {
             let rhs = {
                 let (num, den) = weight.mul(incoming - prev).into_numer_denom();
@@ -167,7 +167,7 @@ pub(crate) mod high_precision {
     }
 
     /// Calculate the next moving average for the given prices by using arbitrary precision math.
-    pub fn rug_price_ma(prev: Price, incoming: Price, weight: Rational) -> Rational {
+    pub fn rug_price_weighted_average(prev: Price, incoming: Price, weight: Rational) -> Rational {
         let prev = fixed_to_rational(prev);
         let incoming = fixed_to_rational(incoming);
         if incoming >= prev {

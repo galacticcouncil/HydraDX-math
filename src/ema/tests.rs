@@ -1,47 +1,112 @@
 use super::*;
 
 use crate::types::{Balance, Price};
+use high_precision::fixed_to_rational;
 
-use num_traits::{Bounded, One, Pow, Zero};
+use num_traits::{Bounded, One, Zero};
 use rug::Rational;
 use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
 
-macro_rules! assert_eq_approx {
-	( $x:expr, $y:expr, $z:expr, $r:expr) => {{
-		let diff = if $x >= $y { $x - $y } else { $y - $x };
-		if diff > $z {
-			panic!("\n{} not equal\nleft: {:?}\nright: {:?}\n", $r, $x.to_f64(), $y.to_f64());
-		}
-	}};
+macro_rules! assert_rational_approx_eq {
+    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x - $y } else { $y - $x };
+        assert!(
+            diff <= $z,
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x.to_f64(),
+            $y.to_f64(),
+            diff.to_f64(),
+            $z.to_f64()
+        );
+    }};
 }
 
+macro_rules! assert_approx_eq {
+    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x - $y } else { $y - $x };
+        assert!(
+            diff <= $z,
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x,
+            $y,
+            diff,
+            $z
+        );
+    }};
+}
+
+pub const TEN_MINUTES_PERIOD: u64 = 100;
+pub const DAY_PERIOD: u64 = 14_400;
+pub const WEEK_PERIOD: u64 = 100_800;
+
 #[test]
-fn weighted_averages_work() {
-    let alpha = smoothing_from_period(7);
-    debug_assert!(alpha <= Price::one());
+fn weighted_averages_work_on_small_values_with_correct_ratios() {
+    let smoothing = smoothing_from_period(7);
 
     // price
     let start_price = 4.into();
     let incoming_price = 8.into();
-    let next_price = price_weighted_average(start_price, incoming_price, alpha);
+    let next_price = price_weighted_average(start_price, incoming_price, smoothing);
     assert_eq!(next_price, 5.into());
 
     let start_price = Price::saturating_from_rational(4, 100);
     let incoming_price = Price::saturating_from_rational(8, 100);
-    let next_price = price_weighted_average(start_price, incoming_price, alpha);
+    let next_price = price_weighted_average(start_price, incoming_price, smoothing);
     assert_eq!(next_price, Price::saturating_from_rational(5, 100));
 
     // balance
     let start_balance = 4u128;
     let incoming_balance = 8u128;
-    let next_balance = balance_weighted_average(start_balance, incoming_balance, alpha);
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
     assert_eq!(next_balance, 5u128);
 
     // volume
     let start_volume = (4u128, 1u128, 8u128, 0u128);
     let incoming_volume = (8u128, 1u128, 4u128, 0u128);
-    let next_volume = volume_weighted_average(start_volume, incoming_volume, alpha);
+    let next_volume = volume_weighted_average(start_volume, incoming_volume, smoothing);
     assert_eq!(next_volume, (5u128, 1u128, 7u128, 0u128));
+}
+
+#[test]
+fn balance_weighted_averages_work_on_typical_values_with_minutes_smoothing() {
+    let smoothing = smoothing_from_period(TEN_MINUTES_PERIOD);
+    let start_balance = 4_000_000_000_000u128;
+    let incoming_balance = 8_000_000_000_000u128;
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
+    let expected_balance: Rational =
+        start_balance + Rational::from((incoming_balance - start_balance, 1)) * 2 / (TEN_MINUTES_PERIOD + 1);
+    assert_eq!(next_balance, expected_balance.round());
+}
+
+#[test]
+fn balance_weighted_averages_work_on_typical_values_with_day_smoothing() {
+    let smoothing = smoothing_from_period(DAY_PERIOD);
+    let start_balance = 4_000_000_000_000u128;
+    let incoming_balance = 8_000_000_000_000u128;
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
+    let expected: Rational =
+        start_balance + Rational::from((incoming_balance - start_balance, 1)) * 2 / (DAY_PERIOD + 1);
+    let tolerance = 1;
+    let expected_balance = expected.round();
+    assert_approx_eq!(
+        next_balance,
+        expected_balance.clone(),
+        tolerance,
+        "averaged balance values should be within 1 of the expected value"
+    );
+}
+
+#[test]
+fn balance_weighted_averages_work_on_typical_values_with_week_smoothing() {
+    let smoothing = smoothing_from_period(WEEK_PERIOD);
+    let start_balance = 4_000_000_000_000u128;
+    let incoming_balance = 8_000_000_000_000u128;
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
+    let expected_balance: Rational =
+        start_balance + Rational::from((incoming_balance - start_balance, 1)) * 2 / (WEEK_PERIOD + 1);
+    assert_eq!(next_balance, expected_balance.round());
 }
 
 #[test]
@@ -92,37 +157,20 @@ fn smoothing_from_period_works() {
     assert_eq!(smoothing, FixedU128::saturating_from_rational(2, 1_000));
 }
 
-use high_precision::fixed_to_rational;
-#[test]
-fn exponential_smoothing() {
-    let smoothing = smoothing_from_period(1_000_800); // weekly oracle
-    let iterations = 100_000;
-    let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing(smoothing, iterations);
-
-    let difference = fixed_to_rational(exp.clone()) - rug_exp.clone();
-    println!("difference: {:?}", difference.to_f64());
-    println!("epsilon: {:?}", FixedU128::from_inner(1).to_float());
-    
-    let tolerance = fixed_to_rational(FixedU128::from_float(2e14));
-    assert_eq_approx!(fixed_to_rational(exp), rug_exp.clone(), tolerance, "high precision should be equal to low precision within low precision tolerance");
-    assert!(false);
-}
-
 #[test]
 fn exponential_smoothing_small_period() {
-    let smoothing = FixedU128::from_float(0.974);
+    let smoothing = FixedU128::from_float(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
     let rug_exp = high_precision::rug_exp_smoothing(smoothing, iterations);
 
-    let difference = fixed_to_rational(exp.clone()) - rug_exp.clone();
-    println!("difference: {:?}", difference.to_f64());
-    println!("epsilon: {:?}", FixedU128::from_inner(1).to_float());
-    
-    let tolerance = fixed_to_rational(FixedU128::from_float(2e14));
-    assert_eq_approx!(fixed_to_rational(exp), rug_exp.clone(), tolerance, "high precision should be equal to low precision within low precision tolerance");
-    assert!(false);
+    let tolerance = fixed_to_rational(FixedU128::from_inner(1));
+    assert_rational_approx_eq!(
+        fixed_to_rational(exp),
+        rug_exp.clone(),
+        tolerance,
+        "high precision should be equal to low precision within low precision tolerance"
+    );
 }
 
 #[test]
@@ -136,7 +184,10 @@ fn exponential_accuracy() {
     let mut next_rug_balance = start_balance;
     for i in 0..iterations {
         next_balance = balance_weighted_average(next_balance, incoming_balance, smoothing);
-        next_rug_balance = high_precision::rug_balance_ma(next_rug_balance, incoming_balance, rug_smoothing.clone()).to_u128().unwrap();
+        next_rug_balance =
+            high_precision::rug_balance_weighted_average(next_rug_balance, incoming_balance, rug_smoothing.clone())
+                .to_u128()
+                .unwrap();
         if i % 100_000 == 0 {
             println!("iwa {}: {}", i, next_balance);
             println!("rug {}: {}", i, next_rug_balance);
@@ -145,7 +196,10 @@ fn exponential_accuracy() {
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
     let rug_exp_smoothing = high_precision::rug_exp_smoothing(smoothing, iterations);
-    let exponential_rug_balance = high_precision::rug_balance_ma(start_balance, incoming_balance, rug_exp_smoothing).to_u128().unwrap();
+    let exponential_rug_balance =
+        high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
+            .to_u128()
+            .unwrap();
     println!("===== final:");
     println!("initial balance: {}", start_balance);
     println!(" target balance: {}", incoming_balance);
@@ -154,5 +208,18 @@ fn exponential_accuracy() {
     println!("   rug iterated: {}", next_rug_balance);
     println!("rug exponential: {}", exponential_rug_balance);
 
-    assert_eq!(next_balance, exponential_balance);
+    let tolerance = 22_000;
+    assert_approx_eq!(
+        next_balance,
+        exponential_rug_balance,
+        tolerance,
+        "iterated balance should be within tolerance of the high precision balance"
+    );
+    let tolerance = 12_000_000;
+    assert_approx_eq!(
+        exponential_balance,
+        exponential_rug_balance,
+        tolerance,
+        "exponentially determined balance should be within tolerance of the high precision balance"
+    );
 }
