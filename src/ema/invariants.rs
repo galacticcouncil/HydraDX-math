@@ -26,6 +26,21 @@ macro_rules! prop_assert_rational_approx_eq {
     }};
 }
 
+macro_rules! prop_assert_approx_eq {
+    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x - $y } else { $y - $x };
+        prop_assert!(
+            diff <= $z,
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x,
+            $y,
+            diff,
+            $z
+        );
+    }};
+}
+
 /// Strategy for generating a random fixed point number between near 0 and 1.
 ///
 /// Note: Working around the lack of strategies for `FixedU128` by generating an integer.
@@ -33,15 +48,27 @@ fn inner_between_one_and_div() -> impl Strategy<Value = u128> {
     1..FixedU128::DIV
 }
 
+fn fixed_above_zero_and_less_or_equal_one() -> impl Strategy<Value = FixedU128> {
+    (1..FixedU128::DIV).prop_map(|x| FixedU128::from_inner(x))
+}
+
+fn typical_smoothing_factor() -> impl Strategy<Value = (FixedU128, u32)> {
+    (0usize..2).prop_map(|i| [
+        (smoothing_from_period(99), 99),
+        (smoothing_from_period(14_399), 14_399),
+        (smoothing_from_period(100_799), 100_799),
+        ][i])
+}
+
 // Tests
 proptest! {
     #[test]
     fn price_ema_stays_stable_if_the_value_does_not_change(
-        smoothing in inner_between_one_and_div(),
+        smoothing in fixed_above_zero_and_less_or_equal_one(),
         price in any::<u128>()
     ) {
         // work around lack of `Strategy` impl for `FixedU128`
-        let smoothing = FixedU128::from_inner(smoothing);
+        // let smoothing = FixedU128::from_inner(smoothing);
         let price = Price::from_inner(price);
         // actual test
         let next_price = price_weighted_average(price, price, smoothing);
@@ -114,7 +141,54 @@ proptest! {
 
 proptest! {
     #[test]
+    fn balance_weighted_averages_work_on_typical_values_with_typical_smoothing(
+        (smoothing, period) in typical_smoothing_factor(),
+        (start_balance, incoming_balance) in
+                (1e12 as Balance..(1e24 as Balance))
+                    .prop_perturb(|n, mut rng| (n, rng.gen_range(n..(1e26 as Balance))))
+    ) {
+        let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
+        let expected: Rational =
+            start_balance + Rational::from(incoming_balance - start_balance) * 2 / (period + 1);
+        let tolerance = 90_000_000;
+        let expected_balance = expected.round();
+        prop_assert_approx_eq!(
+            next_balance,
+            expected_balance.clone(),
+            tolerance,
+            "averaged balance values should be within tolerance of the expected value"
+        );
+    }
+}
+
+proptest! {
+    #[test]
+    fn balance_weighted_averages_work_on_typical_values_via_manual_weighting(
+        period in 1u32..5_000_000,
+        (start_balance, incoming_balance) in
+                (1e10 as Balance..(1e24 as Balance))
+                    .prop_perturb(|n, mut rng| (n, rng.gen_range(n..(1e28 as Balance))))
+    ) {
+        use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+        use sp_arithmetic::per_things::Rounding;
+        let next_balance = start_balance + multiply_by_rational_with_rounding(incoming_balance - start_balance, 2, (period + 1).into(), Rounding::NearestPrefDown).expect("no overflow");
+        let expected: Rational =
+            start_balance + Rational::from(incoming_balance - start_balance) * 2 / (period + 1);
+        let tolerance = 1;
+        let expected_balance = expected.round();
+        prop_assert_approx_eq!(
+            next_balance,
+            expected_balance.clone(),
+            tolerance,
+            "averaged balance values should be within tolerance of the expected value"
+        );
+    }
+}
+
+proptest! {
+    #[test]
     fn smoothing_is_greater_zero_and_less_equal_one(
+        // We run into precision issues eventually, but any sane period value will be <10M
         period in 0_u64..2_000_000_000_000_000_000,
     ) {
         let smoothing = smoothing_from_period(period);
