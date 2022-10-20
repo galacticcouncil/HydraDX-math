@@ -14,8 +14,6 @@ pub struct AssetReserveState<Balance> {
     pub shares: Balance,
     /// Quantity of LP shares for this asset owned by protocol
     pub protocol_shares: Balance,
-    /// TVL of asset
-    pub tvl: Balance,
 }
 
 impl<Balance> AssetReserveState<Balance>
@@ -34,7 +32,6 @@ where
             hub_reserve: (delta.delta_hub_reserve + self.hub_reserve)?,
             shares: (delta.delta_shares + self.shares)?,
             protocol_shares: (delta.delta_protocol_shares + self.protocol_shares)?,
-            tvl: (delta.delta_tvl + self.tvl)?,
         })
     }
 }
@@ -151,7 +148,6 @@ where
     pub delta_hub_reserve: BalanceUpdate<Balance>,
     pub delta_shares: BalanceUpdate<Balance>,
     pub delta_protocol_shares: BalanceUpdate<Balance>,
-    pub delta_tvl: BalanceUpdate<Balance>,
 }
 
 /// Delta changes after a trade is executed
@@ -197,6 +193,12 @@ pub struct Position<Balance> {
     pub shares: Balance,
     /// Price at which liquidity was provided
     pub price: FixedU128,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct I129<Balance> {
+    pub value: Balance,
+    pub negative: bool,
 }
 
 #[cfg(test)]
