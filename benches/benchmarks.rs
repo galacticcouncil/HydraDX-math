@@ -20,10 +20,10 @@ const DATASET_SIZE: usize = 10;
 fn gen_non_zero<T, R>(rng: &mut R, min: &T, max: &T) -> T
 where
     R: Rng + ?Sized,
-    T: Zero + One + PartialEq + SampleUniform,
+    T: Zero + One + PartialEq + SampleUniform + PartialOrd + Copy,
     Standard: Distribution<T>,
 {
-    let value: T = rng.gen_range(min, max);
+    let value: T = rng.gen_range(*min..*max);
     if value != T::zero() {
         value
     } else {
@@ -33,12 +33,12 @@ where
 
 fn gen_tuple_dataset<T>(cap: usize, min: &T, max: &T) -> Vec<(T, T)>
 where
-    T: Zero + One + PartialEq + SampleUniform,
+    T: Zero + One + PartialEq + SampleUniform + PartialOrd + Copy,
     Standard: Distribution<T>,
 {
     let mut rng: Xoshiro256Plus = Xoshiro256Plus::seed_from_u64(SEED);
     (0..cap)
-        .map(|_| (rng.gen_range(min, max), gen_non_zero(&mut rng, min, max)))
+        .map(|_| (rng.gen_range(*min..*max), gen_non_zero(&mut rng, min, max)))
         .collect()
 }
 

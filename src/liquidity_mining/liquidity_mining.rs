@@ -75,7 +75,7 @@ pub fn calculate_accumulated_rps(
     total_shares: Balance,
     reward: Balance,
 ) -> Result<FixedU128, MathError> {
-    let rps = FixedU128::saturating_from_rational(reward, total_shares);
+    let rps = FixedU128::checked_from_rational(reward, total_shares).ok_or(MathError::DivisionByZero)?;
 
     rps.checked_add(&accumulated_rps_now).ok_or(MathError::Overflow)
 }

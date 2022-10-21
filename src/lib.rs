@@ -60,13 +60,14 @@ macro_rules! to_lbp_weight {
     };
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum MathError {
     Overflow,
     InsufficientOutReserve,
     ZeroWeight,
     ZeroReserve,
     ZeroDuration,
+    DivisionByZero,
 }
 
 #[cfg(test)]
