@@ -223,3 +223,34 @@ fn exponential_accuracy() {
         "exponentially determined balance should be within tolerance of the high precision balance"
     );
 }
+
+#[test]
+fn rug_balance_ema_works() {
+    let history = vec![1e12 as Balance, 2e12 as Balance, 3e12 as Balance, 4e12 as Balance];
+    let smoothing = FixedU128::from((1, 4));
+    let expected = {
+        let res =
+            ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
+        high_precision::into_rounded_integer(res)
+    };
+    let ema = high_precision::rug_balance_ema(history, smoothing);
+    assert_eq!(expected, ema);
+}
+
+#[test]
+fn rug_price_ema_works() {
+    let history = vec![
+        FixedU128::from((1, 8)),
+        FixedU128::one(),
+        FixedU128::from(8),
+        FixedU128::from(4),
+    ];
+    let smoothing = FixedU128::from((1, 4));
+    let expected = ((fixed_to_rational(history[0]) * 3 / 4 + fixed_to_rational(history[1]) / 4) * 3 / 4
+        + fixed_to_rational(history[2]) / 4)
+        * 3
+        / 4
+        + fixed_to_rational(history[3]) / 4;
+    let ema = high_precision::rug_price_ema(history, smoothing);
+    assert_eq!(expected, ema);
+}

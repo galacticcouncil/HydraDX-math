@@ -138,6 +138,12 @@ pub(crate) mod high_precision {
         Rational::from((f.into_inner(), FixedU128::DIV))
     }
 
+    /// Convert a `Rational` number into its rounded down `Integer` equivalent.
+    pub fn into_rounded_integer(r: Rational) -> Integer {
+        let (num, den) = r.into_numer_denom();
+        num.div_floor(den)
+    }
+
     pub fn rug_exp_smoothing(smoothing: FixedU128, iterations: u32) -> Rational {
         debug_assert!(smoothing <= FixedU128::one());
         let complement = Rational::one() - fixed_to_rational(smoothing);
@@ -147,26 +153,18 @@ pub(crate) mod high_precision {
         Rational::one() - exp_complement
     }
 
-    /// Calculate the next moving average for the given balances by using arbitrary precision math.
+    /// Calculate the weighted average for the given balances by using arbitrary precision math.
     ///
     /// Note: Rounding is biased towards `prev`.
     pub fn rug_balance_weighted_average(prev: Balance, incoming: Balance, weight: Rational) -> Integer {
         if incoming >= prev {
-            let rhs = {
-                let (num, den) = weight.mul(incoming - prev).into_numer_denom();
-                num.div_floor(den)
-            };
-            prev + rhs
+            prev + into_rounded_integer(weight.mul(incoming - prev))
         } else {
-            let rhs = {
-                let (num, den) = weight.mul(prev - incoming).into_numer_denom();
-                num.div_floor(den)
-            };
-            prev - rhs
+            prev - into_rounded_integer(weight.mul(prev - incoming))
         }
     }
 
-    /// Calculate the next moving average for the given prices by using arbitrary precision math.
+    /// Calculate the weighted average for the given prices by using arbitrary precision math.
     pub fn rug_price_weighted_average(prev: Price, incoming: Price, weight: Rational) -> Rational {
         let prev = fixed_to_rational(prev);
         let incoming = fixed_to_rational(incoming);
@@ -175,5 +173,38 @@ pub(crate) mod high_precision {
         } else {
             prev.clone() - weight.mul(prev - incoming)
         }
+    }
+
+    /// Calculate the weighted average for the given values by using arbitrary precision math.
+    /// Returns a `Rational` of arbitrary precision.
+    pub fn rug_weighted_average(prev: Rational, incoming: Rational, weight: Rational) -> Rational {
+        prev.clone() + weight.mul(incoming - prev)
+    }
+
+    /// Determine the exponential moving average of a history of balance values.
+    /// Starts the EMA with the first value.
+    /// Keeps track of arbitrary precision values during calculation but returns an `Integer` (rounded down).
+    pub fn rug_balance_ema(history: Vec<Balance>, smoothing: FixedU128) -> Integer {
+        assert!(!history.is_empty());
+        let smoothing = fixed_to_rational(smoothing);
+        let mut current = Rational::from(history[0]);
+        for balance in history.into_iter().skip(1) {
+            current = rug_weighted_average(current.clone(), balance.into(), smoothing.clone());
+        }
+        // return rounded down integer
+        into_rounded_integer(current)
+    }
+
+    /// Determine the exponential moving average of a history of price values.
+    /// Starts the EMA with the first value.
+    /// Returns an arbitrary precision `Rational` number.
+    pub fn rug_price_ema(history: Vec<Price>, smoothing: FixedU128) -> Rational {
+        assert!(!history.is_empty());
+        let smoothing = fixed_to_rational(smoothing);
+        let mut current = fixed_to_rational(history[0]);
+        for price in history.into_iter().skip(1) {
+            current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing.clone());
+        }
+        current
     }
 }
