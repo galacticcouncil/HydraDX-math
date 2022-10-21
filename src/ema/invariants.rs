@@ -352,3 +352,35 @@ proptest! {
         );
     }
 }
+
+fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
+    prop::collection::vec((any_fixed(), 1_u32..10), 1..100)
+}
+
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(100))]
+    #[test]
+    fn ema_price_history_precision(
+        history in ema_price_history(),
+        period in 1u64..200_000,
+    ) {
+        let smoothing = smoothing_from_period(period);
+        let rug_ema = high_precision::rug_price_ema(to_regular_history(history.clone()), smoothing);
+
+        let mut ema = history[0].0;
+        // for (price, iterations) in history.into_iter().skip(1) {
+        //     ema = iterated_price_ema(iterations, ema, price, smoothing);
+        // }
+        for price in to_regular_history(history).into_iter().skip(1) {
+            ema = price_weighted_average(ema, price, smoothing);
+        }
+
+        let tolerance = Rational::from((1000, FixedU128::DIV));
+        prop_assert_rational_approx_eq!(
+            rug_ema.clone(),
+            fixed_to_rational(ema),
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
