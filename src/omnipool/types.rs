@@ -37,7 +37,7 @@ where
 }
 
 /// Indicates whether delta amount should be added or subtracted.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BalanceUpdate<Balance> {
     Increase(Balance),
     Decrease(Balance),
