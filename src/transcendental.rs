@@ -183,6 +183,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
     use crate::types::FixedBalance;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
