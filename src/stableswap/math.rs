@@ -285,7 +285,7 @@ pub fn calculate_d<const N: u8>(xp: &[Balance], amplification: Balance) -> Optio
             .checked_add(two_u256)?;
 
         if has_converged(d_prev, d, precision_hp) {
-            // If runtime-benchmarks - dont return and force max iterations
+            // If runtime-benchmarks - don't return and force max iterations
             #[cfg(not(feature = "runtime-benchmarks"))]
             return Balance::try_from(d).ok();
         }
@@ -327,7 +327,7 @@ pub(crate) fn calculate_y<const N: u8>(xp: &[Balance], d: Balance, amplification
             .checked_add(two_hp)?;
 
         if has_converged(y_prev, y, precision_hp) {
-            // If runtime-benchmarks - dont return and force max iterations
+            // If runtime-benchmarks - don't return and force max iterations
             #[cfg(not(feature = "runtime-benchmarks"))]
             return Balance::try_from(y).ok();
         }

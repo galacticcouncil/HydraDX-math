@@ -236,12 +236,7 @@ fn calculate_withdraw_one_asset_should_work_when_fee_hundred_percent() {
         amp,
         fee,
     );
-
-    //TOOD: should fail ?
     assert!(result.is_none());
-    //assert!(result.is_some());
-    //let result = result.unwrap();
-    //assert_eq!(result, (0u128,384u128 + 1535u128));
 }
 
 #[test]
