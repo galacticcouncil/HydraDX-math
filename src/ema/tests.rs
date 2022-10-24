@@ -233,7 +233,7 @@ fn rug_balance_ema_works() {
             ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
         high_precision::into_rounded_integer(res)
     };
-    let ema = high_precision::rug_balance_ema(history, smoothing);
+    let ema = high_precision::rug_balance_ema(history, fixed_to_rational(smoothing));
     assert_eq!(expected, ema);
 }
 
@@ -251,6 +251,6 @@ fn rug_price_ema_works() {
         * 3
         / 4
         + fixed_to_rational(history[3]) / 4;
-    let ema = high_precision::rug_price_ema(history, smoothing);
+    let ema = high_precision::rug_price_ema(history, fixed_to_rational(smoothing));
     assert_eq!(expected, ema);
 }

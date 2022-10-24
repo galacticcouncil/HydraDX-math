@@ -138,6 +138,11 @@ pub(crate) mod high_precision {
         Rational::from((f.into_inner(), FixedU128::DIV))
     }
 
+    #[test]
+    fn fixed_to_rational_works() {
+        assert_eq!(fixed_to_rational(FixedU128::from_float(0.25)), Rational::from((1, 4)));
+    }
+
     /// Convert a `Rational` number into its rounded down `Integer` equivalent.
     pub fn into_rounded_integer(r: Rational) -> Integer {
         let (num, den) = r.into_numer_denom();
@@ -184,9 +189,8 @@ pub(crate) mod high_precision {
     /// Determine the exponential moving average of a history of balance values.
     /// Starts the EMA with the first value.
     /// Keeps track of arbitrary precision values during calculation but returns an `Integer` (rounded down).
-    pub fn rug_balance_ema(history: Vec<Balance>, smoothing: FixedU128) -> Integer {
+    pub fn rug_balance_ema(history: Vec<Balance>, smoothing: Rational) -> Integer {
         assert!(!history.is_empty());
-        let smoothing = fixed_to_rational(smoothing);
         let mut current = Rational::from(history[0]);
         for balance in history.into_iter().skip(1) {
             current = rug_weighted_average(current.clone(), balance.into(), smoothing.clone());
@@ -198,9 +202,8 @@ pub(crate) mod high_precision {
     /// Determine the exponential moving average of a history of price values.
     /// Starts the EMA with the first value.
     /// Returns an arbitrary precision `Rational` number.
-    pub fn rug_price_ema(history: Vec<Price>, smoothing: FixedU128) -> Rational {
+    pub fn rug_price_ema(history: Vec<Price>, smoothing: Rational) -> Rational {
         assert!(!history.is_empty());
-        let smoothing = fixed_to_rational(smoothing);
         let mut current = fixed_to_rational(history[0]);
         for price in history.into_iter().skip(1) {
             current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing.clone());

@@ -313,8 +313,241 @@ proptest! {
     }
 }
 
+// --- use fixed crate types
+// use fixed::types::U1F127;
+pub(crate) mod fraction {
+    use crate::types::{Balance, Price};
+    pub use fixed::types::U1F127 as Fraction;
+    use num_traits::One;
+    use num_traits::Pow;
+    use rug::Rational;
+    use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+    use sp_arithmetic::per_things::Rounding;
+    use sp_arithmetic::FixedPointNumber;
+    use sp_arithmetic::FixedU128;
+
+    const SMALLEST_NON_ZERO: Fraction = Fraction::from_bits(1);
+    pub const DIV: u128 = 1u128 << 127;
+
+    pub fn fraction_to_rational(f: Fraction) -> Rational {
+        Rational::from((f.to_bits(), DIV))
+    }
+
+    pub fn fraction_to_fixed(f: Fraction) -> FixedU128 {
+        FixedU128::saturating_from_rational(f.to_bits(), DIV)
+    }
+
+    pub fn multiply_by_balance(f: Fraction, b: Balance) -> Balance {
+        debug_assert!(f <= Fraction::ONE);
+        multiply_by_rational_with_rounding(b, f.to_bits(), DIV, Rounding::NearestPrefDown)
+            .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed")
+    }
+
+    #[test]
+    fn fraction_representation() {
+        assert_eq!(Fraction::from_num(0.25), Fraction::ONE / 4);
+
+        let expected_smallest_non_zero = Fraction::ONE / (u128::MAX / 2);
+        assert_eq!(SMALLEST_NON_ZERO, expected_smallest_non_zero);
+
+        assert_eq!(Fraction::from_num(0.5), Fraction::from_bits(1 << 126));
+
+        assert_eq!(Fraction::from_num(1), Fraction::from_bits(1 << 127));
+
+        assert_eq!(fraction_to_rational(Fraction::from_num(0.5)), Rational::from((1, 2)));
+    }
+
+    #[test]
+    fn multiply_by_balance_works() {
+        let frac = Fraction::from_num(0.25);
+        let balance = 1e16 as Balance;
+        let expected = balance / 4;
+        assert_eq!(multiply_by_balance(frac, balance), expected);
+    }
+
+    pub fn smoothing_from_period(period: u64) -> Fraction {
+        (Fraction::ONE / (u128::from(period.max(1)) + 1)) * 2
+    }
+
+    pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
+        debug_assert!(smoothing <= Fraction::ONE);
+        let complement = Fraction::ONE - smoothing;
+        // in order to determine the iterated smoothing factor we exponentiate the complement
+        let exp_complement = crate::transcendental::powi(complement, iterations).unwrap_or(SMALLEST_NON_ZERO);
+        Fraction::ONE - exp_complement
+    }
+
+    pub fn rug_exp_smoothing(smoothing: Fraction, iterations: u32) -> Rational {
+        debug_assert!(smoothing <= Fraction::ONE);
+        let complement = Rational::one() - fraction_to_rational(smoothing);
+        // in order to determine the iterated smoothing factor we exponentiate the complement
+        let exp_complement = complement.pow(iterations);
+        debug_assert!(exp_complement <= Rational::one());
+        Rational::one() - exp_complement
+    }
+
+    pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: Fraction) -> Balance {
+        debug_assert!(weight <= Fraction::ONE, "weight must be <= 1");
+        if incoming >= prev {
+            // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
+            // Safe to use bare `-` because of the conditional.
+            prev + multiply_by_balance(weight, incoming - prev)
+        } else {
+            // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
+            prev - multiply_by_balance(weight, prev - incoming)
+        }
+    }
+
+    pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: Fraction) -> Balance {
+        balance_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    }
+
+    pub fn fraction_times_fixed(fraction: Fraction, fixed: FixedU128) -> FixedU128 {
+        debug_assert!(fraction <= Fraction::ONE);
+        FixedU128::from_inner(
+            multiply_by_rational_with_rounding(fixed.into_inner(), fraction.to_bits(), DIV, Rounding::NearestPrefDown)
+                .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed"),
+        )
+    }
+
+    pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+        debug_assert!(weight <= Fraction::ONE, "weight must be <= 1");
+        if incoming >= prev {
+            // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
+            // Safe to use bare `-` because of the conditional.
+            prev + fraction_times_fixed(weight, incoming - prev)
+        } else {
+            // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
+            prev - fraction_times_fixed(weight, prev - incoming)
+        }
+    }
+
+    pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: Fraction) -> Price {
+        price_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    }
+}
+
+fn period_fraction() -> impl Strategy<Value = fraction::Fraction> {
+    (1u64..200_000).prop_map(|period| fraction::smoothing_from_period(period))
+}
+
+proptest! {
+    #[test]
+    fn fraction_times_fixed_precision(
+        smoothing in period_fraction(),
+        fixed in any_fixed(),
+    ) {
+        let rational = fixed_to_rational(fixed) / fraction::fraction_to_rational(smoothing);
+        let conversion = fixed * fraction::fraction_to_fixed(smoothing);
+        let conversion_distance = (rational.clone() - fixed_to_rational(conversion)).abs();
+        let multiply = fraction::fraction_times_fixed(smoothing, fixed);
+        let multiply_distance = (rational.clone() - fixed_to_rational(multiply)).abs();
+        prop_assert!(multiply_distance < conversion_distance);
+    }
+}
+
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn exponential_smoothing_precision_arbitrary_smoothing_using_fraction(
+        period in 1u64..200_000,
+        iterations in 1_u32..5_256_000,
+    ) {
+        let smoothing = fraction::smoothing_from_period(period);
+        let exp = fraction::exp_smoothing(smoothing, iterations);
+        let rug_exp = fraction::rug_exp_smoothing(smoothing, iterations);
+
+        let tolerance = Rational::from((1_000, FixedU128::DIV));
+        prop_assert_rational_approx_eq!(
+            fraction::fraction_to_rational(exp),
+            rug_exp.clone(),
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(1000))]
+    #[test]
+    fn iterated_ema_precision_with_fraction(
+        period in 1u64..200_000,
+        iterations in 1_u32..MAX_ITERATIONS,
+        (start_balance, incoming_balance) in
+                (1e12 as Balance..(1e24 as Balance))
+                    .prop_perturb(|n, mut rng| (n, rng.gen_range(n..(1e26 as Balance))))
+    ) {
+        let smoothing = fraction::smoothing_from_period(period);
+
+        let expected = high_precision::rug_balance_weighted_average(start_balance, incoming_balance, fraction::rug_exp_smoothing(smoothing, iterations));
+        let new_oracle = fraction::iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
+
+        let tolerance = 10;
+        prop_assert_approx_eq!(
+            new_oracle,
+            expected.clone(),
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(100))]
+    #[test]
+    fn ema_balance_history_precision_with_fraction(
+        history in ema_balance_history(),
+        period in 1u64..200_000,
+    ) {
+        let smoothing = fraction::smoothing_from_period(period);
+        let rug_ema = high_precision::rug_balance_ema(to_regular_history(history.clone()), fraction::fraction_to_rational(smoothing));
+
+        let mut ema = history[0].0;
+        for (balance, iterations) in history.into_iter().skip(1) {
+            ema = fraction::iterated_balance_ema(iterations, ema, balance, smoothing);
+        }
+        // for balance in to_regular_history(history).into_iter().skip(1) {
+        //     ema = balance_weighted_average(ema, balance, smoothing);
+        // }
+
+        let tolerance = 10;
+        prop_assert_approx_eq!(
+            rug_ema.clone(),
+            ema,
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(100))]
+    #[test]
+    fn ema_price_history_precision_with_fraction(
+        history in ema_price_history(),
+        period in 1u64..200_000,
+    ) {
+        let smoothing = fraction::smoothing_from_period(period);
+        let rug_ema = high_precision::rug_price_ema(to_regular_history(history.clone()), fraction::fraction_to_rational(smoothing));
+
+        let mut ema = history[0].0;
+        for (price, iterations) in history.into_iter().skip(1) {
+            ema = fraction::iterated_price_ema(iterations, ema, price, smoothing);
+        }
+
+        let tolerance = Rational::from((10_000, Price::DIV));
+        prop_assert_rational_approx_eq!(
+            rug_ema.clone(),
+            fixed_to_rational(ema),
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+// --- History Tests
 fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
-    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..10), 1..100)
+    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..500), 1..10)
 }
 
 fn to_regular_history<T: Copy>(history: Vec<(T, u32)>) -> Vec<T> {
@@ -333,7 +566,7 @@ proptest! {
         period in 1u64..200_000,
     ) {
         let smoothing = smoothing_from_period(period);
-        let rug_ema = high_precision::rug_balance_ema(to_regular_history(history.clone()), smoothing);
+        let rug_ema = high_precision::rug_balance_ema(to_regular_history(history.clone()), fixed_to_rational(smoothing));
 
         let mut ema = history[0].0;
         // for (balance, iterations) in history.into_iter().skip(1) {
@@ -354,7 +587,7 @@ proptest! {
 }
 
 fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
-    prop::collection::vec((any_fixed(), 1_u32..10), 1..100)
+    prop::collection::vec((any_fixed(), 1_u32..500), 1..50)
 }
 
 proptest! {
@@ -365,7 +598,7 @@ proptest! {
         period in 1u64..200_000,
     ) {
         let smoothing = smoothing_from_period(period);
-        let rug_ema = high_precision::rug_price_ema(to_regular_history(history.clone()), smoothing);
+        let rug_ema = high_precision::rug_price_ema(to_regular_history(history.clone()), fixed_to_rational(smoothing));
 
         let mut ema = history[0].0;
         // for (price, iterations) in history.into_iter().skip(1) {
