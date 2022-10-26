@@ -48,7 +48,7 @@ proptest! {
         let b1 = U256::from(weight) - U256::from(start_y_weight);
         let b2 = U256::from(end_x_block) - U256::from(start_x_block);
 
-        let max_delta = U256::from(end_x_block - start_x_block); //As the rounding error scales linearly with the length of the LB
+        let max_delta = U256::from(lbp_length); //As the rounding error scales linearly with the length of the LB
         assert_eq_approx!(a1*a2, b1*b2, max_delta, "The invariant does not hold")
     }
 }
