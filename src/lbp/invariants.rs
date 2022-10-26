@@ -25,7 +25,6 @@ fn final_weight() -> impl Strategy<Value = u32> {
     10_000_001u32..100_000_000u32
 }
 
-
 //Spec: https://www.notion.so/Property-Tests-7b506add39ea48fc8f68ecd18391e30a#9bbed73541c84e45a9855360aeee1f9b
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
@@ -53,4 +52,3 @@ proptest! {
         assert_eq_approx!(a1*a2, b1*b2, max_delta, "The invariant does not hold")
     }
 }
-
