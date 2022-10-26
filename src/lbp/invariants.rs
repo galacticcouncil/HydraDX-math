@@ -19,7 +19,7 @@ fn initial_weight() -> impl Strategy<Value = u32> {
 }
 
 fn final_weight() -> impl Strategy<Value = u32> {
-    40_000_000..60_000_000u32
+    10_000_000u32..100_000_000u32
 }
 
 fn block_number() -> impl Strategy<Value = u32> {
