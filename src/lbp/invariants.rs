@@ -35,18 +35,18 @@ proptest! {
         start_y_weight in initial_weight(),
         end_y_weight in final_weight()) {
         //Arrange
-        let end_x_block = start_x_block + lbp_length;
+        let end_x_block = start_x_block.checked_add(lbp_length).unwrap();
         let at_block = rand::thread_rng().gen_range(start_x_block..end_x_block);
 
         //Act
         let weight  = lbp::calculate_linear_weights(start_x_block,end_x_block,start_y_weight,end_y_weight,at_block).unwrap();
 
         //Assert
-        let a1 = U256::from(at_block) - U256::from(start_x_block);
-        let a2 = U256::from(end_y_weight) - U256::from(start_y_weight);
+        let a1 = U256::from(at_block.checked_sub(start_x_block).unwrap());
+        let a2 = U256::from(end_y_weight.checked_sub(start_y_weight).unwrap());
 
-        let b1 = U256::from(weight) - U256::from(start_y_weight);
-        let b2 = U256::from(end_x_block) - U256::from(start_x_block);
+        let b1 = U256::from(weight.checked_sub(start_y_weight).unwrap());
+        let b2 = U256::from(end_x_block.checked_sub(start_x_block).unwrap());
 
         let max_delta = U256::from(lbp_length); //As the rounding error scales linearly with the length of the LB
         assert_eq_approx!(a1*a2, b1*b2, max_delta, "The invariant does not hold")
