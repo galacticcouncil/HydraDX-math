@@ -15,7 +15,10 @@ extern crate approx;
 pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
+pub mod omnipool;
 pub mod stableswap;
+#[cfg(test)]
+pub mod test_utils;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
@@ -63,13 +66,14 @@ macro_rules! to_lbp_weight {
     };
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum MathError {
     Overflow,
     InsufficientOutReserve,
     ZeroWeight,
     ZeroReserve,
     ZeroDuration,
+    DivisionByZero,
 }
 
 #[cfg(test)]

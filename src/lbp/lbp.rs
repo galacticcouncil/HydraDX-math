@@ -196,6 +196,9 @@ pub fn calculate_in_given_out(
 /// - `start_y` - initial weight
 /// - `end_y` - final weight
 /// - `at` - block number at which to calculate the weight
+///
+/// Note: The rounding error scales linearly with the length of the LB
+/// TODO: consider adding constraints for the length of LB, to prevent big rounding error
 pub fn calculate_linear_weights<BlockNumber: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
     start_x: BlockNumber,
     end_x: BlockNumber,
