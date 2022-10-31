@@ -12,6 +12,9 @@ extern crate std;
 #[macro_use]
 extern crate approx;
 
+#[cfg(test)]
+mod test_pow_accuracy;
+
 pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
