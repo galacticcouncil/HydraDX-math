@@ -16,6 +16,7 @@ pub mod fee;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod omnipool;
+pub mod omnipool_subpools;
 pub mod stableswap;
 #[cfg(test)]
 pub mod test_utils;
