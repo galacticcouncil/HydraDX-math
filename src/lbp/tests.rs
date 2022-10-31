@@ -38,17 +38,8 @@ fn spot_price_should_work() {
 #[test]
 fn out_given_in_should_work() {
     let cases = vec![
-        (1000, 2000, 500, 500, 100, Ok(178), "Easy case"),
+        (1000, 2000, 500, 500, 100, Ok(170), "Easy case"),
         (0, 0, 0, 0, 100, Err(ZeroWeight), "Zero reserves and weights"),
-        (
-            Balance::MAX,
-            Balance::MAX,
-            LBPWeight::MAX,
-            LBPWeight::MAX,
-            Balance::MAX,
-            Ok(170141183460469231731687303715884105726),
-            "max",
-        ),
         (1, 1, 1, 1, 0, Ok(0), "Zero out reserve and amount"),
         (
             0,
@@ -75,14 +66,14 @@ fn out_given_in_should_work() {
 fn in_given_out_should_work() {
     let prec: u128 = HYDRA_ONE;
     let cases = vec![
-        (1000, 2000, 500, 500, 100, Ok(50), "Easy case"),
+        (1000, 2000, 500, 500, 100, Ok(60), "Easy case"),
         (
             100 * prec,
             20 * prec,
             5_000_000,
             10_000_000,
             prec,
-            Ok(10803324098378),
+            Ok(10803324420530),
             "Easy case",
         ),
         (
@@ -91,7 +82,7 @@ fn in_given_out_should_work() {
             10_000_000,
             5_000_000,
             prec,
-            Ok(2597835207961),
+            Ok(2597835282549),
             "Easy case",
         ),
         (
@@ -100,7 +91,7 @@ fn in_given_out_should_work() {
             10_000_000,
             120_000_000,
             2 * prec,
-            Ok(7336295308959),
+            Ok(7336295525064),
             "Easy case",
         ),
         (0, 0, 0, 0, 100, Err(Overflow), "Zero reserves and weights"),
