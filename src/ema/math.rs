@@ -132,6 +132,11 @@ pub(crate) mod high_precision {
     use rug::ops::DivRounding;
     use rug::{Integer, Rational};
     use std::ops::Mul;
+    use fixed::traits::Fixed;
+
+    pub fn smoothing_from_period(period: u64) -> Rational {
+        Rational::from((2u64, period.max(1).saturating_add(1)))
+    }
 
     /// Convert a fixed point number to an arbitrary precision rational number.
     pub fn fixed_to_rational(f: FixedU128) -> Rational {
@@ -149,13 +154,24 @@ pub(crate) mod high_precision {
         num.div_floor(den)
     }
 
-    pub fn rug_exp_smoothing(smoothing: FixedU128, iterations: u32) -> Rational {
-        debug_assert!(smoothing <= FixedU128::one());
-        let complement = Rational::one() - fixed_to_rational(smoothing);
+    pub fn rug_exp_smoothing_fixed(smoothing: FixedU128, iterations: u32) -> Rational {
+        rug_exp_smoothing_rational(fixed_to_rational(smoothing), iterations)
+    }
+
+    pub fn rug_exp_smoothing_rational(smoothing: Rational, iterations: u32) -> Rational {
+        debug_assert!(smoothing <= Rational::one());
+        let complement = Rational::one() - smoothing;
         // in order to determine the iterated smoothing factor we exponentiate the complement
         let exp_complement = complement.pow(iterations);
         debug_assert!(exp_complement <= Rational::one());
         Rational::one() - exp_complement
+    }
+
+    pub fn rug_iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Integer {
+        dbg!((smoothing, iterations));
+        let weight = rug_exp_smoothing_fixed(smoothing, iterations);
+        dbg!(weight.to_f64());
+        rug_balance_weighted_average(prev, incoming, weight)
     }
 
     /// Calculate the weighted average for the given balances by using arbitrary precision math.
@@ -196,6 +212,15 @@ pub(crate) mod high_precision {
             current = rug_weighted_average(current.clone(), balance.into(), smoothing.clone());
         }
         // return rounded down integer
+        into_rounded_integer(current)
+    }
+
+    pub fn rug_fast_balance_ema(history: Vec<(Balance, u32)>, smoothing: Rational) -> Integer {
+        let mut current = Rational::from(history[0]);
+        for (balance, iterations) in history.into_iter().skip(1) {
+            let smoothing_adj = rug_exp_smoothing_rational(smoothing.clone(), iterations);
+            current = rug_weighted_average(current.clone(), balance.into(), smoothing_adj.clone());
+        }
         into_rounded_integer(current)
     }
 

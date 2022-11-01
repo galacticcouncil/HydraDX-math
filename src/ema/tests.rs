@@ -162,7 +162,7 @@ fn exponential_smoothing_small_period() {
     let smoothing = FixedU128::from_float(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing(smoothing, iterations);
+    let rug_exp = high_precision::rug_exp_smoothing_fixed(smoothing, iterations);
 
     let tolerance = fixed_to_rational(FixedU128::from_inner(1));
     assert_rational_approx_eq!(
@@ -195,7 +195,7 @@ fn exponential_accuracy() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing = high_precision::rug_exp_smoothing(smoothing, iterations);
+    let rug_exp_smoothing = high_precision::rug_exp_smoothing_fixed(smoothing, iterations);
     let exponential_rug_balance =
         high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
             .to_u128()
