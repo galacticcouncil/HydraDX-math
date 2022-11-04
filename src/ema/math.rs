@@ -51,6 +51,9 @@ pub fn exp_smoothing(smoothing: FixedU128, iterations: u32) -> FixedU128 {
     // in order to determine the iterated smoothing factor we exponentiate the complement
     let exp_complement = complement.saturating_pow(iterations as usize);
     debug_assert!(exp_complement <= FixedU128::one());
+    dbg!(smoothing);
+    dbg!(iterations);
+    dbg!(FixedU128::one() - exp_complement);
     FixedU128::one() - exp_complement
 }
 
@@ -168,10 +171,12 @@ pub(crate) mod high_precision {
     }
 
     pub fn rug_iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Integer {
-        dbg!((smoothing, iterations));
+        // dbg!((smoothing, iterations));
         let weight = rug_exp_smoothing_fixed(smoothing, iterations);
         dbg!(weight.to_f64());
-        rug_balance_weighted_average(prev, incoming, weight)
+        let res = rug_balance_weighted_average(prev, incoming, weight);
+        dbg!(res.clone());
+        res
     }
 
     /// Calculate the weighted average for the given balances by using arbitrary precision math.
@@ -216,7 +221,7 @@ pub(crate) mod high_precision {
     }
 
     pub fn rug_fast_balance_ema(history: Vec<(Balance, u32)>, smoothing: Rational) -> Integer {
-        let mut current = Rational::from(history[0]);
+        let mut current = Rational::from((history[0].0, 1));
         for (balance, iterations) in history.into_iter().skip(1) {
             let smoothing_adj = rug_exp_smoothing_rational(smoothing.clone(), iterations);
             current = rug_weighted_average(current.clone(), balance.into(), smoothing_adj.clone());
