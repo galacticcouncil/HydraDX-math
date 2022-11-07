@@ -60,8 +60,14 @@ pub fn calculate_sell_between_subpools(
     let delta_d = initial_out_d * delta_u_t / share_state_out.reserve * (1 - fee_w);
 
     let d_plus = initial_out_d - delta_d;
+    let xp: Vec<Balance> = pool_out.reserves 
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_out)
+        .map(|(_, v)| *v )
+        .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&pool_out.reserves, d_plus, pool_out.amplification)?;
+    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
 
     Some(delta_t_j) //TODO: return lof of more info
 }
