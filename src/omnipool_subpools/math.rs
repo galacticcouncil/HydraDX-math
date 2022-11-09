@@ -25,8 +25,8 @@ pub struct TradeResult {
 }
 
 pub fn calculate_sell_between_subpools(
-    pool_in: &SubpoolState,
-    pool_out: &SubpoolState,
+    pool_in: SubpoolState,
+    pool_out: SubpoolState,
     idx_in: usize,
     idx_out: usize,
     amount_in: Balance,
@@ -102,8 +102,8 @@ pub fn calculate_sell_between_subpools(
 }
 
 pub fn calculate_buy_between_subpools(
-    pool_in: &SubpoolState,
-    pool_out: &SubpoolState,
+    pool_in: SubpoolState,
+    pool_out: SubpoolState,
     idx_in: usize,
     idx_out: usize,
     amount_out: Balance,
