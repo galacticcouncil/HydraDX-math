@@ -29,7 +29,7 @@ test-case = "2.2.1"
 
 [features]
 default = ["std"]
-std = ["sp-arithmetic/std"]
+std = ["sp-arithmetic/std", "sp-std/std"]
 runtime-benchmarks = []
 
 [[bench]]
