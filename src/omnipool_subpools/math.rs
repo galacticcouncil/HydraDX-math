@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::omnipool::calculate_sell_state_changes;
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, TradeStateChange};
+use crate::omnipool::{calculate_buy_state_changes, calculate_sell_state_changes};
 use crate::stableswap::{calculate_d, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::types::Balance;
@@ -31,7 +31,7 @@ pub fn calculate_sell_between_subpools(
     amount_in: Balance,
     share_state_in: &AssetReserveState<Balance>,
     share_state_out: &AssetReserveState<Balance>,
-    share_issuance: Balance,
+    share_issuance_in: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
     imbalance: Balance,
@@ -55,7 +55,7 @@ pub fn calculate_sell_between_subpools(
 
     let delta_d = d_plus.checked_sub(initial_d)?;
 
-    let delta_u = share_issuance.checked_mul(delta_d)?.checked_div(initial_d)?; // TODO: higher precision needed?
+    let delta_u = share_issuance_in.checked_mul(delta_d)?.checked_div(initial_d)?; // TODO: higher precision needed?
 
     let sell_changes = calculate_sell_state_changes(
         share_state_in,
@@ -93,5 +93,81 @@ pub fn calculate_sell_between_subpools(
             amount: BalanceUpdate::Decrease(delta_t_j),
         },
         iso_pool: sell_changes,
+    })
+}
+
+pub fn calculate_buy_between_subpools(
+    pool_in: &SubpoolState,
+    pool_out: &SubpoolState,
+    idx_in: usize,
+    idx_out: usize,
+    amount_out: Balance,
+    share_state_in: &AssetReserveState<Balance>,
+    share_state_out: &AssetReserveState<Balance>,
+    share_issuance_in: Balance,
+    share_issuance_out: Balance,
+    asset_fee: Permill,
+    protocol_fee: Permill,
+    imbalance: Balance,
+) -> Option<TradeResult> {
+    if idx_in >= pool_in.reserves.len() || idx_out >= pool_out.reserves.len() {
+        return None;
+    }
+
+    // TODO: what is fee_w ?
+    let fee_w = 0u128;
+
+    let initial_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
+
+    let new_reserve_out = pool_out.reserves[idx_out].checked_sub(amount_out)?;
+
+    let updated_reserves: Vec<Balance> = pool_out
+        .reserves
+        .iter()
+        .enumerate()
+        .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
+        .collect();
+
+    let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
+
+    let delta_d = d_plus.checked_sub(initial_d)?;
+
+    let delta_u = (share_issuance_out * delta_d / initial_d) * (1 / (1 - fee_w));
+
+    let buy_changes = calculate_buy_state_changes(
+        share_state_in,
+        share_state_out,
+        delta_u,
+        asset_fee,
+        protocol_fee,
+        imbalance,
+    )?;
+
+    let initial_in_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
+
+    let delta_u_t = *buy_changes.asset_in.delta_reserve;
+    let delta_d = initial_in_d * ((delta_u_t + share_issuance_in) / share_issuance_in);
+
+    let d_plus = initial_in_d + delta_d;
+    let xp: Vec<Balance> = pool_in
+        .reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_in)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+
+    Some(TradeResult {
+        asset_in: SubpoolStateChange {
+            idx: idx_in,
+            amount: BalanceUpdate::Increase(delta_t_j),
+        },
+        asset_out: SubpoolStateChange {
+            idx: idx_out,
+            amount: BalanceUpdate::Decrease(amount_out),
+        },
+        iso_pool: buy_changes,
     })
 }
