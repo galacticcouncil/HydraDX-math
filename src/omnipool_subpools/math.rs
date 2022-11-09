@@ -1,13 +1,26 @@
+#![allow(clippy::too_many_arguments)]
+
 use crate::omnipool::calculate_sell_state_changes;
-use crate::omnipool::types::AssetReserveState;
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, TradeStateChange};
 use crate::stableswap::{calculate_d, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::types::Balance;
 use sp_arithmetic::Permill;
 
 pub struct SubpoolState<'a> {
-    reserves: &'a [Balance],
-    amplification: Balance,
+    pub reserves: &'a [Balance],
+    pub amplification: Balance,
+}
+
+pub struct SubpoolStateChange {
+    pub idx: usize,
+    pub amount: BalanceUpdate<Balance>,
+}
+
+pub struct TradeResult {
+    pub asset_in: SubpoolStateChange,
+    pub asset_out: SubpoolStateChange,
+    pub iso_pool: TradeStateChange<Balance>,
 }
 
 pub fn calculate_sell_between_subpools(
@@ -22,7 +35,7 @@ pub fn calculate_sell_between_subpools(
     asset_fee: Permill,
     protocol_fee: Permill,
     imbalance: Balance,
-) -> Option<Balance> {
+) -> Option<TradeResult> {
     if idx_in >= pool_in.reserves.len() || idx_out >= pool_out.reserves.len() {
         return None;
     }
@@ -60,14 +73,25 @@ pub fn calculate_sell_between_subpools(
     let delta_d = initial_out_d * delta_u_t / share_state_out.reserve * (1 - fee_w);
 
     let d_plus = initial_out_d - delta_d;
-    let xp: Vec<Balance> = pool_out.reserves 
+    let xp: Vec<Balance> = pool_out
+        .reserves
         .iter()
         .enumerate()
         .filter(|(idx, _)| *idx != idx_out)
-        .map(|(_, v)| *v )
+        .map(|(_, v)| *v)
         .collect();
 
     let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
 
-    Some(delta_t_j) //TODO: return lof of more info
+    Some(TradeResult {
+        asset_in: SubpoolStateChange {
+            idx: idx_in,
+            amount: BalanceUpdate::Increase(amount_in),
+        },
+        asset_out: SubpoolStateChange {
+            idx: idx_out,
+            amount: BalanceUpdate::Decrease(delta_t_j),
+        },
+        iso_pool: sell_changes,
+    })
 }
