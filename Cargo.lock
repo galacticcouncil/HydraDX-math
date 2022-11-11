@@ -283,6 +283,7 @@ dependencies = [
  "az",
  "bytemuck",
  "half 2.1.0",
+ "num-traits",
  "typenum",
 ]
 
