@@ -1,22 +1,22 @@
-use std::io::stdout;
-use std::str::FromStr;
-use num_traits::{Bounded, CheckedDiv};
 use crate::ema::*;
 use crate::types::{Balance, Price};
 use high_precision::fixed_to_rational;
-use rug::{Integer, Rational, Float};
 use num_traits::Pow;
+use num_traits::{Bounded, CheckedDiv};
+use rug::{Float, Integer, Rational};
+use std::io::stdout;
 use std::io::Write;
 use std::ops::Mul;
+use std::str::FromStr;
 
+use crate::ema::invariants::fraction::{rug_exp_smoothing, Fraction};
+use crate::ema::invariants::numerical::iterated_balance_ema_near_one;
 use proptest::prelude::*;
+use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{
     traits::{One, Zero},
     FixedPointNumber, FixedU128,
 };
-use sp_arithmetic::traits::Saturating;
-use crate::ema::invariants::fraction::{Fraction, rug_exp_smoothing};
-use crate::ema::invariants::numerical::iterated_balance_ema_near_one;
 
 const MAX_ITERATIONS: u32 = 10_000; // slow but more informative: 5_256_000 (= 1 year)
 
@@ -556,7 +556,7 @@ proptest! {
 
 fn saturating_pow_temp(a: FixedU128, exp: usize) -> FixedU128 {
     if exp == 0 {
-        return FixedU128::saturating_from_integer(1)
+        return FixedU128::saturating_from_integer(1);
     }
 
     let exp = exp as u32;
@@ -618,18 +618,17 @@ proptest! {
     }
 }
 
-
 pub(crate) mod numerical {
+    use crate::ema::balance_weighted_average;
+    use crate::ema::invariants::fraction;
+    use crate::ema::invariants::fraction::{Fraction, DIV};
+    use crate::types::Balance;
+    use crate::MathError;
     use fixed::types::extra::U127;
     use fixed::types::{U1F127, U64F64};
     use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, One, Zero};
-    use sp_arithmetic::{FixedPointNumber, FixedU128};
     use sp_arithmetic::traits::Saturating;
-    use crate::ema::{balance_weighted_average};
-    use crate::ema::invariants::fraction;
-    use crate::MathError;
-    use crate::types::Balance;
-    use crate::ema::invariants::fraction::{DIV, Fraction};
+    use sp_arithmetic::{FixedPointNumber, FixedU128};
 
     // This approach is taylor series expansion of x^n around x = 1
     // It should be efficient and accurate for x close to 1
@@ -668,17 +667,27 @@ pub(crate) mod numerical {
                 return s_pos.checked_sub(&s_minus);
             }
         }
-        return None;  // if we do not have convergence, we do not risk returning an inaccurate value
+        return None; // if we do not have convergence, we do not risk returning an inaccurate value
     }
 
-    pub fn iterated_balance_ema_near_one(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Balance {
+    pub fn iterated_balance_ema_near_one(
+        iterations: u32,
+        prev: Balance,
+        incoming: Balance,
+        smoothing: FixedU128,
+    ) -> Balance {
         dbg!((smoothing, iterations));
         let weight = exp_smoothing_near_one(smoothing, iterations);
         dbg!(weight.clone());
         balance_weighted_average(prev, incoming, weight)
     }
 
-    pub fn iterated_balance_frac_ema_near_one(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Balance {
+    pub fn iterated_balance_frac_ema_near_one(
+        iterations: u32,
+        prev: Balance,
+        incoming: Balance,
+        smoothing: FixedU128,
+    ) -> Balance {
         if iterations == 0_u32 {
             return prev;
         } else if smoothing == FixedU128::one() {
@@ -702,7 +711,6 @@ pub(crate) mod numerical {
             dbg!(exp_complement);
             return FixedU128::one() - exp_complement;
         } else {
-
             let exp_complement = pow_near_one(complement, iterations).unwrap();
             debug_assert!(exp_complement <= FixedU128::one());
             return FixedU128::one() - exp_complement;
@@ -732,19 +740,18 @@ pub(crate) mod numerical {
     }
 
     pub fn frac_power_near_one(x: Fraction, n: u32) -> Option<Fraction> {
-
         let zero = Fraction::from_num(0);
         let one = Fraction::from_num(1);
         // let two = Fraction::from_num(2);
 
         let one_minus_x = one.checked_sub(x)?;
 
-        assert!(one.checked_div_int(n as u128)? > one_minus_x);  // prevents overflows
+        assert!(one.checked_div_int(n as u128)? > one_minus_x); // prevents overflows
 
         let mut s_pos = one;
         let mut s_minus = zero;
         let mut t = one;
-        dbg!((x,n));
+        dbg!((x, n));
         if (n == 0_u32) | (x == one) {
             dbg!("yes!");
             return Some(one);
@@ -775,11 +782,10 @@ pub(crate) mod numerical {
                 return s_pos.checked_sub(s_minus);
             }
         }
-        return None;  // if we do not have convergence, we do not risk returning an inaccurate value
+        return None; // if we do not have convergence, we do not risk returning an inaccurate value
     }
 
     pub fn frac_power(x: FixedU128, n: u32) -> Option<FixedU128> {
-
         let x_f = fraction::fixed_to_fraction(x);
         let one = Fraction::ONE;
         let one_minux_x = one.checked_sub(x_f)?;
@@ -791,25 +797,22 @@ pub(crate) mod numerical {
         let boundary = Fraction::from_num(0.1);
         if n == 0_u32 {
             if x == FixedU128::zero() {
-                return None
+                return None;
             } else {
-                return Some(FixedU128::one())
+                return Some(FixedU128::one());
             }
         }
         if (boundary.checked_div_int(n as u128)? > one_minux_x) {
             return Some(fraction::fraction_to_fixed(frac_power_near_one(x_f, n)?));
-        }
-        else {
+        } else {
             // let x_f = (U64F64::from_num(1) / FixedU128::DIV) * x.into_inner();
             // let result: U64F64 = crate::transcendental::powi(x_f, n).unwrap();
             // let result_fixed = FixedU128::saturating_from_rational(result.to_bits(), 1u128 << 64);
             // return Some(result_fixed);
             let result = x.saturating_pow(n as usize);
             return Some(result);
-
         }
     }
-
 }
 
 #[test]
@@ -819,7 +822,7 @@ fn pow_near_one_works() {
     let result = numerical::pow_near_one(x, n);
     assert_eq!(result, Some(FixedU128::from_rational(1, 4)));
 
-    let x = FixedU128::from_rational(2,3);
+    let x = FixedU128::from_rational(2, 3);
     let n = 2_u32;
     let result = numerical::pow_near_one(x, n);
     assert_eq!(result, Some(FixedU128::from_rational(4, 9)));
@@ -910,7 +913,6 @@ proptest! {
     }
 }
 
-
 #[test]
 fn test_frac_power() {
     let x = FixedU128::from_rational(1, 2);
@@ -997,8 +999,6 @@ fn to_regular_history<T: Copy>(history: Vec<(T, u32)>) -> Vec<T> {
         .collect();
     expanded.concat()
 }
-
-
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]

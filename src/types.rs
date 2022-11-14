@@ -26,10 +26,12 @@ pub mod fraction {
     pub const DIV: u128 = 1u128 << 127;
 
     /// Create a fraction based on a `n`umerator and `d`enominator.
-    pub fn fraction(n: u128, d: u128) -> Fraction
-    {
+    pub fn fraction(n: u128, d: u128) -> Fraction {
         debug_assert!(d >= n, "fraction should be less than or equal to 1");
-        Fraction::from_bits(multiply_by_rational_with_rounding(n, DIV, d, Rounding::NearestPrefDown).expect("d >= n, therefore the result must fit in u128; qed"))
+        Fraction::from_bits(
+            multiply_by_rational_with_rounding(n, DIV, d, Rounding::NearestPrefDown)
+                .expect("d >= n, therefore the result must fit in u128; qed"),
+        )
     }
 
     /// Convert a `Fraction` to a `FixedU128`.
@@ -47,7 +49,10 @@ pub mod fraction {
     /// Warning: Panics if `f` > 1 in debug mode, but saturates in release.
     pub fn from_fixed(f: FixedU128) -> Fraction {
         debug_assert!(f <= FixedU128::one(), "fraction should be less than or equal to 1");
-        Fraction::from_bits(multiply_by_rational_with_rounding(f.into_inner(), DIV, FixedU128::DIV, Rounding::NearestPrefDown).unwrap_or(DIV))
+        Fraction::from_bits(
+            multiply_by_rational_with_rounding(f.into_inner(), DIV, FixedU128::DIV, Rounding::NearestPrefDown)
+                .unwrap_or(DIV),
+        )
     }
 
     pub fn multiply_by_balance(f: Fraction, b: Balance) -> Balance {

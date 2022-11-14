@@ -131,11 +131,11 @@ pub fn volume_weighted_average(
 pub(crate) mod high_precision {
     use super::*;
 
+    use fixed::traits::Fixed;
     use num_traits::Pow;
     use rug::ops::DivRounding;
     use rug::{Integer, Rational};
     use std::ops::Mul;
-    use fixed::traits::Fixed;
 
     pub fn smoothing_from_period(period: u64) -> Rational {
         Rational::from((2u64, period.max(1).saturating_add(1)))
@@ -170,7 +170,12 @@ pub(crate) mod high_precision {
         Rational::one() - exp_complement
     }
 
-    pub fn rug_iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Integer {
+    pub fn rug_iterated_balance_ema(
+        iterations: u32,
+        prev: Balance,
+        incoming: Balance,
+        smoothing: FixedU128,
+    ) -> Integer {
         // dbg!((smoothing, iterations));
         let weight = rug_exp_smoothing_fixed(smoothing, iterations);
         dbg!(weight.to_f64());

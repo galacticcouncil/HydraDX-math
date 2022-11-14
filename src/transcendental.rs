@@ -200,8 +200,7 @@ where
     // boundary > 1 can cause overflow in the taylor series approximation
     let boundary = S::one().checked_div_int(10_u32.into()).ok_or(())?;
     match (boundary.checked_div_int(n.into()), S::one().checked_sub(operand)) {
-        (Some(b), Some(one_minus_operand)) if b > one_minus_operand => 
-            powi_near_one(operand.into(), n).ok_or(()),
+        (Some(b), Some(one_minus_operand)) if b > one_minus_operand => powi_near_one(operand.into(), n).ok_or(()),
         _ => powi(operand, n),
     }
 }
@@ -249,7 +248,7 @@ where
             return s_pos.checked_sub(s_minus);
         }
     }
-    return None;  // if we do not have convergence, we do not risk returning an inaccurate value
+    return None; // if we do not have convergence, we do not risk returning an inaccurate value
 }
 
 #[cfg(test)]
@@ -345,8 +344,14 @@ mod tests {
 
     #[test]
     fn powi_high_precision_works_for_fraction() {
-        assert_eq!(powi_high_precision(Fraction::one() / 4, 2), Ok(Fraction::from_num(0.0625)));
-        assert_eq!(powi_high_precision(Fraction::from_num(9) / 10, 2), Ok(Fraction::from_num(81) / 100));
+        assert_eq!(
+            powi_high_precision(Fraction::one() / 4, 2),
+            Ok(Fraction::from_num(0.0625))
+        );
+        assert_eq!(
+            powi_high_precision(Fraction::from_num(9) / 10, 2),
+            Ok(Fraction::from_num(81) / 100)
+        );
         let expected: Result<Fraction, _> = powi(Fraction::from_num(8) / 10, 2);
         assert_eq!(powi_high_precision(Fraction::from_num(8) / 10, 2), expected);
     }
