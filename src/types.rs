@@ -26,8 +26,11 @@ pub mod fraction {
     pub const DIV: u128 = 1u128 << 127;
 
     /// Create a fraction based on a `n`umerator and `d`enominator.
-    pub fn fraction(n: u128, d: u128) -> Fraction {
-        debug_assert!(d >= n, "fraction should be less than or equal to 1");
+    pub fn frac(n: u128, d: u128) -> Fraction {
+        debug_assert!(
+            d >= n,
+            "fraction should be less than or equal to 1 -> denominator should be greater equal the numerator"
+        );
         Fraction::from_bits(
             multiply_by_rational_with_rounding(n, DIV, d, Rounding::NearestPrefDown)
                 .expect("d >= n, therefore the result must fit in u128; qed"),
@@ -79,12 +82,24 @@ mod tests {
     use sp_arithmetic::FixedPointNumber;
 
     #[test]
+    fn fraction_representation() {
+        assert_eq!(Fraction::from_num(0.25), Fraction::ONE / 4);
+
+        let expected_smallest_non_zero = Fraction::ONE / (u128::MAX / 2);
+        assert_eq!(SMALLEST_NON_ZERO, expected_smallest_non_zero);
+
+        assert_eq!(Fraction::from_num(0.5), Fraction::from_bits(DIV / 2));
+
+        assert_eq!(Fraction::from_num(1), Fraction::from_bits(DIV));
+    }
+
+    #[test]
     fn fraction_works() {
-        let f = fraction(1, 2);
+        let f = frac(1, 2);
         let expected = Fraction::from_bits(DIV / 2);
         assert_eq!(f, expected);
 
-        let f = fraction(1e16 as u128, 2e16 as u128);
+        let f = frac(1e16 as u128, 2e16 as u128);
         let expected = Fraction::from_bits(DIV / 2);
         assert_eq!(f, expected);
     }

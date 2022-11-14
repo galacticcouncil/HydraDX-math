@@ -405,7 +405,7 @@ pub(crate) mod fraction {
         debug_assert!(smoothing <= Fraction::ONE);
         let complement = Fraction::ONE - smoothing;
         // in order to determine the iterated smoothing factor we exponentiate the complement
-        let exp_complement = crate::transcendental::powi(complement, iterations).unwrap_or(SMALLEST_NON_ZERO);
+        let exp_complement = crate::transcendental::powi_high_precision(complement, iterations).unwrap_or(SMALLEST_NON_ZERO);
         Fraction::ONE - exp_complement
     }
 
@@ -514,7 +514,7 @@ proptest! {
         let expected = high_precision::rug_balance_weighted_average(start_balance, incoming_balance, fraction::rug_exp_smoothing(smoothing, iterations));
         let new_oracle = fraction::iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
 
-        let tolerance = 10;
+        let tolerance = 1;
         prop_assert_approx_eq!(
             new_oracle,
             expected.clone(),
@@ -524,35 +524,35 @@ proptest! {
     }
 }
 
-// proptest! {
-//     // #![proptest_config(ProptestConfig::with_cases(100))]
-//     #[test]
-//     fn ema_balance_history_precision_with_fraction(
-//         history in ema_balance_history(),
-//         period in 1u64..200_000,
-//     ) {
-//         let smoothing = fraction::smoothing_from_period(period);
-//         let smoothing_rug = high_precision::smoothing_from_period(period);
-//         let rug_ema = high_precision::rug_balance_ema(to_regular_history(history.clone()), smoothing_rug);
-//
-//         let mut ema = history[0].0;
-//         for (balance, iterations) in history.into_iter().skip(1) {
-//             ema = fraction::iterated_balance_ema(iterations, ema, balance, smoothing);
-//         }
-//         // for balance in to_regular_history(history).into_iter().skip(1) {
-//         //     ema = balance_weighted_average(ema, balance, smoothing);
-//         // }
-//
-//         let tolerance = 1;
-//         prop_assert_approx_eq!(
-//             rug_ema.clone(),
-//             ema,
-//             tolerance,
-//             "high precision should be equal to low precision within tolerance"
-//         );
-//         // assert!(false);
-//     }
-// }
+proptest! {
+    // #![proptest_config(ProptestConfig::with_cases(100))]
+    #[test]
+    fn ema_balance_history_precision_with_fraction(
+        history in ema_balance_history(),
+        period in 1u64..200_000,
+    ) {
+        let smoothing = fraction::smoothing_from_period(period);
+        let smoothing_rug = high_precision::smoothing_from_period(period);
+        let rug_ema = high_precision::rug_balance_ema(to_regular_history(history.clone()), smoothing_rug);
+
+        let mut ema = history[0].0;
+        for (balance, iterations) in history.into_iter().skip(1) {
+            ema = fraction::iterated_balance_ema(iterations, ema, balance, smoothing);
+        }
+        // for balance in to_regular_history(history).into_iter().skip(1) {
+        //     ema = balance_weighted_average(ema, balance, smoothing);
+        // }
+
+        let tolerance = 1;
+        prop_assert_approx_eq!(
+            rug_ema.clone(),
+            ema,
+            tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+        // assert!(false);
+    }
+}
 
 fn saturating_pow_temp(a: FixedU128, exp: usize) -> FixedU128 {
     if exp == 0 {
@@ -989,7 +989,7 @@ proptest! {
 
 // --- History Tests
 fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
-    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..200_001), 2..3)
+    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..200_001), 2..10)
 }
 
 fn to_regular_history<T: Copy>(history: Vec<(T, u32)>) -> Vec<T> {
