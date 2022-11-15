@@ -19,7 +19,7 @@
 use core::convert::From;
 use core::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
 use fixed::traits::{FixedUnsigned, ToFixed};
-use num_traits::{One, Zero};
+use num_traits::{One, SaturatingMul, Zero};
 
 /// right-shift with rounding
 fn rs<T>(operand: T) -> T
@@ -179,7 +179,7 @@ where
 }
 
 /// Determine `operand^n` for with higher precision for `operand` values close to but less than 1.
-pub fn powi_high_precision<S, D>(operand: S, n: u32) -> Result<D, ()>
+pub fn saturating_powi_high_precision<S, D>(operand: S, n: u32) -> D
 where
     S: FixedUnsigned + One + Zero,
     D: FixedUnsigned + From<S> + One + Zero,
@@ -187,22 +187,49 @@ where
     D::Bits: From<u32>,
 {
     if operand == S::zero() {
-        return Ok(D::zero());
+        return D::zero();
     } else if n == 0 {
-        return Ok(D::one());
+        return D::one();
     } else if n == 1 {
-        return Ok(D::from(operand));
+        return D::from(operand);
     }
 
     // this determines when we use the taylor series approximation at 1
     // if boundary = 0, we will never use the taylor series approximation.
     // as boundary -> 1, we will use the taylor series approximation more and more
     // boundary > 1 can cause overflow in the taylor series approximation
-    let boundary = S::one().checked_div_int(10_u32.into()).ok_or(())?;
+    let boundary = S::one()
+        .checked_div_int(10_u32.into())
+        .expect("1 / 10 does not fail; qed");
     match (boundary.checked_div_int(n.into()), S::one().checked_sub(operand)) {
-        (Some(b), Some(one_minus_operand)) if b > one_minus_operand => powi_near_one(operand.into(), n).ok_or(()),
-        _ => powi(operand, n),
+        (Some(b), Some(one_minus_operand)) if b > one_minus_operand => {
+            powi_near_one(operand.into(), n).unwrap_or_else(|| saturating_pow(operand.into(), n))
+        }
+        _ => saturating_pow(operand.into(), n),
     }
+}
+
+fn saturating_pow<S>(operand: S, exp: u32) -> S
+where
+    S: FixedUnsigned + One + SaturatingMul,
+    S::Bits: From<u32>,
+{
+    if exp == 0 {
+        return S::one();
+    }
+
+    let exp = exp as u32;
+    let msb_pos = 32 - exp.leading_zeros();
+
+    let mut result = S::one();
+    let mut pow_val = operand;
+    for i in 0..msb_pos {
+        if ((1 << i) & exp) > 0 {
+            result = result.saturating_mul(pow_val);
+        }
+        pow_val = pow_val.saturating_mul(pow_val);
+    }
+    result
 }
 
 /// Determine `operand^n` for `operand` values close to but less than 1.
@@ -319,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn powi_high_precision_works() {
+    fn saturating_powi_high_precision_works() {
         type S = U64F64;
         type D = U64F64;
 
@@ -328,32 +355,41 @@ mod tests {
         let two = S::from_num(2);
         let four = S::from_num(4);
 
-        assert_eq!(powi_high_precision(two, 0), Ok(D::from_num(one)));
-        assert_eq!(powi_high_precision(zero, 2), Ok(D::from_num(zero)));
-        assert_eq!(powi_high_precision(two, 1), Ok(D::from_num(2)));
-        assert_eq!(powi_high_precision(two, 2), Ok(D::from_num(4)));
-        assert_eq!(powi_high_precision(two, 3), Ok(D::from_num(8)));
-        assert_eq!(powi_high_precision(one / four, 2), Ok(D::from_num(0.0625)));
-        assert_eq!(powi_high_precision(S::from_num(9) / 10, 2), Ok(D::from_num(81) / 100));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 0), D::from_num(one));
+        assert_eq!(saturating_powi_high_precision::<S, D>(zero, 2), D::from_num(zero));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 1), D::from_num(2));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 2), D::from_num(4));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 3), D::from_num(8));
+        assert_eq!(
+            saturating_powi_high_precision::<S, D>(one / four, 2),
+            D::from_num(0.0625)
+        );
+        assert_eq!(
+            saturating_powi_high_precision::<S, D>(S::from_num(9) / 10, 2),
+            D::from_num(81) / 100
+        );
 
-        let expected: Result<D, _> = powi(D::from_num(9) / 10, 2);
-        assert_eq!(powi_high_precision(S::from_num(9) / 10, 2), expected);
-        let expected: Result<D, _> = powi(D::from_num(8) / 10, 2);
-        assert_eq!(powi_high_precision(S::from_num(8) / 10, 2), expected);
+        let expected: D = powi(D::from_num(9) / 10, 2).unwrap();
+        assert_eq!(saturating_powi_high_precision::<S, D>(S::from_num(9) / 10, 2), expected);
+        let expected: D = powi(D::from_num(8) / 10, 2).unwrap();
+        assert_eq!(saturating_powi_high_precision::<S, D>(S::from_num(8) / 10, 2), expected);
     }
 
     #[test]
-    fn powi_high_precision_works_for_fraction() {
+    fn saturating_powi_high_precision_works_for_fraction() {
         assert_eq!(
-            powi_high_precision(Fraction::one() / 4, 2),
-            Ok(Fraction::from_num(0.0625))
+            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::one() / 4, 2),
+            Fraction::from_num(0.0625)
         );
         assert_eq!(
-            powi_high_precision(Fraction::from_num(9) / 10, 2),
-            Ok(Fraction::from_num(81) / 100)
+            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::from_num(9) / 10, 2),
+            Fraction::from_num(81) / 100
         );
-        let expected: Result<Fraction, _> = powi(Fraction::from_num(8) / 10, 2);
-        assert_eq!(powi_high_precision(Fraction::from_num(8) / 10, 2), expected);
+        let expected: Fraction = powi(Fraction::from_num(8) / 10, 2).unwrap();
+        assert_eq!(
+            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::from_num(8) / 10, 2),
+            expected
+        );
     }
 
     #[test]

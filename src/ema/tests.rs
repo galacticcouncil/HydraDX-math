@@ -1,7 +1,9 @@
 use super::*;
 
-use crate::types::{Balance, Price};
-use high_precision::fixed_to_rational;
+use crate::transcendental::saturating_powi_high_precision;
+use crate::types::fraction;
+use crate::types::{Balance, Fraction, Price};
+use high_precision::fraction_to_rational;
 
 use num_traits::{Bounded, One, Zero};
 use rug::Rational;
@@ -111,26 +113,25 @@ fn balance_weighted_averages_work_on_typical_values_with_week_smoothing() {
 
 #[test]
 fn price_weighted_average_boundary_values() {
-    let alpha = Price::saturating_from_rational(1, 2);
-    debug_assert!(alpha <= Price::one());
+    let smoothing = fraction::frac(1, 2);
+    debug_assert!(smoothing <= Fraction::one());
 
     // previously zero, incoming max
-    let next_price = price_weighted_average(Price::zero(), Price::max_value(), alpha);
+    let next_price = price_weighted_average(Price::zero(), Price::max_value(), smoothing);
     assert_eq!(next_price, Price::max_value() / 2.into());
     // the oracle is biased towards the previous value
     let bias = Price::saturating_from_rational(1, Price::DIV);
     // previously max, incoming zero
-    let next_price = price_weighted_average(Price::max_value(), Price::zero(), alpha);
+    let next_price = price_weighted_average(Price::max_value(), Price::zero(), smoothing);
     assert_eq!(next_price, Price::max_value() / 2.into() + bias);
 }
 
 #[test]
 fn balance_weighed_average_does_not_saturate_on_big_balances() {
-    let alpha = Price::one();
-
+    let smoothing = Fraction::one();
     let start_balance = u128::MAX;
     let incoming_balance = u128::MAX;
-    let next_balance = balance_weighted_average(start_balance, incoming_balance, alpha);
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
     assert_eq!(next_balance, incoming_balance);
 }
 
@@ -138,35 +139,35 @@ fn balance_weighed_average_does_not_saturate_on_big_balances() {
 fn exp_smoothing_works() {
     let smoothing = smoothing_from_period(7);
     let alpha = exp_smoothing(smoothing, 10);
-    let expected_complement = FixedU128::saturating_from_rational(3_u8, 4_u8).saturating_pow(10);
-    assert_eq!(alpha, FixedU128::one() - expected_complement);
+    let expected_complement: Fraction = saturating_powi_high_precision(fraction::frac(3, 4), 10);
+    assert_eq!(alpha, Fraction::one() - expected_complement);
 }
 
 #[test]
 fn smoothing_from_period_works() {
     let period = 0;
     let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, FixedU128::one());
+    assert_eq!(smoothing, Fraction::one());
 
     let period = 3;
     let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, FixedU128::saturating_from_rational(1, 2));
+    assert_eq!(smoothing, fraction::frac(1, 2));
 
     let period = 999;
     let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, FixedU128::saturating_from_rational(2, 1_000));
+    assert_eq!(smoothing, fraction::frac(2, 1_000));
 }
 
 #[test]
 fn exponential_smoothing_small_period() {
-    let smoothing = FixedU128::from_float(0.999);
+    let smoothing = Fraction::from_num(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing_fixed(smoothing, iterations);
+    let rug_exp = high_precision::rug_exp_smoothing_fraction(smoothing, iterations);
 
-    let tolerance = fixed_to_rational(FixedU128::from_inner(1));
+    let tolerance = high_precision::fixed_to_rational(FixedU128::from_inner(1));
     assert_rational_approx_eq!(
-        fixed_to_rational(exp),
+        fraction_to_rational(exp),
         rug_exp.clone(),
         tolerance,
         "high precision should be equal to low precision within low precision tolerance"
@@ -176,7 +177,7 @@ fn exponential_smoothing_small_period() {
 #[test]
 fn exponential_accuracy() {
     let smoothing = smoothing_from_period(100_800); // weekly oracle
-    let rug_smoothing = fixed_to_rational(smoothing);
+    let rug_smoothing = fraction_to_rational(smoothing);
     let iterations = 100_000;
     let start_balance = 1e12 as Balance;
     let incoming_balance = 1e21 as Balance;
@@ -195,7 +196,7 @@ fn exponential_accuracy() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing = high_precision::rug_exp_smoothing_fixed(smoothing, iterations);
+    let rug_exp_smoothing = high_precision::rug_exp_smoothing_fraction(smoothing, iterations);
     let exponential_rug_balance =
         high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
             .to_u128()
@@ -233,7 +234,7 @@ fn rug_balance_ema_works() {
             ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
         high_precision::into_rounded_integer(res)
     };
-    let ema = high_precision::rug_balance_ema(history, fixed_to_rational(smoothing));
+    let ema = high_precision::rug_balance_ema(history, high_precision::fixed_to_rational(smoothing));
     assert_eq!(expected, ema);
 }
 
@@ -246,11 +247,14 @@ fn rug_price_ema_works() {
         FixedU128::from(4),
     ];
     let smoothing = FixedU128::from((1, 4));
-    let expected = ((fixed_to_rational(history[0]) * 3 / 4 + fixed_to_rational(history[1]) / 4) * 3 / 4
-        + fixed_to_rational(history[2]) / 4)
+    let expected = ((high_precision::fixed_to_rational(history[0]) * 3 / 4
+        + high_precision::fixed_to_rational(history[1]) / 4)
         * 3
         / 4
-        + fixed_to_rational(history[3]) / 4;
-    let ema = high_precision::rug_price_ema(history, fixed_to_rational(smoothing));
+        + high_precision::fixed_to_rational(history[2]) / 4)
+        * 3
+        / 4
+        + high_precision::fixed_to_rational(history[3]) / 4;
+    let ema = high_precision::rug_price_ema(history, high_precision::fixed_to_rational(smoothing));
     assert_eq!(expected, ema);
 }

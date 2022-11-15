@@ -1,4 +1,6 @@
-use crate::types::{Balance, Price};
+use crate::transcendental::saturating_powi_high_precision;
+use crate::types::fraction;
+use crate::types::{Balance, Fraction, Price};
 
 use sp_arithmetic::{
     traits::{One, Saturating},
@@ -9,7 +11,7 @@ use sp_arithmetic::{
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: FixedU128) -> Price {
+pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: Fraction) -> Price {
     price_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
@@ -17,7 +19,7 @@ pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothi
 /// `iterations` is the number of iterations of the EMA to calculate.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `smoothing` is the smoothing factor of the EMA.
-pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: FixedU128) -> Balance {
+pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, smoothing: Fraction) -> Balance {
     balance_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
@@ -29,7 +31,7 @@ pub fn iterated_volume_ema(
     iterations: u32,
     prev: (Balance, Balance, Balance, Balance),
     incoming: (Balance, Balance, Balance, Balance),
-    smoothing: FixedU128,
+    smoothing: Fraction,
 ) -> (Balance, Balance, Balance, Balance) {
     volume_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
 }
@@ -42,19 +44,16 @@ pub fn iterated_volume_ema(
 ///
 /// ```
 /// # use hydra_dx_math::ema::exp_smoothing;
-/// # use sp_arithmetic::FixedU128;
-/// assert_eq!(exp_smoothing(FixedU128::from_float(0.6), 2), FixedU128::from_float(0.84));
+/// # use hydra_dy_math::types::Fraction;
+/// assert_eq!(exp_smoothing(Fraction::from_num(0.6), 2), FixedU128::from_num(0.84));
 /// ```
-pub fn exp_smoothing(smoothing: FixedU128, iterations: u32) -> FixedU128 {
-    debug_assert!(smoothing <= FixedU128::one());
-    let complement = FixedU128::one() - smoothing;
+pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
+    debug_assert!(smoothing <= Fraction::one());
+    let complement = Fraction::one() - smoothing;
     // in order to determine the iterated smoothing factor we exponentiate the complement
-    let exp_complement = complement.saturating_pow(iterations as usize);
-    debug_assert!(exp_complement <= FixedU128::one());
-    dbg!(smoothing);
-    dbg!(iterations);
-    dbg!(FixedU128::one() - exp_complement);
-    FixedU128::one() - exp_complement
+    let exp_complement: Fraction = saturating_powi_high_precision(complement.clone(), iterations);
+    debug_assert!(exp_complement <= Fraction::one());
+    Fraction::one() - exp_complement
 }
 
 /// Calculates smoothing factor alpha for an exponential moving average based on `period`:
@@ -65,8 +64,8 @@ pub fn exp_smoothing(smoothing: FixedU128, iterations: u32) -> FixedU128 {
 /// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
 /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
 /// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
-pub fn smoothing_from_period(period: u64) -> FixedU128 {
-    FixedU128::saturating_from_rational(2u64, period.max(1).saturating_add(1))
+pub fn smoothing_from_period(period: u64) -> Fraction {
+    (Fraction::ONE / u128::from(period.max(1)).saturating_add(1)) * 2
 }
 
 /// Calculate a weighted average for the given prices.
@@ -76,15 +75,15 @@ pub fn smoothing_from_period(period: u64) -> FixedU128 {
 /// Note: Rounding is slightly biased towards `prev`.
 /// (`FixedU128::mul` rounds to the nearest representable value, rounding down on equidistance.
 /// See [doc comment here](https://github.com/paritytech/substrate/blob/ce10b9f29353e89fc3e59d447041bb29622def3f/primitives/arithmetic/src/fixed_point.rs#L670-L671).)
-pub fn price_weighted_average(prev: Price, incoming: Price, weight: FixedU128) -> Price {
-    debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
+pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
         // Safe to use bare `-` because of the conditional.
-        prev + weight * (incoming - prev)
+        prev + fraction::multiply_by_fixed(weight, incoming - prev)
     } else {
         // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
-        prev - weight * (prev - incoming)
+        prev - fraction::multiply_by_fixed(weight, prev - incoming)
     }
 }
 
@@ -93,15 +92,15 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: FixedU128) -
 /// `weight` is how much weight to give the new value.
 ///
 /// Note: Rounding is biased towards `prev`.
-pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: FixedU128) -> Balance {
-    debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
+pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: Fraction) -> Balance {
+    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
         // Safe to use bare `-` because of the conditional.
-        prev + weight.saturating_mul_int(incoming - prev)
+        prev + fraction::multiply_by_balance(weight, incoming - prev)
     } else {
         // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
-        prev - weight.saturating_mul_int(prev - incoming)
+        prev - fraction::multiply_by_balance(weight, prev - incoming)
     }
 }
 
@@ -114,9 +113,9 @@ pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: FixedU
 pub fn volume_weighted_average(
     prev: (Balance, Balance, Balance, Balance),
     incoming: (Balance, Balance, Balance, Balance),
-    weight: FixedU128,
+    weight: Fraction,
 ) -> (Balance, Balance, Balance, Balance) {
-    debug_assert!(weight <= FixedU128::one(), "weight must be <= 1");
+    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     let (prev_a_in, prev_b_out, prev_a_out, prev_b_in) = prev;
     let (a_in, b_out, a_out, b_in) = incoming;
     (
@@ -135,9 +134,9 @@ pub(crate) mod high_precision {
     use num_traits::Pow;
     use rug::ops::DivRounding;
     use rug::ops::PowAssign;
-    use std::ops::ShrAssign;
     use rug::{Integer, Rational};
     use std::ops::Mul;
+    use std::ops::ShrAssign;
 
     /// Round the given `r` to a close number where numerator and denominator have <= 256 bits.
     pub(crate) fn round(r: &mut Rational) {
@@ -182,6 +181,11 @@ pub(crate) mod high_precision {
         Rational::from((f.into_inner(), FixedU128::DIV))
     }
 
+    /// Convert a fixed point fraction to an arbitrary precision rational number.
+    pub fn fraction_to_rational(f: Fraction) -> Rational {
+        Rational::from((f.to_bits(), fraction::DIV))
+    }
+
     #[test]
     fn fixed_to_rational_works() {
         assert_eq!(fixed_to_rational(FixedU128::from_float(0.25)), Rational::from((1, 4)));
@@ -195,6 +199,10 @@ pub(crate) mod high_precision {
 
     pub fn rug_exp_smoothing_fixed(smoothing: FixedU128, iterations: u32) -> Rational {
         rug_exp_smoothing_rational(fixed_to_rational(smoothing), iterations)
+    }
+
+    pub fn rug_exp_smoothing_fraction(smoothing: Fraction, iterations: u32) -> Rational {
+        rug_exp_smoothing_rational(fraction_to_rational(smoothing), iterations)
     }
 
     pub fn rug_exp_smoothing_rational(smoothing: Rational, iterations: u32) -> Rational {
