@@ -106,6 +106,23 @@ fn typical_exp(mult: f32) -> impl Strategy<Value = (FixedU128, u32)> {
     })
 }
 
+// --- History Strategies
+fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
+    prop::collection::vec((any_fixed(), 1_u32..500_000), 1..10)
+}
+
+fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
+    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..200_001), 2..10)
+}
+
+fn to_regular_history<T: Copy>(history: Vec<(T, u32)>) -> Vec<T> {
+    let expanded: Vec<Vec<_>> = history
+        .into_iter()
+        .map(|(v, iterations)| vec![v; iterations as usize])
+        .collect();
+    expanded.concat()
+}
+
 // --- Tests
 proptest! {
     #[test]
@@ -1021,17 +1038,6 @@ proptest! {
 }
 
 // --- History Tests
-fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
-    prop::collection::vec(((1e12 as Balance)..(1e28 as Balance), 1_u32..200_001), 2..10)
-}
-
-fn to_regular_history<T: Copy>(history: Vec<(T, u32)>) -> Vec<T> {
-    let expanded: Vec<Vec<_>> = history
-        .into_iter()
-        .map(|(v, iterations)| vec![v; iterations as usize])
-        .collect();
-    expanded.concat()
-}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100))]
@@ -1233,9 +1239,6 @@ proptest! {
 
 }
 
-fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
-    prop::collection::vec((any_fixed(), 1_u32..500_000), 1..10)
-}
 
 proptest! {
     // #![proptest_config(ProptestConfig::with_cases(100))]
