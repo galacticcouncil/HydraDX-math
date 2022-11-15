@@ -608,7 +608,7 @@ proptest! {
         //     ema = balance_weighted_average(ema, balance, smoothing);
         // }
 
-        let tolerance = Rational::from((10_000, Price::DIV));
+        let tolerance = Rational::from((100, Price::DIV));
         prop_assert_rational_approx_eq!(
             rug_ema.clone(),
             fixed_to_rational(ema),
@@ -616,6 +616,48 @@ proptest! {
             "high precision should be equal to low precision within tolerance"
         );
     }
+}
+
+use rug::ops::PowAssign;
+use std::ops::ShrAssign;
+
+fn round(r: &mut Rational) {
+    r.mutate_numer_denom(|n, d| {
+        let n_digits = n.significant_digits::<bool>();
+        let d_digits = d.significant_digits::<bool>();
+        if n_digits > 256 || d_digits > 256 {
+            let shift = n_digits.saturating_sub(256).max(d_digits.saturating_sub(256));
+            n.shr_assign(shift);
+            d.shr_assign(shift);
+        }
+    });
+}
+
+fn rational_pow(r: Rational, i: u32) -> Rational {
+    r.pow(i)
+}
+
+fn stepwise_pow(mut r: Rational, i: u32) -> Rational {
+    let mut iter = i;
+    while iter > 1 {
+        iter /= 2;
+        r.pow_assign(2);
+        round(&mut r);
+    }
+    r
+}
+
+#[test]
+fn stepwise_pow_close_enough() {
+    let num = Rational::one() - Rational::from((2u64, 100_001));
+
+    let res_pow = rational_pow(num.clone(), 65536);
+    let res_step = stepwise_pow(num.clone(), 65536);
+    dbg!(res_pow.clone().to_f64());
+    dbg!(res_step.clone().to_f64());
+    dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
+    dbg!(Rational::from((1, u128::MAX)).to_f64());
+    assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
 }
 
 pub(crate) mod numerical {
@@ -1201,7 +1243,7 @@ proptest! {
 }
 
 fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
-    prop::collection::vec((any_fixed(), 1_u32..500), 1..50)
+    prop::collection::vec((any_fixed(), 1_u32..500_000), 1..10)
 }
 
 proptest! {

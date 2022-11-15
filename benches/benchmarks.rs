@@ -44,7 +44,7 @@ where
 
 fn bench_pow<F>(c: &mut Criterion)
 where
-    F: FixedUnsigned,
+    F: FixedUnsigned + One,
     F::Bits:
         Zero + One + PartialEq + SampleUniform + Shr + ShrAssign + ShlAssign + ToFixed + Copy + AddAssign + BitOrAssign,
     Standard: Distribution<F::Bits>,
@@ -66,5 +66,89 @@ where
     });
 }
 
-criterion_group!(benches, bench_pow<FixedBalance>);
+use rug::{Integer, Rational};
+use num_traits::Pow;
+use rug::ops::PowAssign;
+
+fn round(r: &mut Rational) {
+    r.mutate_numer_denom(|n, d| {
+        let n_digits = n.significant_digits::<bool>();
+        let d_digits = d.significant_digits::<bool>();
+        if n_digits > 256 || d_digits > 256 {
+            let shift = n_digits.saturating_sub(256).max(d_digits.saturating_sub(256));
+            n.shr_assign(shift);
+            d.shr_assign(shift);
+        }
+    });
+}
+
+fn rational_pow(r: Rational, i: u32) -> Rational {
+    r.pow(i)
+}
+
+fn stepwise_pow(mut r: Rational, i: u32) -> Rational {
+    let mut iter = i;
+    while iter > 1 {
+        iter /= 2;
+        r.pow_assign(2);
+        round(&mut r);
+    }
+    r
+}
+
+#[test]
+fn stepwise_pow_close_enough() {
+    let num = Rational::one() - Rational::from((2u64, 100_001));
+
+    let res_pow = rational_pow(num.clone(), 65536);
+    let res_step = stepwise_pow(num.clone(), 65536);
+    dbg!(res_pow.clone().to_f64());
+    dbg!(res_step.clone().to_f64());
+    dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
+    dbg!(Rational::from((1, u128::MAX)).to_f64());
+    assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+}
+
+fn bench_rational_pow(c: &mut Criterion)
+{
+    let num = Rational::one() - Rational::from((2u64, 100_001));
+    c.bench_function("rational_pow 16", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(16))
+        })
+    });
+
+    c.bench_function("rational_pow 256", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(256))
+        })
+    });
+
+    c.bench_function("rational_pow 65536", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(65536))
+        })
+    });
+
+    c.bench_function("stepwise_pow 16", |b| {
+        b.iter_with_large_drop(|| {
+            stepwise_pow(black_box(num.clone()), black_box(16))
+        })
+    });
+
+    c.bench_function("stepwise_pow 256", |b| {
+        b.iter_with_large_drop(|| {
+            stepwise_pow(black_box(num.clone()), black_box(256))
+        })
+    });
+
+    c.bench_function("stepwise_pow 65536", |b| {
+        b.iter_with_large_drop(|| {
+            stepwise_pow(black_box(num.clone()), black_box(65536))
+        })
+    });
+}
+
+// criterion_group!(benches, bench_pow<FixedBalance>);
+criterion_group!(benches, bench_rational_pow);
 criterion_main!(benches);
