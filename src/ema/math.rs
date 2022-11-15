@@ -134,8 +134,44 @@ pub(crate) mod high_precision {
     use fixed::traits::Fixed;
     use num_traits::Pow;
     use rug::ops::DivRounding;
+    use rug::ops::PowAssign;
+    use std::ops::ShrAssign;
     use rug::{Integer, Rational};
     use std::ops::Mul;
+
+    /// Round the given `r` to a close number where numerator and denominator have <= 256 bits.
+    pub(crate) fn round(r: &mut Rational) {
+        r.mutate_numer_denom(|n, d| {
+            let n_digits = n.significant_digits::<bool>();
+            let d_digits = d.significant_digits::<bool>();
+            if n_digits > 256 || d_digits > 256 {
+                let shift = n_digits.saturating_sub(256).max(d_digits.saturating_sub(256));
+                n.shr_assign(shift);
+                d.shr_assign(shift);
+            }
+        });
+    }
+
+    /// Calculate the power of `r` via stepwise squaring and rounding to keep the memory size of `r`
+    /// within reasonable bounds.
+    ///
+    /// Much faster for big `i` but less accurate than the built-in function.
+    pub(crate) fn stepwise_pow_approx(mut r: Rational, i: u32) -> Rational {
+        if i <= 256 {
+            return r.pow(i);
+        }
+        let next_power = i.next_power_of_two();
+        let mut iter = if next_power == i { i } else { next_power / 2 };
+        let rest = i - iter;
+        let mut res_rest = stepwise_pow_approx(r.clone(), rest);
+        round(&mut res_rest);
+        while iter > 1 {
+            iter /= 2;
+            r.pow_assign(2);
+            round(&mut r);
+        }
+        r * res_rest
+    }
 
     pub fn smoothing_from_period(period: u64) -> Rational {
         Rational::from((2u64, period.max(1).saturating_add(1)))
@@ -165,7 +201,7 @@ pub(crate) mod high_precision {
         debug_assert!(smoothing <= Rational::one());
         let complement = Rational::one() - smoothing;
         // in order to determine the iterated smoothing factor we exponentiate the complement
-        let exp_complement = complement.pow(iterations);
+        let exp_complement = stepwise_pow_approx(complement, iterations);
         debug_assert!(exp_complement <= Rational::one());
         Rational::one() - exp_complement
     }
@@ -226,6 +262,7 @@ pub(crate) mod high_precision {
     }
 
     pub fn rug_fast_balance_ema(history: Vec<(Balance, u32)>, smoothing: Rational) -> Integer {
+        assert!(!history.is_empty());
         let mut current = Rational::from((history[0].0, 1));
         for (balance, iterations) in history.into_iter().skip(1) {
             let smoothing_adj = rug_exp_smoothing_rational(smoothing.clone(), iterations);
@@ -242,6 +279,16 @@ pub(crate) mod high_precision {
         let mut current = fixed_to_rational(history[0]);
         for price in history.into_iter().skip(1) {
             current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing.clone());
+        }
+        current
+    }
+
+    pub fn rug_fast_price_ema(history: Vec<(Price, u32)>, smoothing: Rational) -> Rational {
+        assert!(!history.is_empty());
+        let mut current = fixed_to_rational(history[0].0);
+        for (price, iterations) in history.into_iter().skip(1) {
+            let smoothing_adj = rug_exp_smoothing_rational(smoothing.clone(), iterations);
+            current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing_adj.clone());
         }
         current
     }
