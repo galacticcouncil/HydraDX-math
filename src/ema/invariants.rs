@@ -638,26 +638,47 @@ fn rational_pow(r: Rational, i: u32) -> Rational {
 }
 
 fn stepwise_pow(mut r: Rational, i: u32) -> Rational {
-    let mut iter = i;
+    if i <= 256 {
+        return r.pow(i);
+    }
+    let next_power = i.next_power_of_two();
+    let mut iter = if next_power == i { i } else { next_power / 2 };
+    let rest = i - iter;
+    let mut res_rest = stepwise_pow(r.clone(), rest);
+    round(&mut res_rest);
     while iter > 1 {
         iter /= 2;
         r.pow_assign(2);
         round(&mut r);
     }
-    r
+    r * res_rest
 }
 
 #[test]
 fn stepwise_pow_close_enough() {
-    let num = Rational::one() - Rational::from((2u64, 100_001));
+    {
+        let num = Rational::one() - Rational::from((2u64, 100_001));
 
-    let res_pow = rational_pow(num.clone(), 65536);
-    let res_step = stepwise_pow(num.clone(), 65536);
-    dbg!(res_pow.clone().to_f64());
-    dbg!(res_step.clone().to_f64());
-    dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
-    dbg!(Rational::from((1, u128::MAX)).to_f64());
-    assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+        let res_pow = rational_pow(num.clone(), 65_536);
+        let res_step = stepwise_pow(num.clone(), 65_536);
+        dbg!(res_pow.clone().to_f64());
+        dbg!(res_step.clone().to_f64());
+        dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
+        dbg!(Rational::from((1, u128::MAX)).to_f64());
+        assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+    }
+
+    {
+        let num = Rational::one() - Rational::from((2u64, 100_001));
+
+        let res_pow = rational_pow(num.clone(), 70_000);
+        let res_step = stepwise_pow(num.clone(), 70_000);
+        dbg!(res_pow.clone().to_f64());
+        dbg!(res_step.clone().to_f64());
+        dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
+        dbg!(Rational::from((1, u128::MAX)).to_f64());
+        assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+    }
 }
 
 pub(crate) mod numerical {

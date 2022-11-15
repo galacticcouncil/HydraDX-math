@@ -87,13 +87,20 @@ fn rational_pow(r: Rational, i: u32) -> Rational {
 }
 
 fn stepwise_pow(mut r: Rational, i: u32) -> Rational {
-    let mut iter = i;
+    if i <= 256 {
+        return r.pow(i);
+    }
+    let next_power = i.next_power_of_two();
+    let mut iter = if next_power == i { i } else { next_power / 2 };
+    let rest = i - iter;
+    let mut res_rest = stepwise_pow(r.clone(), rest);
+    round(&mut res_rest);
     while iter > 1 {
         iter /= 2;
         r.pow_assign(2);
         round(&mut r);
     }
-    r
+    r * res_rest
 }
 
 #[test]
@@ -112,43 +119,66 @@ fn stepwise_pow_close_enough() {
 fn bench_rational_pow(c: &mut Criterion)
 {
     let num = Rational::one() - Rational::from((2u64, 100_001));
-    c.bench_function("rational_pow 16", |b| {
+    c.bench_function("pow_rational 16", |b| {
         b.iter_with_large_drop(|| {
             rational_pow(black_box(num.clone()), black_box(16))
         })
     });
 
-    c.bench_function("rational_pow 256", |b| {
+    c.bench_function("pow_rational 256", |b| {
         b.iter_with_large_drop(|| {
             rational_pow(black_box(num.clone()), black_box(256))
         })
     });
 
-    c.bench_function("rational_pow 65536", |b| {
+    c.bench_function("pow_rational 1k", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(1_000))
+        })
+    });
+
+    c.bench_function("pow_rational 10k", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(10_000))
+        })
+    });
+
+    c.bench_function("pow_rational 65536", |b| {
         b.iter_with_large_drop(|| {
             rational_pow(black_box(num.clone()), black_box(65536))
         })
     });
 
-    c.bench_function("stepwise_pow 16", |b| {
+    c.bench_function("pow_rational 100_000", |b| {
+        b.iter_with_large_drop(|| {
+            rational_pow(black_box(num.clone()), black_box(100_000))
+        })
+    });
+
+    c.bench_function("pow_stepwise 16", |b| {
         b.iter_with_large_drop(|| {
             stepwise_pow(black_box(num.clone()), black_box(16))
         })
     });
 
-    c.bench_function("stepwise_pow 256", |b| {
+    c.bench_function("pow_stepwise 256", |b| {
         b.iter_with_large_drop(|| {
             stepwise_pow(black_box(num.clone()), black_box(256))
         })
     });
 
-    c.bench_function("stepwise_pow 65536", |b| {
+    c.bench_function("pow_stepwise 65536", |b| {
         b.iter_with_large_drop(|| {
             stepwise_pow(black_box(num.clone()), black_box(65536))
         })
     });
+
+    c.bench_function("pow_stepwise 100_000", |b| {
+        b.iter_with_large_drop(|| {
+            stepwise_pow(black_box(num.clone()), black_box(100_000))
+        })
+    });
 }
 
-// criterion_group!(benches, bench_pow<FixedBalance>);
-criterion_group!(benches, bench_rational_pow);
+criterion_group!(benches, bench_pow<FixedBalance>, bench_rational_pow);
 criterion_main!(benches);
