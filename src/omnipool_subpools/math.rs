@@ -25,6 +25,11 @@ pub struct TradeResult {
     pub iso_pool: TradeStateChange<Balance>,
 }
 
+pub struct MixedTradeResult {
+    pub subpool: SubpoolStateChange,
+    pub iso_pool: TradeStateChange<Balance>,
+}
+
 pub fn calculate_sell_between_subpools(
     pool_in: SubpoolState,
     pool_out: SubpoolState,
@@ -181,6 +186,58 @@ pub fn calculate_buy_between_subpools(
         },
         iso_pool: buy_changes,
     })
+}
+
+pub fn calculate_stable_out_given_iso_in(
+    pool_out: SubpoolState,
+    idx_out: usize,
+    asset_state_in: &AssetReserveState<Balance>,
+    amount_in: Balance,
+    asset_fee: Permill,
+    protocol_fee: Permill,
+    withdraw_fee: Permill,
+    imbalance: Balance,
+) -> Option<MixedTradeResult> {
+    None
+}
+
+pub fn calculate_iso_out_given_stable_in(
+    pool_in: SubpoolState,
+    idx_in: usize,
+    asset_state_out: &AssetReserveState<Balance>,
+    amount_in: Balance,
+    asset_fee: Permill,
+    protocol_fee: Permill,
+    withdraw_fee: Permill,
+    imbalance: Balance,
+) -> Option<MixedTradeResult> {
+    None
+}
+
+pub fn calculate_iso_in_given_stable_out(
+    pool_out: SubpoolState,
+    idx_out: usize,
+    asset_state_in: &AssetReserveState<Balance>,
+    amount_out: Balance,
+    asset_fee: Permill,
+    protocol_fee: Permill,
+    withdraw_fee: Permill,
+    imbalance: Balance,
+) -> Option<MixedTradeResult> {
+    None
+}
+
+pub fn calculate_stable_in_given_iso_out(
+    pool_in: SubpoolState,
+    idx_in: usize,
+    asset_state_out: &AssetReserveState<Balance>,
+    amount_out: Balance,
+    asset_fee: Permill,
+    protocol_fee: Permill,
+    withdraw_fee: Permill,
+    imbalance: Balance,
+) -> Option<MixedTradeResult> {
+    None
 }
 
 pub struct MigrationDetails {
