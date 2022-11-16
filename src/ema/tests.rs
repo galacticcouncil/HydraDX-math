@@ -7,7 +7,7 @@ use high_precision::fraction_to_rational;
 
 use num_traits::{Bounded, One, Zero};
 use rug::Rational;
-use sp_arithmetic::{traits::Saturating, FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 
 macro_rules! assert_rational_approx_eq {
     ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
@@ -146,16 +146,13 @@ fn exp_smoothing_works() {
 #[test]
 fn smoothing_from_period_works() {
     let period = 0;
-    let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, Fraction::one());
+    assert_eq!(smoothing_from_period(period), Fraction::one());
 
     let period = 3;
-    let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, fraction::frac(1, 2));
+    assert_eq!(smoothing_from_period(period), fraction::frac(1, 2));
 
     let period = 999;
-    let smoothing = smoothing_from_period(period);
-    assert_eq!(smoothing, fraction::frac(2, 1_000));
+    assert_eq!(smoothing_from_period(period), fraction::frac(2, 1_000));
 }
 
 #[test]
@@ -163,7 +160,7 @@ fn exponential_smoothing_small_period() {
     let smoothing = Fraction::from_num(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing_fraction(smoothing, iterations);
+    let rug_exp = high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
 
     let tolerance = high_precision::fixed_to_rational(FixedU128::from_inner(1));
     assert_rational_approx_eq!(
@@ -196,7 +193,7 @@ fn exponential_accuracy() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing = high_precision::rug_exp_smoothing_fraction(smoothing, iterations);
+    let rug_exp_smoothing = high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
     let exponential_rug_balance =
         high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
             .to_u128()

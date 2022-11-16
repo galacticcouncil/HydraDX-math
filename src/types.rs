@@ -11,7 +11,6 @@ pub const BASILISK_ONE: u128 = 1_000_000_000_000u128;
 
 pub mod fraction {
     use super::{Balance, FixedU128, Fraction};
-    use fixed::traits::Fixed;
     use num_traits::One;
     use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
     use sp_arithmetic::per_things::Rounding;
