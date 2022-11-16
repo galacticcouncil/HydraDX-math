@@ -193,7 +193,8 @@ fn exponential_accuracy() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing = high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
+    let rug_exp_smoothing =
+        high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
     let exponential_rug_balance =
         high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
             .to_u128()

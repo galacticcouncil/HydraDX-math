@@ -282,7 +282,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{FixedBalance, Fraction, fraction};
+    use crate::types::{fraction, FixedBalance, Fraction};
     use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
