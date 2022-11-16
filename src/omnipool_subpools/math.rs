@@ -2,6 +2,7 @@
 
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, TradeStateChange};
 use crate::omnipool::{calculate_buy_state_changes, calculate_sell_state_changes};
+use crate::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 use crate::stableswap::{calculate_d, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::types::Balance;
@@ -57,7 +58,10 @@ pub fn calculate_sell_between_subpools(
 
     let delta_d = d_plus.checked_sub(initial_d)?;
 
-    let delta_u = share_issuance_in.checked_mul(delta_d)?.checked_div(initial_d)?; // TODO: higher precision needed?
+    let delta_u = share_issuance_in
+        .hp_checked_mul(&delta_d)?
+        .checked_div_inner(&initial_d)?
+        .to_inner()?;
 
     let sell_changes = calculate_sell_state_changes(
         share_state_in,
