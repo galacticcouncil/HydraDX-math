@@ -12,7 +12,7 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-const MAX_ITERATIONS: u32 = 5_256_000; // slow but more informative: 5_256_000 (= 1 year)
+pub const MAX_ITERATIONS: u32 = 5_256_000; // slow but more informative: 5_256_000 (= 1 year)
 
 macro_rules! prop_assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
