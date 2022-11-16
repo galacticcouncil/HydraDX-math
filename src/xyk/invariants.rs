@@ -3,18 +3,10 @@ use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::FixedU128;
 
+use super::super::test_utils::assert_eq_approx;
+
 pub const ONE: Balance = 1_000_000_000_000;
 const TOLERANCE: Balance = 1_000;
-
-#[macro_export]
-macro_rules! assert_eq_approx {
-    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x - $y } else { $y - $x };
-        if diff > $z {
-            panic!("\n{} not equal\n left: {:?}\nright: {:?}\n", $r, $x, $y);
-        }
-    }};
-}
 
 fn asset_reserve() -> impl Strategy<Value = Balance> {
     1000 * ONE..10_000_000 * ONE

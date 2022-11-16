@@ -92,7 +92,7 @@ where
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShrAssign + Shr,
 {
-    let log2_e = S::from_str("1.442695").map_err(|_| ())?;
+    let log2_e = S::from_num(fixed::consts::LOG2_E);
     let log_result = log2::<S, D>(operand)?;
     Ok((log_result.0 / D::from(log2_e), log_result.1))
 }
@@ -117,7 +117,9 @@ where
     let mut result = operand + D::one();
     let mut term = operand;
 
-    result = (2..D::FRAC_NBITS).try_fold(result, |acc, i| -> Result<D, ()> {
+    let max_iter = D::FRAC_NBITS.checked_mul(3).ok_or(())?;
+
+    result = (2..max_iter).try_fold(result, |acc, i| -> Result<D, ()> {
         term = term.checked_mul(operand).ok_or(())?;
         term = term.checked_div(D::from_num(i)).ok_or(())?;
         acc.checked_add(term).ok_or(())
@@ -280,7 +282,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{FixedBalance, Fraction};
+    use crate::types::{FixedBalance, Fraction, fraction};
+    use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
 
@@ -382,12 +385,12 @@ mod tests {
             Fraction::from_num(0.0625)
         );
         assert_eq!(
-            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::from_num(9) / 10, 2),
-            Fraction::from_num(81) / 100
+            saturating_powi_high_precision::<Fraction, Fraction>(fraction::frac(6, 10), 2),
+            fraction::frac(36, 100)
         );
-        let expected: Fraction = powi(Fraction::from_num(8) / 10, 2).unwrap();
+        let expected: Fraction = powi(fraction::frac(8, 10), 2).unwrap();
         assert_eq!(
-            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::from_num(8) / 10, 2),
+            saturating_powi_high_precision::<Fraction, Fraction>(fraction::frac(8, 10), 2),
             expected
         );
     }
@@ -425,12 +428,12 @@ mod tests {
 
         assert_eq!(
             pow(S::from_num(22.1234), S::from_num(2.1)),
-            Ok(D::from_num(667.097035126091))
+            Ok(D::from_num(667.096912176457))
         );
 
         assert_eq!(
             pow(S::from_num(0.986069911074), S::from_num(1.541748732743)),
-            Ok(D::from_num(0.978604513883))
+            Ok(D::from_num(0.978604514488))
         );
     }
 }

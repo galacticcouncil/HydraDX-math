@@ -1,0 +1,17 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc abec821adc4d6f531f3c98182f19e06d78de958953786d1d96bb3e520dd7c395 # shrinks to period = 2000000000000000000
+cc 77f840c7f76607867c737267a0992a0a0b4b2d7497c1b41f6b8f13f4df276103 # shrinks to smoothing = 9739961688584222, (prev_balance, incoming_balance) = (11056416052049, 18446744073709551615)
+cc b1f65eb4e272d2cde1d2741deccb63242ce213831c30bec99656afdaedead601 # shrinks to smoothing = 1, (prev_balance, incoming_balance) = (3583904071919985516, 0)
+cc f48b8a58b6e7602312bb7b14a7351d4ecfba57faeeeb69e67c19ba2a875cca98 # shrinks to smoothing = 166666667, iterations = 9
+cc 4f73e8148e172e2f43ab0e4a7195bfd64735280a4752cec13ac5db6d1e26a705 # shrinks to smoothing = 134438341, iterations = 93
+cc 7cdc87109e4394ac830b4a29e4dd781427afe1e4efdf7a6f8070cc79c7b65536 # shrinks to smoothing = 170005061, iterations = 5487
+cc b64dd6dd6ee16de91f517834efc2f9ef6886d1b3b102a97ac63d84fa221e0517 # shrinks to (smoothing, period) = (FixedU128(0.000138888888888888), 14399), (start_balance, incoming_balance) = (538686509725217712287442, 96117734629487432900618706)
+cc 78e01143250f0cdb3f0d615ccf3e9a2dd89c5d8915d70b77e1ef782e26ca2ed0 # shrinks to (smoothing, period) = (FixedU128(0.000138888888888888), 14399), (start_balance, incoming_balance) = (6080793798739155567397, 97290591802259957192102914)
+cc 2cbff43e667403ae7a143ad1301bdcfff7a4f93c500fc9d52ee71ea715238119 # shrinks to period = 834921, iterations = 26381
+cc eb7b922c3e65ee00cdd95f21f348f27e6c9348a90e7a1e123b9cc7dd40ec9ab8 # shrinks to period = 329568, iterations = 59434
+cc 5e6f637fd3a5e1e8d611c9804561f9a4f354140940ece2ab1fbf4bab230c1cf2 # shrinks to history = [(1431702168725732163623164190, 1), (9270214550274397946945479026, 64137), (1199962558090205922879252692, 111748), (2965905542316536899321670, 3052)], period = 114061
