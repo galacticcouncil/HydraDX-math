@@ -10,6 +10,7 @@ pub trait CheckedMathInner: Sized {
     type Inner;
 
     fn checked_div_inner(&self, other: &Self::Inner) -> Option<Self>;
+    fn checked_mul_inner(&self, other: &Self::Inner) -> Option<Self>;
 
     fn to_inner(&self) -> Option<Self::Inner>;
 }
@@ -38,6 +39,11 @@ impl CheckedMathInner for U256 {
     fn checked_div_inner(&self, other: &Self::Inner) -> Option<Self> {
         let o = U256::from(*other);
         self.checked_div(o)
+    }
+
+    fn checked_mul_inner(&self, other: &Self::Inner) -> Option<Self> {
+        let o = U256::from(*other);
+        self.checked_mul(o)
     }
 
     fn to_inner(&self) -> Option<Self::Inner> {

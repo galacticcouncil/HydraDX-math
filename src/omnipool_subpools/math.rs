@@ -1,12 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::omnipool::types::{AssetReserveState, BalanceUpdate, TradeStateChange};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, TradeStateChange};
 use crate::omnipool::{calculate_buy_state_changes, calculate_sell_state_changes};
 use crate::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 use crate::stableswap::{calculate_d, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::types::Balance;
-use num_traits::One;
+use num_traits::{CheckedDiv, One};
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 pub struct SubpoolState<'a> {
@@ -181,4 +181,28 @@ pub fn calculate_buy_between_subpools(
         },
         iso_pool: buy_changes,
     })
+}
+
+pub struct MigrationDetails {
+    price: FixedU128,
+    shares: Balance,
+    hub_reserve: Balance,
+    share_tokens: Balance,
+}
+
+pub fn convert_position(position: Position<Balance>, details: MigrationDetails) -> Option<Position<Balance>> {
+    let shares = position
+        .shares
+        .hp_checked_mul(&details.hub_reserve)?
+        .checked_div_inner(&details.shares)?
+        .to_inner()?;
+
+    let amount = position
+        .amount
+        .hp_checked_mul(&details.share_tokens)?
+        .checked_div_inner(&details.shares)?
+        .to_inner()?;
+    let price = position.price.checked_div(&details.price)?;
+
+    Some(Position { shares, amount, price })
 }
