@@ -184,10 +184,10 @@ pub fn calculate_buy_between_subpools(
 }
 
 pub struct MigrationDetails {
-    price: FixedU128,
-    shares: Balance,
-    hub_reserve: Balance,
-    share_tokens: Balance,
+    pub price: FixedU128,
+    pub shares: Balance,
+    pub hub_reserve: Balance,
+    pub share_tokens: Balance,
 }
 
 pub fn convert_position(position: Position<Balance>, details: MigrationDetails) -> Option<Position<Balance>> {
