@@ -39,6 +39,7 @@ pub fn calculate_sell_between_subpools(
     share_state_in: &AssetReserveState<Balance>,
     share_state_out: &AssetReserveState<Balance>,
     share_issuance_in: Balance,
+    share_issuance_out: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
     withdraw_fee: Permill,
@@ -83,7 +84,7 @@ pub fn calculate_sell_between_subpools(
     let fee_w = FixedU128::from(withdraw_fee);
     let delta_d = initial_out_d * delta_u_t
         / (FixedU128::one() - fee_w)
-            .checked_mul_int(share_state_out.reserve)
+            .checked_mul_int(share_issuance_out) // TODO: share_state_out.reserve or share_issuance_out??
             .unwrap();
 
     let d_plus = initial_out_d - delta_d;
@@ -200,7 +201,43 @@ pub fn calculate_stable_out_given_iso_in(
     withdraw_fee: Permill,
     imbalance: Balance,
 ) -> Option<MixedTradeResult> {
-    None
+    if idx_out >= pool_out.reserves.len() {
+        return None;
+    }
+
+    let sell_changes = calculate_sell_state_changes(
+        asset_state_in,
+        share_state,
+        amount_in,
+        asset_fee,
+        protocol_fee,
+        imbalance,
+    )?;
+
+    let initial_out_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
+
+    let delta_u_t = *sell_changes.asset_out.delta_reserve;
+    let fee_w = FixedU128::from(withdraw_fee);
+    let delta_d = initial_out_d * delta_u_t / (FixedU128::one() - fee_w).checked_mul_int(share_issuance).unwrap();
+
+    let d_plus = initial_out_d - delta_d;
+    let xp: Vec<Balance> = pool_out
+        .reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_out)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+
+    Some(MixedTradeResult {
+        subpool: SubpoolStateChange {
+            idx: idx_out,
+            amount: BalanceUpdate::Increase(delta_t_j),
+        },
+        isopool: sell_changes,
+    })
 }
 
 pub fn calculate_iso_out_given_stable_in(
@@ -212,7 +249,7 @@ pub fn calculate_iso_out_given_stable_in(
     amount_in: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
-    withdraw_fee: Permill,
+    _withdraw_fee: Permill,
     imbalance: Balance,
 ) -> Option<MixedTradeResult> {
     if idx_in >= pool_in.reserves.len() {
@@ -311,10 +348,41 @@ pub fn calculate_stable_in_given_iso_out(
     amount_out: Balance,
     asset_fee: Permill,
     protocol_fee: Permill,
-    withdraw_fee: Permill,
+    _withdraw_fee: Permill,
     imbalance: Balance,
 ) -> Option<MixedTradeResult> {
-    None
+    let buy_changes = calculate_buy_state_changes(
+        share_state,
+        asset_state_out,
+        amount_out,
+        asset_fee,
+        protocol_fee,
+        imbalance,
+    )?;
+
+    let initial_in_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
+
+    let delta_u_t = *buy_changes.asset_in.delta_reserve;
+    let delta_d = initial_in_d * ((delta_u_t + share_issuance) / share_issuance);
+
+    let d_plus = initial_in_d + delta_d;
+    let xp: Vec<Balance> = pool_in
+        .reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_in)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+
+    Some(MixedTradeResult {
+        subpool: SubpoolStateChange {
+            idx: idx_in,
+            amount: BalanceUpdate::Increase(delta_t_j),
+        },
+        isopool: buy_changes,
+    })
 }
 
 pub struct MigrationDetails {
