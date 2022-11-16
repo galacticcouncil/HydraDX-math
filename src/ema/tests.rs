@@ -172,7 +172,7 @@ fn exponential_smoothing_small_period() {
 }
 
 #[test]
-fn exponential_accuracy() {
+fn accuracy_of_exponentiation_should_be_high_enough() {
     let smoothing = smoothing_from_period(100_800); // weekly oracle
     let rug_smoothing = fraction_to_rational(smoothing);
     let iterations = 100_000;
@@ -207,14 +207,14 @@ fn exponential_accuracy() {
     println!("   rug iterated: {}", next_rug_balance);
     println!("rug exponential: {}", exponential_rug_balance);
 
-    let tolerance = 22_000;
+    let tolerance = 100;
     assert_approx_eq!(
         next_balance,
         exponential_rug_balance,
         tolerance,
         "iterated balance should be within tolerance of the high precision balance"
     );
-    let tolerance = 12_000_000;
+    let tolerance = 1;
     assert_approx_eq!(
         exponential_balance,
         exponential_rug_balance,
