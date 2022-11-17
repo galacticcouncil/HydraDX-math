@@ -48,7 +48,7 @@ pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
     debug_assert!(smoothing <= Fraction::one());
     let complement = Fraction::one() - smoothing;
     // in order to determine the iterated smoothing factor we exponentiate the complement
-    let exp_complement: Fraction = saturating_powi_high_precision(complement.clone(), iterations);
+    let exp_complement: Fraction = saturating_powi_high_precision(complement, iterations);
     debug_assert!(exp_complement <= Fraction::one());
     Fraction::one() - exp_complement
 }

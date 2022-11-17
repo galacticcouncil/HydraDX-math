@@ -277,7 +277,7 @@ where
             return s_pos.checked_sub(s_minus);
         }
     }
-    return None; // if we do not have convergence, we do not risk returning an inaccurate value
+    None // if we do not have convergence, we do not risk returning an inaccurate value
 }
 
 #[cfg(test)]
