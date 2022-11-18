@@ -17,21 +17,25 @@ pub struct SubpoolState<'a> {
     pub amplification: Balance,
 }
 
+#[derive(Debug)]
 pub struct SubpoolStateChange {
     pub idx: usize,
     pub amount: BalanceUpdate<Balance>,
 }
 
+#[derive(Debug)]
 pub struct TradeResult {
     pub asset_in: SubpoolStateChange,
     pub asset_out: SubpoolStateChange,
     pub iso_pool: TradeStateChange<Balance>,
 }
 
+#[derive(Debug)]
 pub struct MixedTradeResult {
     pub subpool: SubpoolStateChange,
     pub isopool: TradeStateChange<Balance>,
 }
+#[derive(Debug)]
 pub struct MixedTradeHubResult {
     pub subpool: SubpoolStateChange,
     pub isopool: HubTradeStateChange<Balance>,
@@ -154,7 +158,7 @@ pub fn calculate_buy_between_subpools(
 
     let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
 
-    let delta_d = d_plus.checked_sub(initial_d)?;
+    let delta_d = initial_d.checked_sub(d_plus)?;
 
     let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?)?).checked_mul_int(
         share_issuance_out
@@ -397,9 +401,9 @@ pub fn calculate_iso_in_given_stable_out(
 
     let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
 
-    let delta_d = d_plus.checked_sub(initial_d)?;
+    let delta_d = initial_d.checked_sub(d_plus)?;
 
-    let delta_u = (FixedU128::one().checked_sub(&FixedU128::one().checked_div(&fee_w)?))?.checked_mul_int(
+    let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?))?.checked_mul_int(
         share_issuance
             .hp_checked_mul(&delta_d)?
             .checked_div_inner(&initial_d)?
@@ -444,9 +448,9 @@ pub fn calculate_hub_asset_in_given_stable_out(
 
     let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
 
-    let delta_d = d_plus.checked_sub(initial_d)?;
+    let delta_d = initial_d.checked_sub(d_plus)?;
 
-    let delta_u = (FixedU128::one().checked_sub(&FixedU128::one().checked_div(&fee_w)?))?.checked_mul_int(
+    let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?))?.checked_mul_int(
         share_issuance
             .hp_checked_mul(&delta_d)?
             .checked_div_inner(&initial_d)?
@@ -502,7 +506,7 @@ pub fn calculate_stable_in_given_iso_out(
         .checked_div_inner(&share_issuance)?
         .to_inner()?;
 
-    let d_plus = initial_in_d + delta_d;
+    let d_plus = initial_in_d.checked_add(delta_d)?;
     let xp: Vec<Balance> = pool_in
         .reserves
         .iter()

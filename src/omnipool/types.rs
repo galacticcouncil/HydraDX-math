@@ -151,7 +151,7 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TradeStateChange<Balance>
 where
     Balance: Default,
@@ -163,7 +163,7 @@ where
 }
 
 /// Delta changes after a trade with hub asset is executed.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HubTradeStateChange<Balance>
 where
     Balance: Default,
