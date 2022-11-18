@@ -1,7 +1,7 @@
 use crate::types::Balance;
 
-use rust_decimal::prelude::*;
 use num_traits::{One, Zero};
+use rust_decimal::prelude::*;
 
 pub type Price = Decimal;
 pub type Fraction = Decimal;
@@ -96,10 +96,14 @@ pub fn balance_weighted_average(prev: Balance, incoming: Balance, weight: Fracti
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
         // Safe to use bare `-` because of the conditional.
-        prev + (weight * Fraction::from(incoming - prev)).try_into().unwrap_or(incoming - prev) // TODO: check for sanity
+        prev + (weight * Fraction::from(incoming - prev))
+            .try_into()
+            .unwrap_or(incoming - prev) // TODO: check for sanity
     } else {
         // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
-        prev - (weight * Fraction::from(prev - incoming)).try_into().unwrap_or(prev - incoming)
+        prev - (weight * Fraction::from(prev - incoming))
+            .try_into()
+            .unwrap_or(prev - incoming)
     }
 }
 
@@ -125,8 +129,7 @@ pub fn volume_weighted_average(
     )
 }
 
-pub fn powu_high_precision(operand: Decimal, n: u32) -> Decimal
-{
+pub fn powu_high_precision(operand: Decimal, n: u32) -> Decimal {
     if operand == Decimal::zero() {
         return Decimal::zero();
     } else if n == 0 {
@@ -142,7 +145,10 @@ pub fn powu_high_precision(operand: Decimal, n: u32) -> Decimal
     let boundary = Decimal::one()
         .checked_div(Decimal::from(10))
         .expect("1 / 10 does not fail; qed");
-    match (boundary.checked_div(Decimal::from(n)), Decimal::one().checked_sub(operand)) {
+    match (
+        boundary.checked_div(Decimal::from(n)),
+        Decimal::one().checked_sub(operand),
+    ) {
         (Some(b), Some(one_minus_operand)) if b > one_minus_operand => {
             powu_near_one(operand, n).unwrap_or_else(|| operand.powu(n.into()))
         }
@@ -151,8 +157,7 @@ pub fn powu_high_precision(operand: Decimal, n: u32) -> Decimal
 }
 
 /// Determine `operand^n` for `operand` values close to but less than 1.
-fn powu_near_one(operand: Decimal, n: u32) -> Option<Decimal>
-{
+fn powu_near_one(operand: Decimal, n: u32) -> Option<Decimal> {
     if n == 0 {
         return Some(Decimal::one());
     } else if n == 1 {

@@ -3,7 +3,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fixed::traits::{FixedUnsigned, ToFixed};
 use fixed::types::U89F39 as FixedBalance;
 
+use hydra_dx_math::ema;
+use hydra_dx_math::ema::decimal_math::powu_high_precision;
 use hydra_dx_math::transcendental::pow;
+use hydra_dx_math::transcendental::saturating_powi_high_precision;
+use hydra_dx_math::types::Fraction;
 
 use num_traits::{One, Zero};
 use rand::distributions::uniform::SampleUniform;
@@ -159,5 +163,218 @@ fn bench_rational_pow(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_pow<FixedBalance>, bench_rational_pow);
+fn bench_other_pow(c: &mut Criterion) {
+    {
+        let smoothing = ema::smoothing_from_period(100_800);
+        c.bench_function("other fraction_pow 16", |b| {
+            b.iter(|| {
+                let _r: Fraction = saturating_powi_high_precision(black_box(smoothing.clone()), black_box(16));
+            })
+        });
+
+        c.bench_function("other fraction_pow 256", |b| {
+            b.iter(|| {
+                let _r: Fraction = saturating_powi_high_precision(black_box(smoothing.clone()), black_box(256));
+            })
+        });
+
+        c.bench_function("other fraction_pow 1k", |b| {
+            b.iter(|| {
+                let _r: Fraction = saturating_powi_high_precision(black_box(smoothing.clone()), black_box(1_000));
+            })
+        });
+
+        c.bench_function("other fraction_pow 10k", |b| {
+            b.iter(|| {
+                let _r: Fraction = saturating_powi_high_precision(black_box(smoothing.clone()), black_box(10_000));
+            })
+        });
+
+        c.bench_function("other fraction_pow 100k", |b| {
+            b.iter(|| {
+                let _r: Fraction = saturating_powi_high_precision(black_box(smoothing.clone()), black_box(100_000));
+            })
+        });
+    }
+
+    {
+        let smoothing = ema::decimal_math::smoothing_from_period(100_800);
+        c.bench_function("other decimal_pow 16", |b| {
+            b.iter(|| powu_high_precision(black_box(smoothing.clone()), black_box(16)))
+        });
+
+        c.bench_function("other decimal_pow 256", |b| {
+            b.iter(|| powu_high_precision(black_box(smoothing.clone()), black_box(256)))
+        });
+
+        c.bench_function("other decimal_pow 1k", |b| {
+            b.iter(|| powu_high_precision(black_box(smoothing.clone()), black_box(1_000)))
+        });
+
+        c.bench_function("other decimal_pow 10k", |b| {
+            b.iter(|| powu_high_precision(black_box(smoothing.clone()), black_box(10_000)))
+        });
+
+        c.bench_function("other decimal_pow 100k", |b| {
+            b.iter(|| powu_high_precision(black_box(smoothing.clone()), black_box(100_000)))
+        });
+    }
+}
+
+fn bench_ema(c: &mut Criterion) {
+    {
+        use hydra_dx_math::types::Price;
+        use sp_arithmetic::fixed_point::FixedPointNumber;
+
+        let smoothing = ema::smoothing_from_period(100_800);
+        let prev = Price::saturating_from_rational(1234_u128, 1e15 as u128);
+        let incoming = Price::saturating_from_rational(45678_u128, 1e15 as u128);
+        c.bench_function("iterated_ema_fixed 1", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(1),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_fixed 16", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(16),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_fixed 256", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(256),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_fixed 1k", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(1_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_fixed 10k", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(10_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_fixed 100k", |b| {
+            b.iter(|| {
+                ema::iterated_price_ema(
+                    black_box(100_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+    }
+
+    {
+        use ema::decimal_math;
+        use rust_decimal::Decimal;
+        let smoothing = decimal_math::smoothing_from_period(100_800);
+        let prev = Decimal::new(1234, 15);
+        let incoming = Decimal::new(45678, 15);
+        c.bench_function("iterated_ema_decimal 1", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(1),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_decimal 16", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(16),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_decimal 256", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(256),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_decimal 1k", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(1_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_decimal 10k", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(10_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+
+        c.bench_function("iterated_ema_decimal 100k", |b| {
+            b.iter(|| {
+                decimal_math::iterated_price_ema(
+                    black_box(100_000),
+                    black_box(prev),
+                    black_box(incoming),
+                    black_box(smoothing.clone()),
+                )
+            })
+        });
+    }
+}
+
+criterion_group!(
+    benches,
+    bench_pow<FixedBalance>,
+    bench_rational_pow,
+    bench_other_pow,
+    bench_ema
+);
 criterion_main!(benches);

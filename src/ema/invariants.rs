@@ -14,7 +14,7 @@ use sp_arithmetic::{
 
 pub const MAX_ITERATIONS: u32 = 201_600; // 2 weeks
 pub const MIN_BALANCE: Balance = 50; // existential deposit for BTC will likely be 100 satoshis
-// total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27
+                                     // total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27
 pub const MAX_BALANCE: Balance = 1e28 as Balance;
 
 macro_rules! prop_assert_rational_approx_eq {
@@ -518,8 +518,8 @@ proptest! {
 }
 
 mod decimals {
-    use super::*;
     use super::super::decimal_math;
+    use super::*;
     use rust_decimal::Decimal;
 
     fn small_decimal() -> impl Strategy<Value = Decimal> {
@@ -543,12 +543,12 @@ mod decimals {
         ) {
             let smoothing = decimal_math::smoothing_from_period(period);
             let rug_ema = high_precision::rug_fast_decimal_ema(history.clone(), decimal_to_rational(smoothing));
-    
+
             let mut ema = history[0].0;
             for (price, iterations) in history.into_iter().skip(1) {
                 ema = decimal_math::iterated_price_ema(iterations, ema, price, smoothing);
             }
-    
+
             let relative_tolerance = Rational::from((1, 1e13 as u128));
             prop_assert_rational_relative_approx_eq!(
                 rug_ema.clone(),

@@ -1,12 +1,12 @@
 use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
 
-use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use num_traits::One;
 use num_traits::Pow;
 use rug::ops::PowAssign;
 use rug::{Integer, Rational};
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 use std::ops::Mul;
 use std::ops::ShrAssign;

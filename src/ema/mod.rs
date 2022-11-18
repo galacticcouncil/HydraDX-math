@@ -1,5 +1,5 @@
+pub mod decimal_math;
 mod math;
-mod decimal_math;
 
 #[cfg(test)]
 pub(crate) mod high_precision;

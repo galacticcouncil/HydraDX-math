@@ -36,3 +36,6 @@ runtime-benchmarks = []
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[profile.bench]
+debug = true
