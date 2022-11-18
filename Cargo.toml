@@ -14,6 +14,8 @@ num-traits = {default-features = false, version = "0.2.14"}
 fixed = { version = "=1.15.0", features = ["num-traits"] }
 # Added because of use of the FixedU128
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
+rust_decimal = { default-features = false, version = "1.26.1", features = ["maths"] }
+rust_decimal_macros = { default-features = false, version = "1.26" }
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.29", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.29", default-features = false }
 

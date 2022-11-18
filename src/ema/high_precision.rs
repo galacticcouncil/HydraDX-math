@@ -1,6 +1,8 @@
 use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
 
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use num_traits::One;
 use num_traits::Pow;
 use rug::ops::PowAssign;
@@ -45,6 +47,11 @@ pub(crate) fn stepwise_pow_approx(mut r: Rational, i: u32) -> Rational {
 
 pub fn smoothing_from_period(period: u64) -> Rational {
     Rational::from((2u64, period.max(1).saturating_add(1)))
+}
+
+/// Convert a fixed point number to an arbitrary precision rational number.
+pub fn decimal_to_rational(f: Decimal) -> Rational {
+    Rational::from((f.mantissa(), Integer::from(10).pow(f.scale())))
 }
 
 /// Convert a fixed point number to an arbitrary precision rational number.
@@ -149,8 +156,23 @@ pub fn rug_fast_price_ema(history: Vec<(Price, u32)>, smoothing: Rational) -> Ra
     current
 }
 
+pub fn rug_fast_decimal_ema(history: Vec<(Decimal, u32)>, smoothing: Rational) -> Rational {
+    assert!(!history.is_empty());
+    let mut current = decimal_to_rational(history[0].0);
+    for (price, iterations) in history.into_iter().skip(1) {
+        let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
+        current = rug_weighted_average(current.clone(), decimal_to_rational(price), smoothing_adj.clone());
+    }
+    current
+}
+
 // --- Tests
 #[test]
 fn fixed_to_rational_works() {
     assert_eq!(fixed_to_rational(FixedU128::from_float(0.25)), Rational::from((1, 4)));
+}
+
+#[test]
+fn decimal_to_rational_works() {
+    assert_eq!(decimal_to_rational(dec!(0.25)), Rational::from((1, 4)));
 }

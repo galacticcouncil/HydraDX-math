@@ -1,7 +1,7 @@
 use crate::ema::*;
 use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
-use high_precision::{fixed_to_rational, fraction_to_rational};
+use high_precision::{decimal_to_rational, fixed_to_rational, fraction_to_rational};
 
 use proptest::prelude::*;
 
@@ -514,5 +514,48 @@ proptest! {
             dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
             dbg!(Rational::from((1, u128::MAX)).to_f64());
             prop_assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+    }
+}
+
+mod decimals {
+    use super::*;
+    use super::super::decimal_math;
+    use rust_decimal::Decimal;
+
+    fn small_decimal() -> impl Strategy<Value = Decimal> {
+        ((1e10 as u64)..(1e15 as u64)).prop_map(|x| Decimal::one() / Decimal::from(x))
+    }
+
+    prop_compose! {
+        fn ema_small_price_history()(p in long_period())(
+            period in Just(p),
+            history in prop::collection::vec((small_decimal(), iterations_up_to(p as u32)), 2..10)
+        ) -> (u64, Vec<(Decimal, u32)>) {
+          (period, history)
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+        #[test]
+        fn ema_small_price_history_precision(
+            (period, history) in ema_small_price_history(),
+        ) {
+            let smoothing = decimal_math::smoothing_from_period(period);
+            let rug_ema = high_precision::rug_fast_decimal_ema(history.clone(), decimal_to_rational(smoothing));
+    
+            let mut ema = history[0].0;
+            for (price, iterations) in history.into_iter().skip(1) {
+                ema = decimal_math::iterated_price_ema(iterations, ema, price, smoothing);
+            }
+    
+            let relative_tolerance = Rational::from((1, 1e13 as u128));
+            prop_assert_rational_relative_approx_eq!(
+                rug_ema.clone(),
+                decimal_to_rational(ema),
+                relative_tolerance,
+                "high precision should be equal to low precision within tolerance"
+            );
+        }
     }
 }
