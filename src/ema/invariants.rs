@@ -12,7 +12,10 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-pub const MAX_ITERATIONS: u32 = 1_314_000; // 3 months
+pub const MAX_ITERATIONS: u32 = 201_600; // 2 weeks
+pub const MIN_BALANCE: Balance = 50; // existential deposit for BTC will likely be 100 satoshis
+// total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27
+pub const MAX_BALANCE: Balance = 1e28 as Balance;
 
 macro_rules! prop_assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
@@ -80,7 +83,19 @@ fn small_fixed() -> impl Strategy<Value = FixedU128> {
 }
 
 fn typical_period() -> impl Strategy<Value = u64> {
-    1_u64..200_000
+    1_u64..110_000
+}
+
+fn long_period() -> impl Strategy<Value = u64> {
+    10_000_u64..110_000
+}
+
+fn realistic_balance() -> impl Strategy<Value = Balance> {
+    MIN_BALANCE..MAX_BALANCE
+}
+
+fn iterations_up_to(max: u32) -> impl Strategy<Value = u32> {
+    1_u32..(max * 2)
 }
 
 fn iterations() -> impl Strategy<Value = u32> {
@@ -101,16 +116,41 @@ fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
 }
 
 prop_compose! {
-    fn ema_price_crash_history()(
+    fn ema_small_price_history()(p in long_period())(
+        period in Just(p),
+        history in prop::collection::vec((small_fixed(), iterations_up_to(p as u32)), 2..100)
+    ) -> (u64, Vec<(Price, u32)>) {
+      (period, history)
+    }
+}
+
+prop_compose! {
+    fn ema_price_crash_history()(p in long_period())(
+        period in Just(p),
         initial_price in any_fixed(),
-        big_price in big_fixed(), big_iter in iterations(),
-        small_price in small_fixed(), small_iter in iterations()
-    ) -> Vec<(Price, u32)> {
-      vec![
+        big_price in big_fixed(), big_iter in iterations_up_to(p as u32),
+        small_price in small_fixed(), small_iter in iterations_up_to(p as u32)
+    ) -> (u64, Vec<(Price, u32)>) {
+      (period, vec![
         (initial_price, 1),
         (big_price, big_iter),
         (small_price, small_iter)
-      ]
+      ])
+    }
+}
+
+prop_compose! {
+    fn ema_balance_crash_history()(p in long_period())(
+        period in Just(p),
+        initial_balance in realistic_balance(),
+        big_balance in (1e16 as Balance)..MAX_BALANCE, big_iter in iterations_up_to(p as u32),
+        small_balance in MIN_BALANCE..100_000, small_iter in iterations_up_to(p as u32)
+    ) -> (u64, Vec<(Balance, u32)>) {
+      (period, vec![
+        (initial_balance, 1),
+        (big_balance, big_iter),
+        (small_balance, small_iter)
+      ])
     }
 }
 
@@ -394,8 +434,30 @@ proptest! {
 proptest! {
     #[test]
     fn ema_price_history_precision_crash_scenario(
-        history in ema_price_crash_history(),
-        period in typical_period(),
+        (period, history) in ema_price_crash_history(),
+    ) {
+        let smoothing = smoothing_from_period(period);
+        let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_rational(smoothing));
+
+        let mut ema = history[0].0;
+        for (price, iterations) in history.into_iter().skip(1) {
+            ema = iterated_price_ema(iterations, ema, price, smoothing);
+        }
+
+        let relative_tolerance = Rational::from((1, 1e15 as u128));
+        prop_assert_rational_relative_approx_eq!(
+            rug_ema.clone(),
+            fixed_to_rational(ema),
+            relative_tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    #[test]
+    fn ema_small_price_history_precision(
+        (period, history) in ema_small_price_history(),
     ) {
         let smoothing = smoothing_from_period(period);
         let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_rational(smoothing));
@@ -410,6 +472,29 @@ proptest! {
             rug_ema.clone(),
             fixed_to_rational(ema),
             relative_tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    #[test]
+    fn ema_balance_history_precision_crash_scenario(
+        (period, history) in ema_balance_crash_history(),
+    ) {
+        let smoothing = smoothing_from_period(period);
+        let rug_ema = high_precision::rug_fast_balance_ema(history.clone(), fraction_to_rational(smoothing));
+
+        let mut ema = history[0].0;
+        for (balance, iterations) in history.into_iter().skip(1) {
+            ema = iterated_balance_ema(iterations, ema, balance, smoothing);
+        }
+
+        let tolerance = 1;
+        prop_assert_approx_eq!(
+            rug_ema.clone(),
+            ema,
+            tolerance,
             "high precision should be equal to low precision within tolerance"
         );
     }
