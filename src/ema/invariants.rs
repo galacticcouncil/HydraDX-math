@@ -12,7 +12,7 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-pub const MAX_ITERATIONS: u32 = 5_256_000; // slow but more informative: 5_256_000 (= 1 year)
+pub const MAX_ITERATIONS: u32 = 1_314_000; // 3 months
 
 macro_rules! prop_assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
@@ -33,13 +33,13 @@ macro_rules! prop_assert_rational_relative_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y { $x - $y } else { $y - $x };
         prop_assert!(
-            diff.clone() / $x <= $z,
+            diff.clone() / $x.clone() <= $z.clone(),
             "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
             $r,
             $x.to_f64(),
             $y.to_f64(),
             diff.to_f64(),
-            $z.to_f64()
+            ($x * $z).to_f64()
         );
     }};
 }
@@ -71,8 +71,20 @@ fn any_fixed() -> impl Strategy<Value = FixedU128> {
     any::<u128>().prop_map(|x| FixedU128::from_inner(x))
 }
 
+fn big_fixed() -> impl Strategy<Value = FixedU128> {
+    ((1e10 as u64)..(1e15 as u64)).prop_map(|x| FixedU128::saturating_from_integer(x))
+}
+
+fn small_fixed() -> impl Strategy<Value = FixedU128> {
+    ((1e10 as u64)..(1e15 as u64)).prop_map(|x| FixedU128::saturating_from_rational(1, x))
+}
+
 fn typical_period() -> impl Strategy<Value = u64> {
     1_u64..200_000
+}
+
+fn iterations() -> impl Strategy<Value = u32> {
+    1_u32..MAX_ITERATIONS
 }
 
 fn small_rational_close_to_one() -> impl Strategy<Value = Rational> {
@@ -85,7 +97,21 @@ fn period_fraction() -> impl Strategy<Value = Fraction> {
 
 // --- History Strategies
 fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
-    prop::collection::vec((any_fixed(), 1_u32..MAX_ITERATIONS), 2..50)
+    prop::collection::vec((any_fixed(), iterations()), 2..50)
+}
+
+prop_compose! {
+    fn ema_price_crash_history()(
+        initial_price in any_fixed(),
+        big_price in big_fixed(), big_iter in iterations(),
+        small_price in small_fixed(), small_iter in iterations()
+    ) -> Vec<(Price, u32)> {
+      vec![
+        (initial_price, 1),
+        (big_price, big_iter),
+        (small_price, small_iter)
+      ]
+    }
 }
 
 fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
@@ -356,6 +382,30 @@ proptest! {
         }
 
         let relative_tolerance = Rational::from((1, 1e24 as u128));
+        prop_assert_rational_relative_approx_eq!(
+            rug_ema.clone(),
+            fixed_to_rational(ema),
+            relative_tolerance,
+            "high precision should be equal to low precision within tolerance"
+        );
+    }
+}
+
+proptest! {
+    #[test]
+    fn ema_price_history_precision_crash_scenario(
+        history in ema_price_crash_history(),
+        period in typical_period(),
+    ) {
+        let smoothing = smoothing_from_period(period);
+        let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_rational(smoothing));
+
+        let mut ema = history[0].0;
+        for (price, iterations) in history.into_iter().skip(1) {
+            ema = iterated_price_ema(iterations, ema, price, smoothing);
+        }
+
+        let relative_tolerance = Rational::from((1, 1e9 as u128));
         prop_assert_rational_relative_approx_eq!(
             rug_ema.clone(),
             fixed_to_rational(ema),
