@@ -522,7 +522,9 @@ pub fn calculate_stable_in_given_iso_out(
         .map(|(_, v)| *v)
         .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+    let reserve_in = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+
+    let delta_t_j = reserve_in.checked_sub(pool_in.reserves[idx_in])?;
 
     Some(MixedTradeResult {
         subpool: SubpoolStateChange {
