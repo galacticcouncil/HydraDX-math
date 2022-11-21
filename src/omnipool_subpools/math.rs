@@ -508,12 +508,11 @@ pub fn calculate_stable_in_given_iso_out(
     let initial_in_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
 
     let delta_u_t = *buy_changes.asset_in.delta_reserve;
-    let delta_d = initial_in_d
+    let d_plus = initial_in_d
         .hp_checked_mul(&delta_u_t.checked_add(share_issuance)?)?
         .checked_div_inner(&share_issuance)?
         .to_inner()?;
 
-    let d_plus = initial_in_d.checked_add(delta_d)?;
     let xp: Vec<Balance> = pool_in
         .reserves
         .iter()
