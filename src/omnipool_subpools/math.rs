@@ -109,7 +109,9 @@ pub fn calculate_sell_between_subpools(
         .map(|(_, v)| *v)
         .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+    let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+
+    let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
 
     Some(TradeResult {
         asset_in: SubpoolStateChange {
@@ -192,7 +194,9 @@ pub fn calculate_buy_between_subpools(
         .map(|(_, v)| *v)
         .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+    let reserve_in = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
+
+    let delta_t_j = reserve_in.checked_sub(pool_out.reserves[idx_out])?;
 
     Some(TradeResult {
         asset_in: SubpoolStateChange {
@@ -252,7 +256,8 @@ pub fn calculate_stable_out_given_iso_in(
         .map(|(_, v)| *v)
         .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+    let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+    let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
 
     Some(MixedTradeResult {
         subpool: SubpoolStateChange {
@@ -309,7 +314,9 @@ pub fn calculate_stable_out_given_hub_asset_in(
         .map(|(_, v)| *v)
         .collect();
 
-    let delta_t_j = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+    let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
+
+    let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
 
     Some(MixedTradeHubResult {
         subpool: SubpoolStateChange {
