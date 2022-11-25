@@ -12,8 +12,10 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-pub const MAX_ITERATIONS: u32 = 201_600; // 2 weeks
-pub const MIN_BALANCE: Balance = 50; // existential deposit for BTC will likely be 100 satoshis
+// 2 weeks
+pub const MAX_ITERATIONS: u32 = 201_600;
+// existential deposit for BTC will likely be 100 satoshis
+pub const MIN_BALANCE: Balance = 50;
 // total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27
 pub const MAX_BALANCE: Balance = 1e28 as Balance;
 
@@ -514,5 +516,35 @@ proptest! {
             dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
             dbg!(Rational::from((1, u128::MAX)).to_f64());
             prop_assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+    }
+}
+
+use sp_arithmetic::Rational128;
+
+proptest! {
+    #[test]
+    fn fraction_times_rational(
+        smoothing in typical_period().prop_map(smoothing_from_period),
+        price in (MIN_BALANCE..u128::MAX, MIN_BALANCE..u128::MAX),
+    ) {
+        let price = Rational128::from(price.0, price.1);
+
+        let res = fraction::multiply_by_rational(smoothing, price);
+        let expected = fraction_to_rational(smoothing) * Rational::from((price.n(), price.d()));
+
+        let res = Rational::from((res.n(), res.d()));
+        let tolerance = Rational::from((1, 1u128 << 64));
+
+        let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
+        let small_enough = diff.clone() / expected.clone() <= tolerance;
+        let max_diff = expected.clone() * tolerance.clone();
+        prop_assert!(
+            small_enough,
+            "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            res.clone().to_f64(),
+            expected.clone().to_f64(),
+            diff.to_f64(),
+            max_diff.to_f64()
+        );
     }
 }

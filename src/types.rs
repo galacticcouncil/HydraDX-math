@@ -12,9 +12,9 @@ pub const BASILISK_ONE: u128 = 1_000_000_000_000u128;
 pub mod fraction {
     use super::{Balance, FixedU128, Fraction};
     use num_traits::One;
-    use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
+    use sp_arithmetic::helpers_128bit::{gcd, multiply_by_rational_with_rounding};
     use sp_arithmetic::per_things::Rounding;
-    use sp_arithmetic::FixedPointNumber;
+    use sp_arithmetic::{FixedPointNumber, Rational128};
 
     /// Smallest representable value via `Fraction`.
     pub const SMALLEST_NON_ZERO: Fraction = Fraction::from_bits(1);
@@ -57,6 +57,10 @@ pub mod fraction {
         )
     }
 
+    pub fn to_rational(f: Fraction) -> Rational128 {
+        Rational128::from(f.to_bits(), DIV)
+    }
+
     pub fn multiply_by_balance(f: Fraction, b: Balance) -> Balance {
         debug_assert!(f <= Fraction::ONE);
         multiply_by_rational_with_rounding(b, f.to_bits(), DIV, Rounding::NearestPrefDown)
@@ -70,6 +74,21 @@ pub mod fraction {
                 .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed"),
         )
     }
+
+    fn simplify(r: Rational128) -> Rational128 {
+        let g = gcd(r.n(), r.d());
+        Rational128::from(r.n() / g, r.d() / g)
+    }
+
+    pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
+        debug_assert!(f <= Fraction::ONE);
+        // amplify both numerator and denominator of the rational number to make multiplication more
+        // accurate
+        let amplifier = (u128::MAX / r.d()).min(u128::MAX / r.n());
+        let n = multiply_by_rational_with_rounding(r.n() * amplifier, f.to_bits(), DIV, Rounding::NearestPrefDown)
+            .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed");
+        simplify(Rational128::from(n, r.d() * amplifier))
+    }
 }
 
 #[cfg(test)]
@@ -78,7 +97,28 @@ mod tests {
     use fraction::*;
 
     use num_traits::One;
-    use sp_arithmetic::FixedPointNumber;
+    use sp_arithmetic::{FixedPointNumber, Rational128};
+
+    use rug::Rational;
+
+    macro_rules! assert_rational_approx_eq {
+        ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
+            let diff = if $x >= $y { $x - $y } else { $y - $x };
+            assert!(
+                diff <= $z,
+                "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+                $r,
+                $x.to_f64(),
+                $y.to_f64(),
+                diff.to_f64(),
+                $z.to_f64()
+            );
+        }};
+    }
+
+    fn rat(n: u128, d: u128) -> Rational128 {
+        Rational128::from(n, d)
+    }
 
     #[test]
     fn fraction_representation() {
@@ -135,5 +175,35 @@ mod tests {
         let fixed = FixedU128::from((1, 100));
         let expected = FixedU128::from((1, 400));
         assert_eq!(multiply_by_fixed(frac, fixed), expected);
+    }
+
+    fn to_tuple(r: Rational128) -> (u128, u128) {
+        (r.n(), r.d())
+    }
+
+    #[test]
+    fn multply_by_rational_works() {
+        let f = Fraction::from_num(0.25);
+        let r = rat(5, 100);
+        let expected = rat(1, 80);
+        let res = multiply_by_rational(f, r);
+        assert_eq!(
+            res,
+            expected,
+            "actual: {:?}, expected: {:?}",
+            to_tuple(res),
+            to_tuple(expected)
+        );
+
+        let f = fraction::frac(1, 9 << 124);
+        let r = rat(9, 10);
+        let expected = Rational::from((1, (1_u128 << 124) * 10));
+        let res = multiply_by_rational(f, r);
+        assert_rational_approx_eq!(
+            Rational::from((res.n(), res.d())),
+            expected.clone(),
+            Rational::from((1, fraction::DIV)),
+            "not approximately equal!"
+        );
     }
 }
