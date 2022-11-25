@@ -192,7 +192,16 @@ pub struct Position<Balance> {
     /// Quantity of LP shares owned by LP
     pub shares: Balance,
     /// Price at which liquidity was provided
-    pub price: FixedU128,
+    pub price: (Balance, Balance),
+}
+
+impl<Balance> Position<Balance>
+where
+    Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
+{
+    pub fn price(&self) -> Option<FixedU128> {
+        FixedU128::checked_from_rational(self.price.0.into(), self.price.1.into())
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
