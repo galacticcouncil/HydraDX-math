@@ -533,7 +533,7 @@ proptest! {
         let expected = fraction_to_rational(smoothing) * Rational::from((price.n(), price.d()));
 
         let res = Rational::from((res.n(), res.d()));
-        let tolerance = Rational::from((1, 1u128 << 64));
+        let tolerance = Rational::from((1, 1u128 << 100));
 
         let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
         let small_enough = diff.clone() / expected.clone() <= tolerance;
