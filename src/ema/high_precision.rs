@@ -5,7 +5,7 @@ use num_traits::One;
 use num_traits::Pow;
 use rug::ops::PowAssign;
 use rug::{Integer, Rational};
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 use std::ops::Mul;
 use std::ops::ShrAssign;
 
@@ -55,6 +55,10 @@ pub fn fixed_to_rational(f: FixedU128) -> Rational {
 /// Convert a fixed point fraction to an arbitrary precision rational number.
 pub fn fraction_to_rational(f: Fraction) -> Rational {
     Rational::from((f.to_bits(), fraction::DIV))
+}
+
+pub fn rational_to_rational(r: Rational128) -> Rational {
+    Rational::from((r.n(), r.d()))
 }
 
 /// Convert a `Rational` number into its rounded `Integer` equivalent.
@@ -145,6 +149,16 @@ pub fn rug_fast_price_ema(history: Vec<(Price, u32)>, smoothing: Rational) -> Ra
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
         current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing_adj.clone());
+    }
+    current
+}
+
+pub fn rug_fast_rational_price_ema(history: Vec<(Rational128, u32)>, smoothing: Rational) -> Rational {
+    assert!(!history.is_empty());
+    let mut current = rational_to_rational(history[0].0);
+    for (price, iterations) in history.into_iter().skip(1) {
+        let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
+        current = rug_weighted_average(current.clone(), rational_to_rational(price), smoothing_adj.clone());
     }
     current
 }

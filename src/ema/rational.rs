@@ -69,10 +69,10 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) ->
     if incoming >= prev {
         // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
         // Safe to use bare `-` because of the conditional.
-        prev + fraction::multiply_by_rational(weight, incoming - prev)
+        rounding_add(prev, fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)))
     } else {
         // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
-        prev - fraction::multiply_by_rational(weight, prev - incoming)
+        rounding_sub(prev, fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)))
     }
 }
 
@@ -114,3 +114,66 @@ pub fn volume_weighted_average(
         balance_weighted_average(prev_b_in, b_in, weight),
     )
 }
+
+use crate::to_u256;
+use primitive_types::U256;
+// use crate::types::fraction::simplify;
+
+fn euclid_gcd(mut a: U256, mut b: U256) -> U256{
+    let delta = U256::from(((a.bits().min(b.bits()) * 4) as u32).next_power_of_two()).min(a).min(b);
+    // let delta = U256::from(((a.bits().min(b.bits())) as u32)).min(a).min(b);
+    // dbg!(delta);
+    let mut temp = a;
+    while a.div_mod(b).1 > delta {
+      temp = a.div_mod(b).1;
+      a = b;
+      b = temp;
+    }
+    return b;
+  }
+
+fn gcd(a: U256, b: U256) -> U256 {
+    use core::cmp::{min, max};
+	match ((a, b), (a & U256::one(), b & U256::one())) {
+		((x, y), _) if x == y => y,
+		((a, x), _) | ((x, a), _) if a == U256::zero() => x,
+		((x, y), t) if t == (U256::zero(), U256::one()) => gcd(x >> U256::one(), y),
+        ((y, x), t) if t == (U256::one(), U256::zero()) => gcd(x >> U256::one(), y),
+		((x, y), t) if t == (U256::zero(), U256::zero()) => gcd(x >> U256::one(), y >> U256::one()) << U256::one(),
+		((x, y), t) if t == (U256::one(), U256::one()) => {
+			let (x, y) = (min(x, y), max(x, y));
+			gcd((y - x) >> U256::one(), x)
+		},
+		_ => unreachable!(),
+	}
+}
+
+pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
+    // let (l, r) = (simplify(l), simplify(r));
+    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
+    let d = l_d * r_d;
+    let n = (l_n * r_d).saturating_add(r_n * l_d);
+    let g = euclid_gcd(n, d);
+    if g < 1_000_u32.into() { println!("gcd: {}", g); }
+    let n = n / g;
+    let d = d / g;
+    let shift = n.bits().max(d.bits()).saturating_sub(128);
+    if shift > 0 { println!("shift: {}", shift); }
+    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+}
+
+pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
+    // let (l, r) = (simplify(l), simplify(r));
+    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
+    let d = l_d * r_d;
+    let n = (l_n * r_d).saturating_sub(r_n * l_d);
+    let g = euclid_gcd(n, d);
+    if g < 1_000_u32.into() { println!("gcd: {}", g); }
+    let n = n / g;
+    let d = d / g;
+    let shift = n.bits().max(d.bits()).saturating_sub(128);
+    if shift > 0 { println!("shift: {}", shift); }
+    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+}
+
+

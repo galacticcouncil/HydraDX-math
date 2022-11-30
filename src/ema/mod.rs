@@ -1,5 +1,5 @@
 mod math;
-// mod rational;
+mod rational;
 
 #[cfg(test)]
 pub(crate) mod high_precision;

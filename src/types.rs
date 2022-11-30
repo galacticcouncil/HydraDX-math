@@ -75,7 +75,7 @@ pub mod fraction {
         )
     }
 
-    fn simplify(r: Rational128) -> Rational128 {
+    pub fn simplify(r: Rational128) -> Rational128 {
         let g = gcd(r.n(), r.d());
         Rational128::from(r.n() / g, r.d() / g)
     }
@@ -84,7 +84,7 @@ pub mod fraction {
         debug_assert!(f <= Fraction::ONE);
         // amplify both numerator and denominator of the rational number to make multiplication more
         // accurate
-        let amplifier = (u128::MAX / r.d()).min(u128::MAX / r.n());
+        let amplifier = ((u128::MAX / r.d().max(1)).min(u128::MAX / r.n().max(1))).max(1);
         let n = multiply_by_rational_with_rounding(r.n() * amplifier, f.to_bits(), DIV, Rounding::NearestPrefDown)
             .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed");
         simplify(Rational128::from(n, r.d() * amplifier))
