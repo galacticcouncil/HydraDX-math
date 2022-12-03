@@ -184,6 +184,23 @@ impl Float128 {
             )
         }
     }
+
+    pub fn saturating_add(self, other: Self) -> Self {
+        if self.scale == other.scale {
+            Self {
+                scale: self.scale,
+                mantissa: self.mantissa.saturating_add(other.mantissa),
+            }
+        } else {
+            let point = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let scale: i16 = self.scale.min(other.scale).into();
+            Self::from_fixed_u256(
+                self.to_fixed_u256(point).saturating_add(other.to_fixed_u256(point)),
+                scale,
+                point as i16 + scale,
+            )
+        }
+    }
 }
 
 // pub type Price = Float128;
@@ -269,6 +286,28 @@ mod tests {
         assert_eq!(Float128::new(10, 1).saturating_sub(Float128::new(9, 1)), Float128::new(9, 1));
 
         assert_eq!(Float128::new(10, 5).saturating_sub(Float128::new(9, 5)), Float128::new(9, 5));
+    }
+
+    #[test]
+    fn saturating_add_works() {
+        assert_eq!(Float128::one().saturating_add(Float128::one()), Float128::from_int(2));
+
+        assert_eq!(Float128::from_int(5).saturating_add(Float128::one()), Float128::from_int(6));
+
+        assert_eq!(Float128::from_rational(1, 4).saturating_add(Float128::from_rational(1, 8)), Float128::from_rational(3, 8));
+
+        assert_eq!(Float128::one().saturating_add(Float128::from_rational(1, 8)), Float128::from_rational(9, 8));
+
+        assert_eq!(Float128::from_int(4).saturating_add(Float128::from_rational(1, 4)), Float128::from_rational(17, 4));
+
+        assert_eq!(Float128::new(9, 5).saturating_add(Float128::new(9, 5)), Float128::new(9, 10));
+    }
+
+    #[test]
+    fn test_mul_and_add_equality() {
+        let num = Float128::new(10, 5);
+
+        assert_eq!(num.saturating_add(num), num.saturating_mul(Float128::from_int(2)));
     }
 
 }
