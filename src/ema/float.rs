@@ -25,6 +25,19 @@ fn into_neg_i8(n: u32) -> i8 {
     (-((n).min(128) as i16)) as i8
 }
 
+use core::ops::{Shl, Shr};
+
+fn shift<N, S>(n: N, s: S) -> N
+where N: Shl<i16, Output = N> + Shr<i16, Output = N>,
+      S: Into<i16> + Copy,
+{
+    let s: i16 = s.into();
+    match s {
+        0..=i16::MAX => n << s,
+        i16::MIN..=-1 => n >> -s,
+    }
+}
+
 impl Float128 {
     pub fn new(scale: i8, mantissa: u128) -> Self {
         Self { scale, mantissa }
@@ -59,10 +72,7 @@ impl Float128 {
     }
 
     pub fn to_int(&self) -> u128 {
-        match self.scale {
-            0..=i8::MAX => self.mantissa << self.scale,
-            i8::MIN..=-1 => self.mantissa >> -(self.scale as i16),
-        }
+        shift(self.mantissa, self.scale)
     }
 
     pub fn to_f64(&self) -> f64 {
@@ -75,6 +85,34 @@ impl Float128 {
             0.0
         };
         self.to_int() as f64 + fractional_part
+    }
+
+    pub(crate) fn to_fixed_u256(&self, point: i16) -> U256 {
+        shift(shift(U256::from(self.mantissa), point), self.scale)
+    }
+
+    pub(crate) fn from_fixed_u256(mut f: U256, mut scale: i16, offset: i16) -> Self {
+        f = shift(f, -offset);
+        if scale > 127 {
+            // adjust the mantissa in case the scale would overflow
+            f = f.saturating_mul((1_u128 << scale.saturating_sub(127)).into());
+            scale = 127;
+        } else if scale < -128 {
+            // adjust the mantissa in case the scale would underflow
+            f /= 1_u128 << -scale.saturating_add(128);
+            scale = -128;
+        };
+        debug_assert!(scale <= (i8::MAX as i16) && scale >= (i8::MIN as i16), "scale must fit in i8");
+        // convert scale to the final type
+        let mut scale = scale as i8;
+        // we want to convert the number back to u128, so let's make sure it fits
+        let shift = 128_u32.saturating_sub(f.leading_zeros());
+        f >>= shift;
+        // here is where we saturate if we cannot fit the extra scale
+        scale = scale.saturating_add(shift.min(i8::MAX as u32) as i8);
+        Self {
+            scale, mantissa: f.as_u128(),
+        }
     }
 
     pub fn from_fraction(f: Fraction) -> Self {
@@ -94,7 +132,6 @@ impl Float128 {
     pub fn from_rational(n: u128, d: u128) -> Self {
         debug_assert!(d > 0, "denominator must be greater than zero");
         let next_power = d.checked_next_power_of_two().unwrap_or(u128::MAX);
-        dbg!(next_power);
         if d == next_power {
             return Self {
                 scale: into_neg_i8(bits(d) - 1),
@@ -123,47 +160,30 @@ impl Float128 {
         } else if other.is_one() {
             return self;
         }
-        dbg!(self, other);
         // multiplication of the mantissas is straight forward, we just make sure to have enough
         // bits to actually represent the result
         let mut mantissa = U128::from(self.mantissa).full_mul(other.mantissa.into());
         // same for the scale: let's make sure there are enough bits
         let mut scale = self.scale as i16 + (other.scale as i16);
-        dbg!(scale);
-        if scale > 127 {
-            // adjust the mantissa in case the scale overflows
-            mantissa = mantissa.saturating_mul((1_u128 << scale.saturating_sub(127)).into());
-            scale = 127;
-        } else if scale < -128 {
-            // adjust the mantissa in case the scale underflows
-            mantissa = mantissa / (1 << -(scale.saturating_add(128)));
-            scale = -128;
-        }
-        debug_assert!(scale <= (i8::MAX as i16) && scale >= (i8::MIN as i16), "scale must fit in i8");
-        // convert scale to the final type
-        let mut scale = scale as i8;
-        // we want to convert the mantissa back to u128, so let's make sure it fits
-        let shift = 128_u32.saturating_sub(mantissa.leading_zeros());
-        mantissa >>= shift;
-        // here is where we saturate if we cannot fit the extra scale
-        scale = scale.saturating_add(shift.min(127) as i8);
-        let mantissa = mantissa.as_u128();
-        Self {
-            scale, mantissa,
-        }
+        Self::from_fixed_u256(mantissa, scale, 0)
     }
 
-    // pub fn saturating_sub(self, other: Self) -> Self {
-    //     let mantissa = match (self.scale, other.scale) {
-    //         (s, o) if s == o => self.mantissa.saturating_sub(other.mantissa),
-    //         (s, o) if s > o => self.mantissa.saturating_sub(other.mantissa << self.scale - other.scale)
-    //     }
-    //     let mantissa = self.mantissa.checked_sub(other.mantissa).unwrap_or(0);
-    //     Self {
-    //         scale,
-    //         mantissa,
-    //     }
-    // }
+    pub fn saturating_sub(self, other: Self) -> Self {
+        if self.scale == other.scale {
+            Self {
+                scale: self.scale,
+                mantissa: self.mantissa.saturating_sub(other.mantissa),
+            }
+        } else {
+            let point = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let scale: i16 = self.scale.min(other.scale).into();
+            Self::from_fixed_u256(
+                self.to_fixed_u256(point).saturating_sub(other.to_fixed_u256(point)),
+                scale,
+                point as i16 + scale,
+            )
+        }
+    }
 }
 
 // pub type Price = Float128;
@@ -220,12 +240,35 @@ mod tests {
     }
 
     #[test]
-    fn mul_works() {
+    fn saturating_mul_works() {
         assert_eq!(Float128::one().saturating_mul(Float128::one()), Float128::one());
 
         assert!(Float128::from_rational(1, 8).saturating_mul(Float128::from_int(8)).is_one());
 
         assert_eq!(Float128::from_rational(1, 8).saturating_mul(Float128::from_int(8)).to_int(), 1);
+
+        // TODO: how to make this work? numbers are equilavent but not the same in representation.
+        // normalize after each computation? offer normalization function?
+        // assert_eq!(Float128::from_rational(1, 8).saturating_mul(Float128::from_int(2)), Float128::from_rational(1, 4));
+    }
+
+    #[test]
+    fn saturating_sub_works() {
+        assert_eq!(Float128::one().saturating_sub(Float128::one()), Float128::zero());
+
+        assert_eq!(Float128::from_int(5).saturating_sub(Float128::one()), Float128::from_int(4));
+
+        assert_eq!(Float128::from_rational(1, 4).saturating_sub(Float128::from_rational(1, 8)), Float128::from_rational(1, 8));
+
+        assert_eq!(Float128::one().saturating_sub(Float128::from_rational(1, 8)), Float128::from_rational(7, 8));
+
+        assert_eq!(Float128::from_int(4).saturating_sub(Float128::from_rational(1, 4)), Float128::from_rational(15, 4));
+
+        assert!(Float128::new(10, 1).saturating_sub(Float128::new(10, 1)).is_zero());
+
+        assert_eq!(Float128::new(10, 1).saturating_sub(Float128::new(9, 1)), Float128::new(9, 1));
+
+        assert_eq!(Float128::new(10, 5).saturating_sub(Float128::new(9, 5)), Float128::new(9, 5));
     }
 
 }
@@ -256,15 +299,15 @@ mod invariants {
 
     macro_rules! prop_assert_rational_relative_approx_eq {
         ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-            let diff = if $x >= $y { $x - $y } else { $y - $x };
+            let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
             prop_assert!(
-                diff.clone() / $x.clone() <= $z.clone(),
+                diff.clone() / $y.clone() <= $z.clone(),
                 "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
                 $r,
-                $x.to_f64(),
-                $y.to_f64(),
-                diff.to_f64(),
-                ($x * $z).to_f64()
+                $x,
+                $y.clone(),
+                diff,
+                ($y * $z)
             );
         }};
     }
@@ -282,16 +325,62 @@ mod invariants {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
-        fn has_high_enough_precision(
+        fn multiplication_invariants(
             (n, d) in (1..u128::MAX, 1..u128::MAX),
         ) {
-            let tolerance = Rational::from((1, 1e25 as u128));
+            let f = Float128::from_rational(n, d);
+            prop_assert_eq!(f.saturating_mul(Float128::one()), f);
+            prop_assert_eq!(Float128::one().saturating_mul(f), f);
+            prop_assert_eq!(Float128::zero().saturating_mul(f), Float128::zero());
+            prop_assert_eq!(f.saturating_mul(Float128::zero()), Float128::zero());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn from_rational_has_high_enough_precision(
+            (n, d) in (1..u128::MAX, 1..u128::MAX),
+        ) {
+            // corresponds to about 33 digits of precision
+            let tolerance = Rational::from((1, (1_u128 << 110)));
             prop_assert_rational_relative_approx_eq!(
-                to_rational(Float128::from_rational(n.into(), d.into())),
+                to_rational(Float128::from_rational(n, d)),
                 Rational::from((n, d)),
                 tolerance,
                 "float precision should be high enough"
             )
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn saturating_mul_has_high_enough_precision(
+            (a, b) in (1..u128::MAX, 1..u128::MAX),
+            (c, d) in (1..u128::MAX, 1..u128::MAX),
+        ) {
+            let res = Float128::from_rational(a, b).saturating_mul(Float128::from_rational(c, d));
+            let expected = Rational::from((a, b)) * Rational::from((c, d));
+            // corresponds to about 33 digits of precision
+            let tolerance = Rational::from((1, (1_u128 << 107)));
+            prop_assert_rational_relative_approx_eq!(
+                to_rational(res),
+                expected,
+                tolerance,
+                "float precision should be high enough"
+            )
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn subtracting_number_from_itself_is_zero(
+            (n, d) in (1..u128::MAX, 1..u128::MAX),
+        ) {
+            let f = Float128::from_rational(n, d);
+            prop_assert!(f.saturating_sub(f).is_zero());
         }
     }
 }
