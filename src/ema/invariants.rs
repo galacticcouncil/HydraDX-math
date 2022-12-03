@@ -146,7 +146,7 @@ prop_compose! {
 prop_compose! {
     fn ema_rational_price_history()(p in long_period())(
         period in Just(p),
-        history in prop::collection::vec((typical_price_rational(), iterations_up_to(p as u32 / 4)), 2..10)
+        history in prop::collection::vec((typical_price_rational(), iterations_up_to(p as u32 / 4)), 2..5)
     ) -> (u64, Vec<(Rational128, u32)>) {
       (period, history)
     }

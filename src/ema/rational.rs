@@ -119,6 +119,16 @@ use crate::to_u256;
 use primitive_types::U256;
 // use crate::types::fraction::simplify;
 
+// pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
+//     debug_assert!(f <= Fraction::ONE);
+//     // amplify both numerator and denominator of the rational number to make multiplication more
+//     // accurate
+//     let amplifier = ((u128::MAX / r.d().max(1)).min(u128::MAX / r.n().max(1))).max(1);
+//     let n = multiply_by_rational_with_rounding(r.n() * amplifier, f.to_bits(), DIV, Rounding::NearestPrefDown)
+//         .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed");
+//     simplify(Rational128::from(n, r.d() * amplifier))
+// }
+
 fn euclid_gcd(mut a: U256, mut b: U256) -> U256{
     let delta = U256::from(((a.bits().min(b.bits()) * 4) as u32).next_power_of_two()).min(a).min(b);
     // let delta = U256::from(((a.bits().min(b.bits())) as u32)).min(a).min(b);
