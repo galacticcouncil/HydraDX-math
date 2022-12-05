@@ -433,13 +433,12 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
         fn from_rational_has_high_enough_precision(
             (n, d) in (1..u128::MAX, 1..u128::MAX),
         ) {
-            // corresponds to about 33 digits of precision
-            let tolerance = Rational::from((1, (1_u128 << 110)));
+            let tolerance = Rational::from((1, (1_u128 << 106)));
             prop_assert_rational_relative_approx_eq!(
                 to_rational(Float128::from_rational(n, d)),
                 Rational::from((n, d)),
@@ -450,7 +449,7 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
         fn saturating_mul_has_high_enough_precision(
             (a, b) in (1..u128::MAX, 1..u128::MAX),
@@ -458,8 +457,7 @@ mod invariants {
         ) {
             let res = Float128::from_rational(a, b).saturating_mul(Float128::from_rational(c, d));
             let expected = Rational::from((a, b)) * Rational::from((c, d));
-            // corresponds to about 33 digits of precision
-            let tolerance = Rational::from((1, (1_u128 << 106)));
+            let tolerance = Rational::from((1, (1_u128 << 100)));
             prop_assert_rational_relative_approx_eq!(
                 to_rational(res),
                 expected,
@@ -470,7 +468,7 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
         fn saturating_add_has_high_enough_precision(
             (a, b) in (1..u128::MAX, 1..u128::MAX),
@@ -478,8 +476,7 @@ mod invariants {
         ) {
             let res = Float128::from_rational(a, b).saturating_add(Float128::from_rational(c, d));
             let expected = Rational::from((a, b)) + Rational::from((c, d));
-            // corresponds to about 33 digits of precision
-            let tolerance = Rational::from((1, (1_u128 << 107)));
+            let tolerance = Rational::from((1, (1_u128 << 100)));
             prop_assert_rational_relative_approx_eq!(
                 to_rational(res),
                 expected,
@@ -496,15 +493,14 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
         fn saturating_sub_has_high_enough_precision(
             ((a, b), (c, d)) in bigger_and_smaller_rational()
         ) {
             let res = Float128::from_rational(a, b).saturating_sub(Float128::from_rational(c, d));
             let expected = Rational::from((a, b)) - Rational::from((c, d));
-            // corresponds to about 33 digits of precision
-            let tolerance = Rational::from((1, (1_u128 << 107)));
+            let tolerance = Rational::from((1, (1_u128 << 100)));
             prop_assert_rational_relative_approx_eq!(
                 to_rational(res),
                 expected,
@@ -515,7 +511,6 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
         #[test]
         fn subtracting_number_from_itself_is_zero(
             (n, d) in (1..u128::MAX, 1..u128::MAX),
