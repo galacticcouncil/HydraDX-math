@@ -280,12 +280,12 @@ mod invariants {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #![proptest_config(ProptestConfig::with_cases(10000))]
         #[test]
         fn has_high_enough_precision(
             (n, d) in (1..u128::MAX, 1..u128::MAX),
         ) {
-            let tolerance = Rational::from((1, 1e25 as u128));
+            let tolerance = Rational::from((1, u128::MAX)); //1e28 as u128));
             prop_assert_rational_relative_approx_eq!(
                 to_rational(Float128::from_rational(n.into(), d.into())),
                 Rational::from((n, d)),
