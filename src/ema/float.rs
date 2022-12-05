@@ -20,7 +20,7 @@ fn bits(n: u128) -> u32 {
 }
 
 fn into_neg_i8(n: u32) -> i8 {
-    debug_assert!(n <= i8::MAX as u32);
+    debug_assert!(n <= 128);
     // i8 cannot represent 128 so we take the route via i16
     (-((n).min(128) as i16)) as i8
 }
@@ -88,7 +88,11 @@ impl Float128 {
     }
 
     pub(crate) fn to_fixed_u256(&self, point: i16) -> U256 {
-        shift(shift(U256::from(self.mantissa), point), self.scale)
+        let to_shift = self.scale as i16 + point;
+        debug_assert!(to_shift >= 0);
+        let mantissa = U256::from(self.mantissa);
+        debug_assert!(to_shift <= mantissa.leading_zeros() as i16);
+        mantissa << to_shift
     }
 
     pub(crate) fn from_fixed_u256(mut f: U256, mut scale: i16, offset: i16) -> Self {
@@ -134,7 +138,7 @@ impl Float128 {
         let next_power = d.checked_next_power_of_two().unwrap_or(u128::MAX);
         if d == next_power {
             return Self {
-                scale: into_neg_i8(bits(d) - 1),
+                scale: into_neg_i8(bits(d).saturating_sub(1)),
                 mantissa: n,
             }
         }
@@ -143,7 +147,7 @@ impl Float128 {
         let amp = n.leading_zeros().min(d.leading_zeros());
         let scale = bits(next_power / 2).saturating_sub(1);
         debug_assert!((1 << scale) <= d);
-        let mantissa = multiply_by_rational_with_rounding(n << amp, 1 << scale, d, Rounding::NearestPrefDown)
+        let mantissa = multiply_by_rational_with_rounding(n << amp, 1 << scale, d, Rounding::Up)
             .expect("(1 << scale) <= d, therefore the result must fit in u128; qed");
         Self {
             // we adjust the scale according to the amplification
@@ -169,35 +173,46 @@ impl Float128 {
     }
 
     pub fn saturating_sub(self, other: Self) -> Self {
-        if self.scale == other.scale {
+        if self.is_zero() {
+            Self::zero()
+        } else if other.is_zero() {
+            self
+        } else if self.scale == other.scale {
             Self {
                 scale: self.scale,
                 mantissa: self.mantissa.saturating_sub(other.mantissa),
             }
         } else {
-            let point = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let zeros = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let point = (127_i16 + zeros - self.scale.max(other.scale) as i16).min(255);
             let scale: i16 = self.scale.min(other.scale).into();
             Self::from_fixed_u256(
                 self.to_fixed_u256(point).saturating_sub(other.to_fixed_u256(point)),
                 scale,
-                point as i16 + scale,
+                point + scale,
             )
         }
     }
 
     pub fn saturating_add(self, other: Self) -> Self {
-        if self.scale == other.scale {
+        const HALF_MAX: u128 = u128::MAX / 2;
+        if self.is_zero() {
+            other
+        } else if other.is_zero() {
+            self
+        } else if self.scale == other.scale && self.mantissa <= HALF_MAX && other.mantissa <= HALF_MAX {
             Self {
                 scale: self.scale,
                 mantissa: self.mantissa.saturating_add(other.mantissa),
             }
         } else {
-            let point = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let zeros = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+            let point = (127_i16 + zeros - self.scale.max(other.scale) as i16).min(255);
             let scale: i16 = self.scale.min(other.scale).into();
             Self::from_fixed_u256(
                 self.to_fixed_u256(point).saturating_add(other.to_fixed_u256(point)),
                 scale,
-                point as i16 + scale,
+                point + scale,
             )
         }
     }
@@ -231,6 +246,23 @@ mod tests {
     }
 
     #[test]
+    fn into_neg_i8_works() {
+        assert_eq!(into_neg_i8(0), 0);
+        assert_eq!(into_neg_i8(1), -1);
+        assert_eq!(into_neg_i8(17), -17);
+        assert_eq!(into_neg_i8(128), -128);
+    }
+
+    #[test]
+    fn shift_works() {
+        assert_eq!(shift(1, 1_i16), 2);
+        assert_eq!(shift(8, 2_i16), 32);
+        assert_eq!(shift(8, -2_i16), 2);
+        assert_eq!(shift(8, -3_i16), 1);
+        assert_eq!(shift(8, -4_i16), 0);
+    }
+
+    #[test]
     fn to_int_works() {
         assert_eq!(Float128::new(0, 1).to_int(), 1);
 
@@ -249,6 +281,17 @@ mod tests {
         assert_eq!(Float128::from_rational(1, 8).to_f64(), 1_f64 / 8_f64);
         assert_eq!(Float128::from_rational(5, 16).to_f64(), 5_f64 / 16_f64);
         assert_eq!(Float128::new(16, u128::MAX).to_f64(), u128::MAX as f64);
+    }
+
+    #[test]
+    fn to_fixed_u256_works() {
+        assert_eq!(Float128::zero().to_fixed_u256(0), U256::zero());
+        assert_eq!(Float128::one().to_fixed_u256(0), U256::one());
+        assert_eq!(Float128::new(-1, 1).to_fixed_u256(1), U256::one());
+        assert_eq!(Float128::new(-3, 1).to_fixed_u256(127), U256::from(1_u128 << 124));
+        assert_eq!(Float128::new(3, 1).to_fixed_u256(127), U256::from(1_u128 << 127) * U256::from(1_u128 << 3));
+        assert_eq!(Float128::from_rational(5, 16).to_fixed_u256(127), U256::from(5_u128 << 123));
+        assert_eq!(Float128::new(127, u128::MAX).to_fixed_u256(0), U256::from(u128::MAX) << 127);
     }
 
     #[test]
@@ -351,6 +394,20 @@ mod invariants {
         }};
     }
 
+    macro_rules! assert_rational_relative_approx_eq {
+        ($x:expr, $y:expr, $z:expr) => {{
+            let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+            assert!(
+                diff.clone() / $y.clone() <= $z.clone(),
+                "numbers not approximately equal!\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+                $x,
+                $y.clone(),
+                diff,
+                ($y * $z)
+            );
+        }};
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
@@ -401,6 +458,51 @@ mod invariants {
         ) {
             let res = Float128::from_rational(a, b).saturating_mul(Float128::from_rational(c, d));
             let expected = Rational::from((a, b)) * Rational::from((c, d));
+            // corresponds to about 33 digits of precision
+            let tolerance = Rational::from((1, (1_u128 << 106)));
+            prop_assert_rational_relative_approx_eq!(
+                to_rational(res),
+                expected,
+                tolerance,
+                "float precision should be high enough"
+            )
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn saturating_add_has_high_enough_precision(
+            (a, b) in (1..u128::MAX, 1..u128::MAX),
+            (c, d) in (1..u128::MAX, 1..u128::MAX),
+        ) {
+            let res = Float128::from_rational(a, b).saturating_add(Float128::from_rational(c, d));
+            let expected = Rational::from((a, b)) + Rational::from((c, d));
+            // corresponds to about 33 digits of precision
+            let tolerance = Rational::from((1, (1_u128 << 107)));
+            prop_assert_rational_relative_approx_eq!(
+                to_rational(res),
+                expected,
+                tolerance,
+                "float precision should be high enough"
+            )
+        }
+    }
+
+    fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
+        (2..u128::MAX, 1..(u128::MAX - 1)).prop_perturb(
+            |(a, b), mut rng| ((a, b), (rng.gen_range(1..a), rng.gen_range(b..u128::MAX)))
+        )
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1000))]
+        #[test]
+        fn saturating_sub_has_high_enough_precision(
+            ((a, b), (c, d)) in bigger_and_smaller_rational()
+        ) {
+            let res = Float128::from_rational(a, b).saturating_sub(Float128::from_rational(c, d));
+            let expected = Rational::from((a, b)) - Rational::from((c, d));
             // corresponds to about 33 digits of precision
             let tolerance = Rational::from((1, (1_u128 << 107)));
             prop_assert_rational_relative_approx_eq!(
