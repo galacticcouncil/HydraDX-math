@@ -79,12 +79,12 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) ->
 
 pub fn price_weighted_average_u256(prev: Price, incoming: Price, weight: Fraction) -> Price {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
-    let prev_u256 = simplify(to_u256!(prev.n(), prev.d()));
-    let incoming_u256 = simplify(to_u256!(incoming.n(), incoming.d()));
+    let prev_u256 = to_u256!(prev.n(), prev.d());
+    let incoming_u256 = to_u256!(incoming.n(), incoming.d());
     if incoming >= prev {
-        rounded_to_rational(simplify(add(prev_u256, simplify(mul(weight, simplify(sub(incoming_u256, prev_u256)))))))
+        rounded_to_rational(add(prev_u256, mul(weight, sub(incoming_u256, prev_u256))))
     } else {
-        rounded_to_rational(simplify(sub(prev_u256, simplify(mul(weight, simplify(sub(prev_u256, incoming_u256)))))))
+        rounded_to_rational(sub(prev_u256, mul(weight, sub(prev_u256, incoming_u256))))
     }
 }
 
@@ -130,14 +130,6 @@ pub fn volume_weighted_average(
 use crate::to_u256;
 use primitive_types::{U128, U256};
 
-pub fn combined_mul_by_rational(f: Fraction, r: Rational128) -> Rational128 {
-    if r.n() < (u64::MAX as u128) || r.d() < (u64::MAX as u128) {
-        fraction::multiply_by_rational(f, r)
-    } else {
-        multiply_by_rational(f, r)
-    }
-}
-
 pub fn mul(f: Fraction, (n, d): (U256, U256)) -> (U256, U256) {
     debug_assert!(f <= Fraction::ONE);
     let (f_n, f_d) = (U256::from(f.to_bits()), U256::from(fraction::DIV));
@@ -172,7 +164,6 @@ pub fn add((l_n, l_d): (U256, U256), (r_n, r_d): (U256, U256)) -> (U256, U256) {
 pub fn round((n, d): (U256, U256)) -> (U256, U256) {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     dbg!("round", n, d, shift);
-    dbg!(euclid_gcd(n, d));
     dbg!(((n >> shift), (d >> shift)));
     ((n >> shift), (d >> shift))
 }
@@ -180,7 +171,6 @@ pub fn round((n, d): (U256, U256)) -> (U256, U256) {
 pub fn rounded_to_rational((n, d): (U256, U256)) -> Rational128 {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     dbg!("rounded_to_rational", n, d, shift);
-    dbg!(euclid_gcd(n, d));
     dbg!(((n >> shift).low_u128(), (d >> shift).low_u128()));
     Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
 }
@@ -209,21 +199,5 @@ pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     // if shift > 0 { dbg!(shift); }
     Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
-}
-
-// experimental
-fn euclid_gcd(mut a: U256, mut b: U256) -> U256 {
-    let mut temp = a;
-    while a.div_mod(b).1 > U256::one() {
-      temp = a.div_mod(b).1;
-      a = b;
-      b = temp;
-    }
-    return b;
-}
-
-fn simplify((a, b): (U256, U256)) -> (U256, U256) {
-    let g = euclid_gcd(a, b);
-    (a / g, b / g)
 }
 

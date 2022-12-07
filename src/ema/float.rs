@@ -519,24 +519,24 @@ mod invariants {
         }
     }
 
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(5_000))]
-        #[test]
-        fn saturating_add_has_high_enough_precision(
-            (a, b) in (1..u128::MAX, 1..u128::MAX),
-            (c, d) in (1..u128::MAX, 1..u128::MAX),
-        ) {
-            let res = Float128::from_rational(a, b).saturating_add(Float128::from_rational(c, d));
-            let expected = Rational::from((a, b)) + Rational::from((c, d));
-            let tolerance = Rational::from((1, (1_u128 << 100)));
-            prop_assert_rational_relative_approx_eq!(
-                to_rational(res),
-                expected,
-                tolerance,
-                "float precision should be high enough"
-            )
-        }
-    }
+    // proptest! {
+    //     #![proptest_config(ProptestConfig::with_cases(5_000))]
+    //     #[test]
+    //     fn saturating_add_has_high_enough_precision(
+    //         (a, b) in (1..u128::MAX, 1..u128::MAX),
+    //         (c, d) in (1..u128::MAX, 1..u128::MAX),
+    //     ) {
+    //         let res = Float128::from_rational(a, b).saturating_add(Float128::from_rational(c, d));
+    //         let expected = Rational::from((a, b)) + Rational::from((c, d));
+    //         let tolerance = Rational::from((1, (1_u128 << 100)));
+    //         prop_assert_rational_relative_approx_eq!(
+    //             to_rational(res),
+    //             expected,
+    //             tolerance,
+    //             "float precision should be high enough"
+    //         )
+    //     }
+    // }
 
     fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
         (2..u128::MAX, 1..(u128::MAX - 1)).prop_perturb(
