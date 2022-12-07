@@ -1,7 +1,7 @@
 use crate::ema::*;
 use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
-use high_precision::{fixed_to_rational, float_to_rational, fraction_to_rational, rational_to_rational};
+use high_precision::{fixed_to_rational, fraction_to_rational, rational_to_rational};
 
 use proptest::prelude::*;
 
@@ -163,19 +163,6 @@ prop_compose! {
         period in Just(p),
         history in prop::collection::vec((typical_price_rational(), iterations_up_to(p as u32 / 4)), 2..5)
     ) -> (u64, Vec<(Rational128, u32)>) {
-      (period, history)
-    }
-}
-
-fn typical_price_float() -> impl Strategy<Value = Float128> {
-    ((MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE)).prop_map(|(n, d)| Float128::from_rational(n, d))
-}
-
-prop_compose! {
-    fn ema_float_price_history()(p in long_period())(
-        period in Just(p),
-        history in prop::collection::vec((typical_price_float(), iterations_up_to(p as u32 / 4)), 2..5)
-    ) -> (u64, Vec<(Float128, u32)>) {
       (period, history)
     }
 }
@@ -710,39 +697,6 @@ proptest! {
     }
 }
 
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(5_000))]
-    #[test]
-    fn iterated_price_float_precision(
-        (period, iterations) in period_and_iterations(),
-        (a, b) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-        (c, d) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-    ) {
-        let smoothing = smoothing_from_period(period);
-        let prev = Float128::from_rational(a, b);
-        let incoming = Float128::from_rational(c, d);
-
-        let res = float::iterated_price_ema(iterations, prev, incoming, smoothing);
-        let smoothing_adj = high_precision::rug_exp_smoothing(fraction_to_rational(smoothing), iterations);
-        let expected = high_precision::rug_weighted_average(float_to_rational(prev), float_to_rational(incoming), smoothing_adj);
-
-        let res = float_to_rational(res);
-        let tolerance = Rational::from((1, 1e30 as u128));
-
-        let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
-        let small_enough = diff.clone() / expected.clone() <= tolerance;
-        let max_diff = expected.clone() * tolerance.clone();
-        prop_assert!(
-            small_enough,
-            "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            res.clone().to_f64(),
-            expected.clone().to_f64(),
-            diff.to_f64(),
-            max_diff.to_f64()
-        );
-    }
-}
-
 fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
     ((MIN_BALANCE+1)..MAX_BALANCE, MIN_BALANCE..(MAX_BALANCE - 1)).prop_perturb(
         |(a, b), mut rng| ((a, b), (rng.gen_range(MIN_BALANCE..a), rng.gen_range(b..MAX_BALANCE)))
@@ -790,33 +744,6 @@ proptest! {
 
         let res = u256_tuple_to_rational(res);
         let tolerance = Rational::from((1, 1u128 << 127));
-
-        let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
-        let small_enough = diff.clone() / expected.clone() <= tolerance;
-        let max_diff = expected.clone() * tolerance.clone();
-        prop_assert!(
-            small_enough,
-            "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            res.clone().to_f64(),
-            expected.clone().to_f64(),
-            diff.to_f64(),
-            max_diff.to_f64()
-        );
-    }
-}
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10_000))]
-    #[test]
-    fn float_times_rational(
-        smoothing in typical_period().prop_map(smoothing_from_period),
-        (n, d) in (MIN_BALANCE..u128::MAX, MIN_BALANCE..u128::MAX),
-    ) {
-        let res = Float128::from_fraction(smoothing).saturating_mul(Float128::from_rational(n, d));
-        let expected = fraction_to_rational(smoothing) * Rational::from((n, d));
-
-        let res = float_to_rational(res);
-        let tolerance = Rational::from((1, 1u128 << 85));
 
         let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
         let small_enough = diff.clone() / expected.clone() <= tolerance;
@@ -882,37 +809,6 @@ proptest! {
         prop_assert_rational_relative_approx_eq!(
             rug_ema.clone(),
             rational_to_rational(ema),
-            relative_tolerance,
-            "high precision should be equal to low precision within tolerance"
-        );
-    }
-}
-
-use super::float;
-use float::Float128;
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(5_000))]
-    #[test]
-    fn comparison_ema_float_price_history_precision(
-        (period, history) in ema_float_price_history(),
-    ) {
-        let smoothing = smoothing_from_period(period);
-        println!("history:");
-        for (r, i) in history.iter() {
-            println!("{:?}, {}", r, i);
-        }
-        let rug_ema = high_precision::rug_fast_float_price_ema(history.clone(), fraction_to_rational(smoothing));
-
-        let mut ema = history[0].0;
-        for (price, iterations) in history.into_iter().skip(1) {
-            ema = float::iterated_price_ema(iterations, ema, price, smoothing);
-        }
-
-        let relative_tolerance = Rational::from((1, 1e12 as u128));
-        prop_assert_rational_relative_approx_eq!(
-            rug_ema,
-            float_to_rational(ema),
             relative_tolerance,
             "high precision should be equal to low precision within tolerance"
         );
