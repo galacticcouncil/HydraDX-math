@@ -141,61 +141,32 @@ pub fn combined_mul_by_rational(f: Fraction, r: Rational128) -> Rational128 {
 pub fn mul(f: Fraction, (n, d): (U256, U256)) -> (U256, U256) {
     debug_assert!(f <= Fraction::ONE);
     let (f_n, f_d) = (U256::from(f.to_bits()), U256::from(fraction::DIV));
-    match (f_n.checked_mul(n), f_d.checked_mul(d)) {
-        (Some(n), Some(d)) => (n, d),
-        _ => {
-            let (n, d) = round((n, d));
-            let (n, overflow) = f_n.overflowing_mul(n);
-            debug_assert!(!overflow);
-            let (d, overflow) = f_d.overflowing_mul(d);
-            debug_assert!(!overflow);
-            (n, d)
-        }
-    }
+    let (n, d) = if f_n.bits() + n.bits() > 256 || f_d.bits() + d.bits() > 256 {
+        round((n, d))
+    } else {
+        (n, d)
+    };
+    (f_n.saturating_mul(n), f_d.saturating_mul(d))
 }
 
 pub fn sub((l_n, l_d): (U256, U256), (r_n, r_d): (U256, U256)) -> (U256, U256) {
-    match (l_n.checked_mul(r_d), r_n.checked_mul(l_d), l_d.checked_mul(r_d)) {
-        (Some(left), Some(right), Some(d)) => {
-            let (n, overflow) = left.overflowing_sub(right);
-            debug_assert!(!overflow);
-            (n, d)
-        },
-        _ => {
-            let ((l_n, l_d), (r_n, r_d)) = (round((l_n, l_d)), round((r_n, r_d)));
-            let (left, overflow) = l_n.overflowing_mul(r_d);
-            debug_assert!(!overflow);
-            let (right, overflow) = r_n.overflowing_mul(l_d);
-            debug_assert!(!overflow);
-            let (d, overflow) = l_d.overflowing_mul(r_d);
-            debug_assert!(!overflow);
-            let (n, overflow) = left.overflowing_sub(right);
-            debug_assert!(!overflow);
-            (n, d)
-        }
-    }
+    // check for overflow on multiplication, if so round the rational numbers
+    let ((l_n, l_d), (r_n, r_d)) = if l_n.bits() + r_d.bits() > 256 || r_n.bits() + l_d.bits() > 256 || l_d.bits() + r_d.bits() > 256 {
+        (round((l_n, l_d)), round((r_n, r_d)))
+    } else {
+        ((l_n, l_d), (r_n, r_d))
+    };
+    (l_n.saturating_mul(r_d).saturating_sub(r_n.saturating_mul(l_d)), l_d.saturating_mul(r_d))
 }
 
 pub fn add((l_n, l_d): (U256, U256), (r_n, r_d): (U256, U256)) -> (U256, U256) {
-    match (l_n.checked_mul(r_d), r_n.checked_mul(l_d), l_d.checked_mul(r_d)) {
-        (Some(left), Some(right), Some(d)) => {
-            let (n, overflow) = left.overflowing_add(right);
-            debug_assert!(!overflow);
-            (n, d)
-        },
-        _ => {
-            let ((l_n, l_d), (r_n, r_d)) = (round((l_n, l_d)), round((r_n, r_d)));
-            let (left, overflow) = l_n.overflowing_mul(r_d);
-            debug_assert!(!overflow);
-            let (right, overflow) = r_n.overflowing_mul(l_d);
-            debug_assert!(!overflow);
-            let (d, overflow) = l_d.overflowing_mul(r_d);
-            debug_assert!(!overflow);
-            let (n, overflow) = left.overflowing_add(right);
-            debug_assert!(!overflow);
-            (n, d)
-        }
-    }
+    // check for overflow on multiplication and add, if so round the rational numbers
+    let ((l_n, l_d), (r_n, r_d)) = if l_n.bits() + r_d.bits() + 1 > 256 || r_n.bits() + l_d.bits() + 1 > 256 || l_d.bits() + r_d.bits() > 256 {
+        (round((l_n, l_d)), round((r_n, r_d)))
+    } else {
+        ((l_n, l_d), (r_n, r_d))
+    };
+    (l_n.saturating_mul(r_d).saturating_add(r_n.saturating_mul(l_d)), l_d.saturating_mul(r_d))
 }
 
 pub fn round((n, d): (U256, U256)) -> (U256, U256) {
@@ -241,13 +212,9 @@ pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
 }
 
 // experimental
-fn euclid_gcd(mut a: U256, mut b: U256) -> U256{
-    // let delta = U256::from(((a.bits().min(b.bits()) * 4) as u32).next_power_of_two()).min(a).min(b);
-    let delta = U256::one();
-    // let delta = U256::from(((a.bits().min(b.bits())) as u32)).min(a).min(b);
-    // dbg!(delta);
+fn euclid_gcd(mut a: U256, mut b: U256) -> U256 {
     let mut temp = a;
-    while a.div_mod(b).1 > delta {
+    while a.div_mod(b).1 > U256::one() {
       temp = a.div_mod(b).1;
       a = b;
       b = temp;
@@ -259,49 +226,4 @@ fn simplify((a, b): (U256, U256)) -> (U256, U256) {
     let g = euclid_gcd(a, b);
     (a / g, b / g)
 }
-
-fn gcd(a: U256, b: U256) -> U256 {
-    use core::cmp::{min, max};
-	match ((a, b), (a & U256::one(), b & U256::one())) {
-		((x, y), _) if x == y => y,
-		((a, x), _) | ((x, a), _) if a == U256::zero() => x,
-		((x, y), t) if t == (U256::zero(), U256::one()) => gcd(x >> U256::one(), y),
-        ((y, x), t) if t == (U256::one(), U256::zero()) => gcd(x >> U256::one(), y),
-		((x, y), t) if t == (U256::zero(), U256::zero()) => gcd(x >> U256::one(), y >> U256::one()) << U256::one(),
-		((x, y), t) if t == (U256::one(), U256::one()) => {
-			let (x, y) = (min(x, y), max(x, y));
-			gcd((y - x) >> U256::one(), x)
-		},
-		_ => unreachable!(),
-	}
-}
-
-pub fn old_rounding_add(l: Rational128, r: Rational128) -> Rational128 {
-    // let (l, r) = (simplify(l), simplify(r));
-    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
-    let d = l_d * r_d;
-    let n = (l_n * r_d).saturating_add(r_n * l_d);
-    let g = euclid_gcd(n, d);
-    if g < 1_000_u32.into() { println!("gcd: {}", g); }
-    let n = n / g;
-    let d = d / g;
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    if shift > 0 { println!("shift: {}", shift); }
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
-}
-
-pub fn old_rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
-    // let (l, r) = (simplify(l), simplify(r));
-    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
-    let d = l_d * r_d;
-    let n = (l_n * r_d).saturating_sub(r_n * l_d);
-    let g = euclid_gcd(n, d);
-    if g < 1_000_u32.into() { println!("gcd: {}", g); }
-    let n = n / g;
-    let d = d / g;
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    if shift > 0 { println!("shift: {}", shift); }
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
-}
-
 
