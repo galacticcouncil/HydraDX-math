@@ -61,6 +61,13 @@ pub fn rational_to_rational(r: Rational128) -> Rational {
     Rational::from((r.n(), r.d()))
 }
 
+use super::float;
+use float::Float128;
+
+pub fn float_to_rational(f: Float128) -> Rational {
+    Rational::from(f.mantissa) * Rational::from(2).pow(i32::from(f.scale))
+}
+
 /// Convert a `Rational` number into its rounded `Integer` equivalent.
 pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
     let (num, den) = r.into_numer_denom();
@@ -163,8 +170,23 @@ pub fn rug_fast_rational_price_ema(history: Vec<(Rational128, u32)>, smoothing: 
     current
 }
 
+pub fn rug_fast_float_price_ema(history: Vec<(Float128, u32)>, smoothing: Rational) -> Rational {
+    assert!(!history.is_empty());
+    let mut current = float_to_rational(history[0].0);
+    for (price, iterations) in history.into_iter().skip(1) {
+        let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
+        current = rug_weighted_average(current.clone(), float_to_rational(price), smoothing_adj.clone());
+    }
+    current
+}
+
 // --- Tests
 #[test]
 fn fixed_to_rational_works() {
     assert_eq!(fixed_to_rational(FixedU128::from_float(0.25)), Rational::from((1, 4)));
+}
+
+#[test]
+fn float_to_rational_works() {
+    assert_eq!(float_to_rational(Float128::from_rational(5, 4)), Rational::from((5, 4)));
 }

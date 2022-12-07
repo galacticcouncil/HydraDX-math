@@ -9,10 +9,32 @@ use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding;
 use primitive_types::{U128, U256};
 
+use core::cmp::{Ord, Ordering, PartialOrd};
+
+/// Floating point number implementation with 128 bit mantissa and 8 bit scale.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Float128 {
     pub scale: i8,
     pub mantissa: u128,
+}
+
+impl Ord for Float128 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.scale.cmp(&other.scale) {
+            Ordering::Equal => self.mantissa.cmp(&other.mantissa),
+            _ => {
+                let point = self.determine_u256_point(&other);
+                self.to_fixed_u256(point).cmp(
+                    &other.to_fixed_u256(point))
+            }
+        }
+    }
+}
+
+impl PartialOrd for Float128 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 fn bits(n: u128) -> u32 {
@@ -87,12 +109,17 @@ impl Float128 {
         self.to_int() as f64 + fractional_part
     }
 
+    pub(crate) fn determine_u256_point(&self, other: &Self) -> i16 {
+        let zeros = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
+        (128_i16 + zeros - self.scale.max(other.scale) as i16).min(255)
+    }
+
     pub(crate) fn to_fixed_u256(&self, point: i16) -> U256 {
         let to_shift = self.scale as i16 + point;
-        debug_assert!(to_shift >= 0);
+        // debug_assert!(to_shift >= 0);
         let mantissa = U256::from(self.mantissa);
         debug_assert!(to_shift <= mantissa.leading_zeros() as i16);
-        mantissa << to_shift
+        shift(mantissa, to_shift)
     }
 
     pub(crate) fn from_fixed_u256(mut f: U256, mut scale: i16, offset: i16) -> Self {
@@ -183,8 +210,7 @@ impl Float128 {
                 mantissa: self.mantissa.saturating_sub(other.mantissa),
             }
         } else {
-            let zeros = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
-            let point = (127_i16 + zeros - self.scale.max(other.scale) as i16).min(255);
+            let point = self.determine_u256_point(&other);
             let scale: i16 = self.scale.min(other.scale).into();
             Self::from_fixed_u256(
                 self.to_fixed_u256(point).saturating_sub(other.to_fixed_u256(point)),
@@ -206,8 +232,7 @@ impl Float128 {
                 mantissa: self.mantissa.saturating_add(other.mantissa),
             }
         } else {
-            let zeros = self.mantissa.leading_zeros().min(other.mantissa.leading_zeros()) as i16;
-            let point = (127_i16 + zeros - self.scale.max(other.scale) as i16).min(255);
+            let point = self.determine_u256_point(&other);
             let scale: i16 = self.scale.min(other.scale).into();
             Self::from_fixed_u256(
                 self.to_fixed_u256(point).saturating_add(other.to_fixed_u256(point)),
@@ -218,7 +243,34 @@ impl Float128 {
     }
 }
 
-// pub type Price = Float128;
+// EMA math functions
+pub type Price = Float128;
+
+pub use super::math::{exp_smoothing, smoothing_from_period};
+
+/// Calculate the iterated exponential moving average for the given prices.
+/// `iterations` is the number of iterations of the EMA to calculate.
+/// `prev` is the previous oracle value, `incoming` is the new value to integrate.
+/// `smoothing` is the smoothing factor of the EMA.
+pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: Fraction) -> Price {
+    price_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
+}
+
+/// Calculate a weighted average for the given prices.
+/// `prev` is the previous oracle value, `incoming` is the new value to integrate.
+/// `weight` is how much weight to give the new value.
+///
+/// Note: Rounding is slightly biased towards `prev`.
+/// (`FixedU128::mul` rounds to the nearest representable value, rounding down on equidistance.
+/// See [doc comment here](https://github.com/paritytech/substrate/blob/ce10b9f29353e89fc3e59d447041bb29622def3f/primitives/arithmetic/src/fixed_point.rs#L670-L671).)
+pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
+    if incoming >= prev {
+        prev.saturating_add(Float128::from_fraction(weight).saturating_mul(incoming.saturating_sub(prev)))
+    } else {
+        prev.saturating_sub(Float128::from_fraction(weight).saturating_mul(prev.saturating_sub(incoming)))
+    }
+}
 
 // pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
 //     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
@@ -365,7 +417,7 @@ mod invariants {
 
     fn to_rational(f: Float128) -> Rational {
         match f.scale {
-            0..=i8::MAX => Rational::from(f.mantissa) * Rational::from(1 << f.scale),
+            0..=i8::MAX => dbg!(Rational::from(f.mantissa)) * dbg!(Rational::from(1_u128 << f.scale)),
             i8::MIN..=-1 => Rational::from(f.mantissa) / Rational::from(2).pow(-(f.scale as i32)),
         }
     }
@@ -517,6 +569,21 @@ mod invariants {
         ) {
             let f = Float128::from_rational(n, d);
             prop_assert!(f.saturating_sub(f).is_zero());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10_000))]
+        #[test]
+        fn ord_works_correctly(
+            (a, b) in (any::<i8>(), any::<u128>()),
+            (c, d) in (any::<i8>(), any::<u128>()),
+        ) {
+            let f1 = Float128::new(a, b);
+            let f2 = Float128::new(c, d);
+            let r1 = to_rational(f1);
+            let r2 = to_rational(f2);
+            prop_assert_eq!(f1.cmp(&f2), r1.cmp(&r2));
         }
     }
 }
