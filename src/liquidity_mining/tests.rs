@@ -1,6 +1,6 @@
 use crate::liquidity_mining::liquidity_mining::*;
 
-use sp_arithmetic::FixedU128;
+use sp_arithmetic::{FixedU128, FixedPointNumber};
 
 use std::vec;
 
@@ -152,79 +152,79 @@ fn calculate_reward_per_period_should_work() {
             FixedU128::from_inner(833_333_333_300_000), //0.000_833_333_333_3
             12578954_u128,
             156789_u128,
-            10482_u128,
+            10482461666_u128,
         ),
         (
             FixedU128::from_inner(83_333_333_330_000_000), //0.083_333_333_33
             1246578_u128,
             4684789_u128,
-            103881_u128,
+            103881499995_u128,
         ),
         (
             FixedU128::from_inner(36_666_666_670_000_000), //0.036_666_666_67
             3980_u128,
             488_u128,
-            145_u128,
+            145933333_u128,
         ),
         (
             FixedU128::from_inner(166_666_666_700_000_000), //0.166_666_6667
             9897454_u128,
             1684653_u128,
-            1649575_u128,
+            1649575666996_u128,
         ),
         (
             FixedU128::from_inner(6_250_000_000_000_000), //0.006_25
             1687_u128,
             28_u128,
-            10_u128,
+            10543750_u128,
         ),
         (
             FixedU128::from_inner(12_500_000_000_000_000), //0.0125
             3879_u128,
             7_u128,
-            7_u128,
+            7000000_u128,
         ),
         (
             FixedU128::from_inner(133_333_333_300_000_000), //0.133_333_333_3
             35189_u128,
             468787897_u128,
-            4691_u128,
+            4691866665_u128,
         ),
         (
             FixedU128::from_inner(3_111_392_405_000_000), //0.003_111_392_405
             48954_u128,
             161_u128,
-            152_u128,
+            152315103_u128,
         ),
         (
             FixedU128::from_inner(375_000_000_000_000), //0.000_375
             54789782_u128,
             3_u128,
-            3_u128,
+            3000000_u128,
         ),
         (
             FixedU128::from_inner(138_571_428_600_000_000), //0.138_571_428_6
             17989865464312_u128,
             59898_u128,
-            59898_u128,
+            59898000000_u128,
         ),
         (
             FixedU128::from_inner(37_500_000_000_000_000), //0.0375
             2_u128,
             7987_u128,
-            0_u128,
+            75000_u128,
         ),
         (
             FixedU128::from_inner(78_750_000_000_000_000), //0.078_75
             5_u128,
             498741_u128,
-            0_u128,
+            393750_u128,
         ),
         (
             FixedU128::from_inner(40_000_000_000_000_000), //0.04
             5468_u128,
             8798_u128,
-            218_u128,
+            218720000_u128,
         ),
         (FixedU128::from_inner(0), 68797_u128, 789846_u128, 0_u128),
     ];
@@ -235,7 +235,7 @@ fn calculate_reward_per_period_should_work() {
         assert_eq!(
             calculate_global_farm_reward_per_period(*yield_per_period, *total_farm_shares_z, *max_reward_per_period)
                 .unwrap(),
-            *expected_reward_per_period
+            FixedU128::from((*expected_reward_per_period, FixedU128::DIV))
         );
     }
 }

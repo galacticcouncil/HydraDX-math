@@ -5,7 +5,7 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-use crate::types::Balance;
+use crate::types::{Balance, BASILISK_ONE as ONE};
 use core::convert::TryInto;
 
 /// This function calculate loyalty multiplier or error.
@@ -43,11 +43,11 @@ pub fn calculate_global_farm_reward_per_period(
     yield_per_period: FixedU128,
     total_farm_shares_z: Balance,
     max_reward_per_period: Balance,
-) -> Result<Balance, MathError> {
+) -> Result<FixedU128, MathError> {
     Ok(yield_per_period
-        .checked_mul_int(total_farm_shares_z)
+        .checked_mul(&FixedU128::from((total_farm_shares_z, ONE)))
         .ok_or(MathError::Overflow)?
-        .min(max_reward_per_period))
+        .min(FixedU128::from((max_reward_per_period, ONE))))
 }
 
 /// This function calculate and return reward per share or error.
