@@ -453,7 +453,7 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
     let position = Position {
         amount: 3 * UNIT,
         shares: 3 * UNIT,
-        price: FixedU128::from_float(0.23),
+        price: (FixedU128::from_float(0.23).into_inner(), 1_000_000_000_000_000_000),
     };
 
     let state_changes = calculate_remove_liquidity_state_changes(
@@ -519,7 +519,7 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
     let position = Position {
         amount: 3 * UNIT,
         shares: 3 * UNIT,
-        price: FixedU128::from_float(2.23),
+        price: (FixedU128::from_float(2.23).into_inner(), 1_000_000_000_000_000_000),
     };
 
     let state_changes = calculate_remove_liquidity_state_changes(
