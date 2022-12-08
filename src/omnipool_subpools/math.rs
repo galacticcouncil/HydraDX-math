@@ -553,7 +553,7 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
         .hp_checked_mul(&details.share_tokens)?
         .checked_div_inner(&details.shares)?
         .to_inner()?;
-    let price = position.price.checked_div(&details.price)?;
+    let price = position.price().checked_div(&details.price)?;
 
     Some(Position { shares, amount, price })
 }
