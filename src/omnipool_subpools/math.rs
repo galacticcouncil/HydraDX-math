@@ -535,7 +535,7 @@ pub fn calculate_stable_in_given_iso_out(
 }
 
 pub struct MigrationDetails {
-    pub price: FixedU128,
+    pub price: (Balance, Balance),
     pub shares: Balance,
     pub hub_reserve: Balance,
     pub share_tokens: Balance,
@@ -553,7 +553,9 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
         .hp_checked_mul(&details.share_tokens)?
         .checked_div_inner(&details.shares)?
         .to_inner()?;
-    let price = position.price()?.checked_div(&details.price)?;
 
-    Some(Position { shares, amount, price })
+    let nominator = position.price.0.hp_checked_mul(&details.price.0)?.to_inner()?;
+    let denom = position.price.1.hp_checked_mul(&details.price.1)?.to_inner()?;
+
+    Some(Position { shares, amount, price: (nominator, denom)})
 }
