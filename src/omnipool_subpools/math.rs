@@ -554,8 +554,8 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
         .checked_div_inner(&details.shares)?
         .try_to_inner()?;
 
-    let nominator = position.price.0.checked_mul_into(&details.price.0)?.fit_to_inner();
-    let denom = position.price.1.checked_mul_into(&details.price.1)?.fit_to_inner();
+    let nominator = position.price.0.checked_mul_into(&details.price.1)?.fit_to_inner();
+    let denom = position.price.1.checked_mul_into(&details.price.0)?.fit_to_inner();
 
     Some(Position {
         shares,
