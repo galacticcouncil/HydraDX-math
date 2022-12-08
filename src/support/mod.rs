@@ -1,2 +1,2 @@
-mod u128;
 pub mod traits;
+mod u128;

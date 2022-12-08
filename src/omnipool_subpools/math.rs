@@ -5,9 +5,9 @@ use crate::omnipool::{
     calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes, calculate_sell_hub_state_changes,
     calculate_sell_state_changes,
 };
-use crate::omnipool_subpools::types::{CheckedMathInner, HpCheckedMath};
 use crate::stableswap::{calculate_d, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
+use crate::support::traits::{CheckedDivInner, CheckedMulInto, Convert};
 use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedSub, One};
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
@@ -76,9 +76,9 @@ pub fn calculate_sell_between_subpools(
     let delta_d = d_plus.checked_sub(initial_d)?;
 
     let delta_u = share_issuance_in
-        .hp_checked_mul(&delta_d)?
+        .checked_mul_into(&delta_d)?
         .checked_div_inner(&initial_d)?
-        .to_inner()?;
+        .try_to_inner()?;
 
     let sell_changes = calculate_sell_state_changes(
         share_state_in,
@@ -95,9 +95,9 @@ pub fn calculate_sell_between_subpools(
     let fee_w = FixedU128::from(withdraw_fee);
     let delta_d = FixedU128::one().checked_sub(&fee_w)?.checked_mul_int(
         initial_out_d
-            .hp_checked_mul(&delta_u_t)?
+            .checked_mul_into(&delta_u_t)?
             .checked_div_inner(&share_issuance_out)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let d_plus = initial_out_d.checked_sub(delta_d)?;
@@ -164,9 +164,9 @@ pub fn calculate_buy_between_subpools(
 
     let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?)?).checked_mul_int(
         share_issuance_out
-            .hp_checked_mul(&delta_d)?
+            .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let buy_changes = calculate_buy_state_changes(
@@ -182,9 +182,9 @@ pub fn calculate_buy_between_subpools(
 
     let delta_u_t = *buy_changes.asset_in.delta_reserve;
     let d_plus = initial_in_d
-        .hp_checked_mul(&delta_u_t.checked_add(share_issuance_in)?)?
+        .checked_mul_into(&delta_u_t.checked_add(share_issuance_in)?)?
         .checked_div_inner(&share_issuance_in)?
-        .to_inner()?;
+        .try_to_inner()?;
 
     let xp: Vec<Balance> = pool_in
         .reserves
@@ -242,9 +242,9 @@ pub fn calculate_stable_out_given_iso_in(
     let fee_w = FixedU128::from(withdraw_fee);
     let delta_d = (FixedU128::one().checked_sub(&fee_w)?).checked_mul_int(
         initial_out_d
-            .hp_checked_mul(&delta_u_t)?
+            .checked_mul_into(&delta_u_t)?
             .checked_div_inner(&share_issuance)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let d_plus = initial_out_d.checked_sub(delta_d)?;
@@ -300,9 +300,9 @@ pub fn calculate_stable_out_given_hub_asset_in(
     let fee_w = FixedU128::from(withdraw_fee);
     let delta_d = (FixedU128::one().checked_sub(&fee_w)?).checked_mul_int(
         initial_out_d
-            .hp_checked_mul(&delta_u_t)?
+            .checked_mul_into(&delta_u_t)?
             .checked_div_inner(&share_issuance)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let d_plus = initial_out_d.checked_sub(delta_d)?;
@@ -359,9 +359,9 @@ pub fn calculate_iso_out_given_stable_in(
     let delta_d = d_plus.checked_sub(initial_d)?;
 
     let delta_u = share_issuance
-        .hp_checked_mul(&delta_d)?
+        .checked_mul_into(&delta_d)?
         .checked_div_inner(&initial_d)?
-        .to_inner()?;
+        .try_to_inner()?;
 
     let sell_changes = calculate_sell_state_changes(
         share_state,
@@ -412,9 +412,9 @@ pub fn calculate_iso_in_given_stable_out(
 
     let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?))?.checked_mul_int(
         share_issuance
-            .hp_checked_mul(&delta_d)?
+            .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let buy_changes =
@@ -459,9 +459,9 @@ pub fn calculate_hub_asset_in_given_stable_out(
 
     let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?))?.checked_mul_int(
         share_issuance
-            .hp_checked_mul(&delta_d)?
+            .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
-            .to_inner()?,
+            .try_to_inner()?,
     )?;
 
     let buy_changes = calculate_buy_for_hub_asset_state_changes(
@@ -509,9 +509,9 @@ pub fn calculate_stable_in_given_iso_out(
 
     let delta_u_t = *buy_changes.asset_in.delta_reserve;
     let d_plus = initial_in_d
-        .hp_checked_mul(&delta_u_t.checked_add(share_issuance)?)?
+        .checked_mul_into(&delta_u_t.checked_add(share_issuance)?)?
         .checked_div_inner(&share_issuance)?
-        .to_inner()?;
+        .try_to_inner()?;
 
     let xp: Vec<Balance> = pool_in
         .reserves
@@ -544,18 +544,22 @@ pub struct MigrationDetails {
 pub fn convert_position(position: Position<Balance>, details: MigrationDetails) -> Option<Position<Balance>> {
     let shares = position
         .shares
-        .hp_checked_mul(&details.hub_reserve)?
+        .checked_mul_into(&details.hub_reserve)?
         .checked_div_inner(&details.shares)?
-        .to_inner()?;
+        .try_to_inner()?;
 
     let amount = position
         .amount
-        .hp_checked_mul(&details.share_tokens)?
+        .checked_mul_into(&details.share_tokens)?
         .checked_div_inner(&details.shares)?
-        .to_inner()?;
+        .try_to_inner()?;
 
-    let nominator = position.price.0.hp_checked_mul(&details.price.0)?.to_inner()?;
-    let denom = position.price.1.hp_checked_mul(&details.price.1)?.to_inner()?;
+    let nominator = position.price.0.checked_mul_into(&details.price.0)?.fit_to_inner();
+    let denom = position.price.1.checked_mul_into(&details.price.1)?.fit_to_inner();
 
-    Some(Position { shares, amount, price: (nominator, denom)})
+    Some(Position {
+        shares,
+        amount,
+        price: (nominator, denom),
+    })
 }
