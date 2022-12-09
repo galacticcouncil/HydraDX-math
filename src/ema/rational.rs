@@ -165,14 +165,14 @@ pub fn round((n, d): (U256, U256)) -> (U256, U256) {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     dbg!("round", n, d, shift);
     dbg!(((n >> shift), (d >> shift)));
-    ((n >> shift), (d >> shift))
+    ((n >> shift).max(1_u8.into()), (d >> shift).max(1_u8.into()))
 }
 
 pub fn rounded_to_rational((n, d): (U256, U256)) -> Rational128 {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     dbg!("rounded_to_rational", n, d, shift);
     dbg!(((n >> shift).low_u128(), (d >> shift).low_u128()));
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
 }
 
 pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
@@ -180,7 +180,8 @@ pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
     let n = U128::from(r.n()).full_mul(f.to_bits().into());
     let d = U128::from(r.d()).full_mul(fraction::DIV.into());
     let shift = n.bits().max(d.bits()).saturating_sub(128);
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+    if shift > 0 { dbg!("multiply_by_rational", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
+    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
 }
 
 pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
@@ -188,8 +189,8 @@ pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
     let d = l_d * r_d;
     let n = (l_n * r_d).saturating_add(r_n * l_d);
     let shift = n.bits().max(d.bits()).saturating_sub(128);
-    // if shift > 0 { dbg!(shift); }
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+    if shift > 0 { dbg!("rounding_add", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
+    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
 }
 
 pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
@@ -197,7 +198,35 @@ pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
     let d = l_d * r_d;
     let n = (l_n * r_d).saturating_sub(r_n * l_d);
     let shift = n.bits().max(d.bits()).saturating_sub(128);
-    // if shift > 0 { dbg!(shift); }
-    Rational128::from((n >> shift).low_u128(), (d >> shift).low_u128())
+    if shift > 0 { dbg!("rounding_sub", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
+    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
 }
 
+use rug::{Integer, Rational};
+pub(crate) fn u256_to_rational(n: U256) -> Rational {
+    let mut digits = vec![0u8; 32];
+    n.to_big_endian(&mut digits);
+    Integer::from_digits(&digits, rug::integer::Order::MsfBe).into()
+}
+
+#[test]
+fn u256_to_rational_test() {
+    let n = U256::from(u128::MAX) * 2;
+    let r = u256_to_rational(n);
+    let expected = Rational::from(u128::MAX) * 2;
+    assert_eq!(r, expected);
+
+    let n = U256::from(12345);
+    let r = u256_to_rational(n);
+    let expected = Rational::from(12345);
+    assert_eq!(r, expected);
+
+    let n = U256::MAX;
+    let r = u256_to_rational(n);
+    let expected = (Rational::from(u128::MAX) << 128) + Rational::from(u128::MAX);
+    assert_eq!(r, expected);
+}
+
+pub(crate) fn u256_tuple_to_rational((a, b): (U256, U256)) -> Rational {
+    u256_to_rational(a) / u256_to_rational(b)
+}
