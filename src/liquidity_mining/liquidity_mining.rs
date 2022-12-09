@@ -1,7 +1,6 @@
 use crate::MathError;
 
 use sp_arithmetic::{
-    traits::One,
     traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub},
     FixedPointNumber, FixedU128,
 };
@@ -12,9 +11,8 @@ use core::convert::TryInto;
 /// This function calculate loyalty multiplier or error.
 ///
 /// `t = periodNow - periodAdded`
-/// `𝞣 = t/[(initial_reward_percentage + 1) * scale_coef]`
-/// `num = [𝞣 + (𝞣 * initial_reward_percentage) + initial_reward_percentage]`
-/// `denom = [𝞣 + (𝞣 * initial_reward_percentage) + 1]`
+/// `num = t + initial_reward_percentage * scale_coef`
+/// `denom = t + scale_coef`
 ///
 /// `loyalty_multiplier = num/denom`
 
@@ -23,37 +21,20 @@ pub fn calculate_loyalty_multiplier<Period: num_traits::CheckedSub + TryInto<u32
     initial_reward_percentage: FixedU128,
     scale_coef: u32,
 ) -> Result<FixedU128, MathError> {
-    let denom = initial_reward_percentage
-        .checked_add(&1.into())
-        .ok_or(MathError::Overflow)?
-        .checked_mul(&FixedU128::from(scale_coef as u128))
-        .ok_or(MathError::Overflow)?;
-
     let periods = FixedU128::from(TryInto::<u128>::try_into(periods).map_err(|_e| MathError::Overflow)?);
-    let tau = periods.checked_div(&denom).ok_or(MathError::Overflow)?;
+    let sc_coef = FixedU128::from(scale_coef as u128);
 
-    //tau * initial_reward_percentage
-    let tau_mul_initial_reward_percentage = tau.checked_mul(&initial_reward_percentage).ok_or(MathError::Overflow)?;
-
-    //tau + (tau * initial_reward_percentage)
-    let tau_add_tau_mul_initial_reward_percentage = tau
-        .checked_add(&tau_mul_initial_reward_percentage)
-        .ok_or(MathError::Overflow)?;
-
-    //tau + (tau * initial_reward_percentage) + initial_reward_percentage
-    let num = tau_add_tau_mul_initial_reward_percentage
-        .checked_add(&initial_reward_percentage)
-        .ok_or(MathError::Overflow)?;
-
-    //tau + (tau * initial_reward_percentage) + 1
-    let denom = tau_add_tau_mul_initial_reward_percentage
-        .checked_add(&1.into())
-        .ok_or(MathError::Overflow)?;
-
-    Ok(num
-        .checked_div(&denom)
+    //t + initial_reward_percentage * scale_coef
+    let num = initial_reward_percentage
+        .checked_mul(&sc_coef)
         .ok_or(MathError::Overflow)?
-        .min(FixedU128::one()))
+        .checked_add(&periods)
+        .ok_or(MathError::Overflow)?;
+
+    //t + scale_coef
+    let denom = periods.checked_add(&sc_coef).ok_or(MathError::Overflow)?;
+
+    num.checked_div(&denom).ok_or(MathError::Overflow)
 }
 
 /// This function return `GlobalFarm`'s reward per one period or error.
@@ -62,11 +43,11 @@ pub fn calculate_global_farm_reward_per_period(
     yield_per_period: FixedU128,
     total_farm_shares_z: Balance,
     max_reward_per_period: Balance,
-) -> Result<Balance, MathError> {
+) -> Result<FixedU128, MathError> {
     Ok(yield_per_period
-        .checked_mul_int(total_farm_shares_z)
+        .checked_mul(&FixedU128::from(total_farm_shares_z))
         .ok_or(MathError::Overflow)?
-        .min(max_reward_per_period))
+        .min(FixedU128::from(max_reward_per_period)))
 }
 
 /// This function calculate and return reward per share or error.
