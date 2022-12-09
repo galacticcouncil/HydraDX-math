@@ -17,13 +17,13 @@ pub struct SubpoolState<'a> {
     pub amplification: Balance,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SubpoolStateChange {
     pub idx: usize,
     pub amount: BalanceUpdate<Balance>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TradeResult {
     pub asset_in: SubpoolStateChange,
     pub asset_out: SubpoolStateChange,
@@ -196,7 +196,7 @@ pub fn calculate_buy_between_subpools(
 
     let reserve_in = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
 
-    let delta_t_j = reserve_in.checked_sub(pool_out.reserves[idx_out])?;
+    let delta_t_j = reserve_in.checked_sub(pool_in.reserves[idx_in])?;
 
     Some(TradeResult {
         asset_in: SubpoolStateChange {

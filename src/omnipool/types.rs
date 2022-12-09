@@ -139,7 +139,7 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 }
 
 /// Delta changes of asset state
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq)]
 pub struct AssetStateChange<Balance>
 where
     Balance: Default,
@@ -151,7 +151,7 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct TradeStateChange<Balance>
 where
     Balance: Default,
