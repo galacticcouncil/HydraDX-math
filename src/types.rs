@@ -12,7 +12,8 @@ pub const BASILISK_ONE: u128 = 1_000_000_000_000u128;
 pub mod fraction {
     use super::{Balance, FixedU128, Fraction};
     use num_traits::One;
-    use sp_arithmetic::helpers_128bit::{gcd, multiply_by_rational_with_rounding};
+    use primitive_types::U128;
+    use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
     use sp_arithmetic::per_things::Rounding;
     use sp_arithmetic::{FixedPointNumber, Rational128};
 
@@ -75,19 +76,46 @@ pub mod fraction {
         )
     }
 
-    pub fn simplify(r: Rational128) -> Rational128 {
-        let g = gcd(r.n(), r.d());
-        Rational128::from(r.n() / g, r.d() / g)
-    }
-
     pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
         debug_assert!(f <= Fraction::ONE);
-        // amplify both numerator and denominator of the rational number to make multiplication more
-        // accurate
-        let amplifier = ((u128::MAX / r.d().max(1)).min(u128::MAX / r.n().max(1))).max(1);
-        let n = multiply_by_rational_with_rounding(r.n() * amplifier, f.to_bits(), DIV, Rounding::NearestPrefDown)
-            .expect("f.to_bits() <= DIV, therefore the result must fit in u128; qed");
-        simplify(Rational128::from(n, r.d() * amplifier))
+        let n = U128::from(r.n()).full_mul(f.to_bits().into());
+        let d = U128::from(r.d()).full_mul(DIV.into());
+        super::rational::round_to_rational((n, d), (1, 1))
+    }
+}
+
+pub mod rational {
+    use super::*;
+    use crate::to_u128_wrapper;
+
+    use sp_arithmetic::Rational128;
+    use primitive_types::{U128, U256};
+
+    pub fn round_to_rational((n, d): (U256, U256), (min_n, min_d): (u128, u128)) -> Rational128 {
+        let shift = n.bits().max(d.bits()).saturating_sub(128);
+        let n = (n >> shift).low_u128().max(min_n);
+        let d = (d >> shift).low_u128().max(min_d);
+        Rational128::from(n, d)
+    }
+
+    pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
+        let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
+        // n = l.n * r.d + r.n * l.d
+        let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
+        // d = l.d * r.d
+        let d = U128::from(l_d).full_mul(r_d);
+        round_to_rational((n, d), (1, 1))
+    }
+
+    pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
+        let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
+        // n = l.n * r.d + r.n * l.d
+        let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
+        // only round up the result if it was not zero
+        let min_n = if n > U256::from(0) { 1 } else { 0 };
+        // d = l.d * r.d
+        let d = U128::from(l.d()).full_mul(r.d().into());
+        round_to_rational((n, d), (min_n, 1))
     }
 }
 

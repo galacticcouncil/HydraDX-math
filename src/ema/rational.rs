@@ -1,8 +1,10 @@
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::fraction;
+pub use crate::types::rational::*;
 use crate::types::{Balance, Fraction};
 
-use sp_arithmetic::{Rational128, traits::One};
+use num_traits::One;
+use sp_arithmetic::Rational128;
 
 pub type Price = Rational128;
 
@@ -12,10 +14,6 @@ pub type Price = Rational128;
 /// `smoothing` is the smoothing factor of the EMA.
 pub fn iterated_price_ema(iterations: u32, prev: Price, incoming: Price, smoothing: Fraction) -> Price {
     price_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
-}
-
-pub fn iterated_price_ema_u256(iterations: u32, prev: Price, incoming: Price, smoothing: Fraction) -> Price {
-    price_weighted_average_u256(prev, incoming, exp_smoothing(smoothing, iterations))
 }
 
 /// Calculate the iterated exponential moving average for the given balances.
@@ -71,20 +69,9 @@ pub use super::math::smoothing_from_period;
 pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
-        rounding_add(prev, multiply_by_rational(weight, rounding_sub(incoming, prev)))
+        rounding_add(prev, fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)))
     } else {
-        rounding_sub(prev, multiply_by_rational(weight, rounding_sub(prev, incoming)))
-    }
-}
-
-pub fn price_weighted_average_u256(prev: Price, incoming: Price, weight: Fraction) -> Price {
-    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
-    let prev_u256 = to_u256!(prev.n(), prev.d());
-    let incoming_u256 = to_u256!(incoming.n(), incoming.d());
-    if incoming >= prev {
-        rounded_to_rational(add(prev_u256, mul(weight, sub(incoming_u256, prev_u256))))
-    } else {
-        rounded_to_rational(sub(prev_u256, mul(weight, sub(prev_u256, incoming_u256))))
+        rounding_sub(prev, fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)))
     }
 }
 
@@ -125,108 +112,4 @@ pub fn volume_weighted_average(
         balance_weighted_average(prev_a_out, a_out, weight),
         balance_weighted_average(prev_b_in, b_in, weight),
     )
-}
-
-use crate::to_u256;
-use primitive_types::{U128, U256};
-
-pub fn mul(f: Fraction, (n, d): (U256, U256)) -> (U256, U256) {
-    debug_assert!(f <= Fraction::ONE);
-    let (f_n, f_d) = (U256::from(f.to_bits()), U256::from(fraction::DIV));
-    let (n, d) = if f_n.bits() + n.bits() > 256 || f_d.bits() + d.bits() > 256 {
-        round((n, d))
-    } else {
-        (n, d)
-    };
-    (f_n.saturating_mul(n), f_d.saturating_mul(d))
-}
-
-pub fn sub((l_n, l_d): (U256, U256), (r_n, r_d): (U256, U256)) -> (U256, U256) {
-    // check for overflow on multiplication, if so round the rational numbers
-    let ((l_n, l_d), (r_n, r_d)) = if l_n.bits() + r_d.bits() > 256 || r_n.bits() + l_d.bits() > 256 || l_d.bits() + r_d.bits() > 256 {
-        (round((l_n, l_d)), round((r_n, r_d)))
-    } else {
-        ((l_n, l_d), (r_n, r_d))
-    };
-    (l_n.saturating_mul(r_d).saturating_sub(r_n.saturating_mul(l_d)), l_d.saturating_mul(r_d))
-}
-
-pub fn add((l_n, l_d): (U256, U256), (r_n, r_d): (U256, U256)) -> (U256, U256) {
-    // check for overflow on multiplication and add, if so round the rational numbers
-    let ((l_n, l_d), (r_n, r_d)) = if l_n.bits() + r_d.bits() + 1 > 256 || r_n.bits() + l_d.bits() + 1 > 256 || l_d.bits() + r_d.bits() > 256 {
-        (round((l_n, l_d)), round((r_n, r_d)))
-    } else {
-        ((l_n, l_d), (r_n, r_d))
-    };
-    (l_n.saturating_mul(r_d).saturating_add(r_n.saturating_mul(l_d)), l_d.saturating_mul(r_d))
-}
-
-pub fn round((n, d): (U256, U256)) -> (U256, U256) {
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    dbg!("round", n, d, shift);
-    dbg!(((n >> shift), (d >> shift)));
-    ((n >> shift).max(1_u8.into()), (d >> shift).max(1_u8.into()))
-}
-
-pub fn rounded_to_rational((n, d): (U256, U256)) -> Rational128 {
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    dbg!("rounded_to_rational", n, d, shift);
-    dbg!(((n >> shift).low_u128(), (d >> shift).low_u128()));
-    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
-}
-
-pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
-    debug_assert!(f <= Fraction::ONE);
-    let n = U128::from(r.n()).full_mul(f.to_bits().into());
-    let d = U128::from(r.d()).full_mul(fraction::DIV.into());
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    if shift > 0 { dbg!("multiply_by_rational", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
-    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
-}
-
-pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
-    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
-    let d = l_d * r_d;
-    let n = (l_n * r_d).saturating_add(r_n * l_d);
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    if shift > 0 { dbg!("rounding_add", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
-    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
-}
-
-pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
-    let (l_n, l_d, r_n, r_d) = to_u256!(l.n(), l.d(), r.n(), r.d());
-    let d = l_d * r_d;
-    let n = (l_n * r_d).saturating_sub(r_n * l_d);
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    if shift > 0 { dbg!("rounding_sub", shift, "before", u256_tuple_to_rational((n, d)).to_f64(), "after", u256_tuple_to_rational((n >> shift, d >> shift)).to_f64()); }
-    Rational128::from((n >> shift).low_u128().max(1), (d >> shift).low_u128().max(1))
-}
-
-use rug::{Integer, Rational};
-pub(crate) fn u256_to_rational(n: U256) -> Rational {
-    let mut digits = vec![0u8; 32];
-    n.to_big_endian(&mut digits);
-    Integer::from_digits(&digits, rug::integer::Order::MsfBe).into()
-}
-
-#[test]
-fn u256_to_rational_test() {
-    let n = U256::from(u128::MAX) * 2;
-    let r = u256_to_rational(n);
-    let expected = Rational::from(u128::MAX) * 2;
-    assert_eq!(r, expected);
-
-    let n = U256::from(12345);
-    let r = u256_to_rational(n);
-    let expected = Rational::from(12345);
-    assert_eq!(r, expected);
-
-    let n = U256::MAX;
-    let r = u256_to_rational(n);
-    let expected = (Rational::from(u128::MAX) << 128) + Rational::from(u128::MAX);
-    assert_eq!(r, expected);
-}
-
-pub(crate) fn u256_tuple_to_rational((a, b): (U256, U256)) -> Rational {
-    u256_to_rational(a) / u256_to_rational(b)
 }

@@ -12,12 +12,21 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
-// 2 weeks
+/// 2 weeks at 6s block time
 pub const MAX_ITERATIONS: u32 = 201_600;
-// existential deposit for BTC will likely be 100 satoshis
+/// Smallest balance expected to show up in prices.
+/// Existential deposit for BTC will likely be 100 satoshis.
 pub const MIN_BALANCE: Balance = 50;
-// total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27
+/// Biggest balance expected to show up in prices.
+/// Total issuance of BSX is about 1e22, total issuance of FRAX is about 1e27.
 pub const MAX_BALANCE: Balance = 1e22 as Balance;
+
+//
+// --- Utils and macros
+//
+fn to_tuple(r: &Rational128) -> (u128, u128) {
+    (r.n(), r.d())
+}
 
 macro_rules! prop_assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
@@ -49,21 +58,6 @@ macro_rules! prop_assert_rational_relative_approx_eq {
     }};
 }
 
-macro_rules! assert_rational_relative_approx_eq {
-    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
-        assert!(
-            diff.clone() / $x.clone() <= $z.clone(),
-            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            $r,
-            $x.clone().to_f64(),
-            $y.to_f64(),
-            diff.to_f64(),
-            ($x * $z).to_f64()
-        );
-    }};
-}
-
 macro_rules! prop_assert_approx_eq {
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y { $x - $y } else { $y - $x };
@@ -79,7 +73,9 @@ macro_rules! prop_assert_approx_eq {
     }};
 }
 
+//
 // --- Strategies
+//
 
 /// Strategy for generating a random fixed point number between near 0 and 1.
 fn fraction_above_zero_and_less_or_equal_one() -> impl Strategy<Value = Fraction> {
@@ -127,7 +123,15 @@ fn period_fraction() -> impl Strategy<Value = Fraction> {
     (typical_period()).prop_map(|period| smoothing_from_period(period))
 }
 
-// --- History Strategies
+prop_compose! {
+    fn period_and_iterations()(p in long_period())(
+        period in Just(p),
+        iterations in iterations_up_to(p as u32),
+    ) -> (u64, u32) {
+      (period, iterations)
+    }
+}
+
 fn ema_price_history() -> impl Strategy<Value = Vec<(Price, u32)>> {
     prop::collection::vec((any_fixed(), iterations()), 2..50)
 }
@@ -147,6 +151,12 @@ fn typical_price_rational() -> impl Strategy<Value = Rational128> {
 
 fn small_rational() -> impl Strategy<Value = Rational128> {
     ((1e10 as u128)..(1e15 as u128)).prop_map(|x| Rational128::from(1, x))
+}
+
+fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
+    ((MIN_BALANCE + 1)..MAX_BALANCE, MIN_BALANCE..(MAX_BALANCE - 1)).prop_perturb(
+        |(a, b), mut rng| ((a, b), (rng.gen_range(MIN_BALANCE..a), rng.gen_range(b..MAX_BALANCE)))
+    )
 }
 
 prop_compose! {
@@ -201,7 +211,32 @@ fn ema_balance_history() -> impl Strategy<Value = Vec<(Balance, u32)>> {
     prop::collection::vec(((1e6 as Balance)..(1e28 as Balance), 1_u32..MAX_ITERATIONS), 2..50)
 }
 
+
+prop_compose! {
+    fn derived_price(p: Rational128)(p in Just(p))(
+        price in Just(p).prop_perturb(|p, mut rng| {
+            (
+                rng.gen_range((p.n() / 10).max(MIN_BALANCE)..(p.n() * 10).max(MAX_BALANCE)),
+                rng.gen_range((p.d() / 10).max(MIN_BALANCE)..(p.d() * 10).max(MAX_BALANCE)),
+            )
+        }
+    )) -> (u128, u128) {
+        price
+    }
+}
+
+prop_compose! {
+    fn slowly_changing_price_history(l: usize)(p in long_period(), initial_price in typical_price_rational())(
+        period in Just(p),
+        history in prop::collection::vec((derived_price(initial_price), iterations_up_to(100 as u32)), 2..l)
+    ) -> (u64, Vec<((u128, u128), u32)>) {
+        (period, history)
+    }
+}
+
+//
 // --- Tests
+//
 proptest! {
     #[test]
     fn price_ema_stays_stable_if_the_value_does_not_change(
@@ -572,7 +607,7 @@ proptest! {
     ) {
         let price = Rational128::from(price.0, price.1);
 
-        let res = rational::multiply_by_rational(smoothing, price);
+        let res = fraction::multiply_by_rational(smoothing, price);
         let expected = fraction_to_rational(smoothing) * Rational::from((price.n(), price.d()));
 
         let res = Rational::from((res.n(), res.d()));
@@ -622,48 +657,6 @@ proptest! {
     }
 }
 
-prop_compose! {
-    fn period_and_iterations()(p in long_period())(
-        period in Just(p),
-        iterations in iterations_up_to(p as u32),
-    ) -> (u64, u32) {
-      (period, iterations)
-    }
-}
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(5_000))]
-    #[test]
-    fn iterated_price_u256_precision(
-        (period, iterations) in period_and_iterations(),
-        (a, b) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-        (c, d) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-    ) {
-        let smoothing = smoothing_from_period(period);
-        let prev = Rational128::from(a, b);
-        let incoming = Rational128::from(c, d);
-
-        let res = rational::iterated_price_ema_u256(iterations, prev, incoming, smoothing);
-        let smoothing_adj = high_precision::rug_exp_smoothing(fraction_to_rational(smoothing), iterations);
-        let expected = high_precision::rug_weighted_average(rational_to_rational(prev), rational_to_rational(incoming), smoothing_adj);
-
-        let res = rational_to_rational(res);
-        let tolerance = Rational::from((1, 1e30 as u128));
-
-        let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
-        let small_enough = diff.clone() / expected.clone() <= tolerance;
-        let max_diff = expected.clone() * tolerance.clone();
-        prop_assert!(
-            small_enough,
-            "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            res.clone().to_f64(),
-            expected.clone().to_f64(),
-            diff.to_f64(),
-            max_diff.to_f64()
-        );
-    }
-}
-
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(100_000))]
     #[test]
@@ -697,13 +690,6 @@ proptest! {
     }
 }
 
-fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
-    ((MIN_BALANCE+1)..MAX_BALANCE, MIN_BALANCE..(MAX_BALANCE - 1)).prop_perturb(
-        |(a, b), mut rng| ((a, b), (rng.gen_range(MIN_BALANCE..a), rng.gen_range(b..MAX_BALANCE)))
-    )
-}
-
-use rational::u256_tuple_to_rational;
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000_000))]
     #[test]
@@ -730,12 +716,8 @@ proptest! {
     }
 }
 
-fn to_tuple(r: &Rational128) -> (u128, u128) {
-    (r.n(), r.d())
-}
-
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(1000))]
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn ema_small_rational_price_history_precision(
         (period, history) in ema_small_rational_price_history(),
@@ -759,7 +741,7 @@ proptest! {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10_000))]
+    #![proptest_config(ProptestConfig::with_cases(5_000))]
     #[test]
     fn ema_rational_price_history_precision_variable_tolerance(
         (period, history) in ema_rational_price_history(),
@@ -789,7 +771,7 @@ proptest! {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10_000))]
+    #![proptest_config(ProptestConfig::with_cases(5_000))]
     #[test]
     fn comparison_ema_rational_price_history_precision(
         (period, history) in ema_rational_price_history(),
@@ -817,30 +799,8 @@ proptest! {
     }
 }
 
-prop_compose! {
-    fn derived_price(p: Rational128)(p in Just(p))(
-        price in Just(p).prop_perturb(|p, mut rng| {
-            (
-                rng.gen_range((p.n() / 10).max(MIN_BALANCE)..(p.n() * 10).max(MAX_BALANCE)),
-                rng.gen_range((p.d() / 10).max(MIN_BALANCE)..(p.d() * 10).max(MAX_BALANCE)),
-            )
-        }
-    )) -> (u128, u128) {
-        price
-    }
-}
-
-prop_compose! {
-    fn slowly_changing_price_history(l: usize)(p in long_period(), initial_price in typical_price_rational())(
-        period in Just(p),
-        history in prop::collection::vec((derived_price(initial_price), iterations_up_to(100 as u32)), 2..l)
-    ) -> (u64, Vec<((u128, u128), u32)>) {
-        (period, history)
-    }
-}
-
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(100_000))]
+    #![proptest_config(ProptestConfig::with_cases(5_000))]
     #[test]
     fn slowly_changing_price_history_precision(
         (period, history) in slowly_changing_price_history(5),
@@ -864,35 +824,3 @@ proptest! {
         );
     }
 }
-
-#[test]
-fn failing_test(){
-    let period = 10000;
-    let history = vec![
-        (Rational128::from(9161220807430355537988, 7740216577336008507136), 1),
-        (Rational128::from(2068448995746894485377, 3197701212309655008641), 1),
-        (Rational128::from(9311868072627396204070, 3467366716198208388262), 1),
-        (Rational128::from(6076563079069306574963, 238472001247031185107), 103),
-    ];
-    let tolerance = 2_u128.pow(50_u32);
-    let smoothing = smoothing_from_period(period);
-    println!("history:");
-    for (r, i) in history.iter() {
-        println!("{:?}, {}", to_tuple(r), i);
-    }
-    let rug_ema = high_precision::rug_fast_rational_price_ema(history.clone(), fraction_to_rational(smoothing));
-
-    let mut ema = history[0].0;
-    for (price, iterations) in history.into_iter().skip(1) {
-        ema = rational::iterated_price_ema(iterations, ema, price, smoothing);
-    }
-
-    let relative_tolerance = Rational::from((1, tolerance));
-    assert_rational_relative_approx_eq!(
-        rug_ema.clone(),
-        rational_to_rational(ema),
-        relative_tolerance,
-        "high precision should be equal to low precision within tolerance"
-    );
-}
-

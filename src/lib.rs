@@ -54,6 +54,13 @@ macro_rules! to_u256 {
 }
 
 #[macro_export]
+macro_rules! to_u128_wrapper {
+    ($($x:expr),+) => (
+        {($(U128::from($x)),+)}
+    );
+}
+
+#[macro_export]
 macro_rules! to_balance {
     ($x:expr) => {
         Balance::try_from($x).map_err(|_| Overflow)
