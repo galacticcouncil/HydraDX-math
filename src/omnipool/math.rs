@@ -413,3 +413,12 @@ pub fn calculate_delta_imbalance(
 
     to_balance!(delta_imbalance_hp).ok()
 }
+
+pub fn calculate_spot_sprice(
+    asset_a: &AssetReserveState<Balance>,
+    asset_b: &AssetReserveState<Balance>,
+) -> Option<FixedU128> {
+    let price_a = FixedU128::checked_from_rational(asset_a.hub_reserve, asset_a.reserve)?;
+    let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
+    price_a.checked_mul(&price_b)
+}
