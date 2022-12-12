@@ -1,4 +1,4 @@
-use crate::assert_eq_approx;
+use crate::assert_approx_eq;
 use crate::omnipool::types::{AssetReserveState, Position, I129};
 use crate::omnipool::*;
 use crate::to_balance;
@@ -107,7 +107,7 @@ fn assert_asset_invariant(
         let s2_u128 = Balance::try_from(s2).unwrap();
 
         let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
-        assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
+        assert_approx_eq!(invariant, FixedU128::from(1u128), tolerance, desc);
     }
 }
 
@@ -522,7 +522,7 @@ proptest! {
         let new_asset_state = new_asset_state.delta_update(&state_changes.asset).unwrap();
 
         // Price should not change
-        assert_eq_approx!(asset.price().unwrap(),
+        assert_approx_eq!(asset.price().unwrap(),
             new_asset_state.price().unwrap(),
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");
@@ -565,7 +565,7 @@ proptest! {
         assert_ne!(new_asset_state.reserve, asset.reserve);
 
         // Price should not change
-        assert_eq_approx!(asset.price().unwrap(),
+        assert_approx_eq!(asset.price().unwrap(),
             new_asset_state.price().unwrap(),
             FixedU128::from_float(0.0000000001),
             "Price has changed after remove liquidity");

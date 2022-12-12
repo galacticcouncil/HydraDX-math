@@ -1,5 +1,5 @@
+use crate::fraction;
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
 
 use sp_arithmetic::traits::One;

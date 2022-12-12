@@ -3,7 +3,7 @@ use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::FixedU128;
 
-use super::super::test_utils::assert_eq_approx;
+use super::super::test_utils::assert_approx_eq;
 
 pub const ONE: Balance = 1_000_000_000_000;
 const TOLERANCE: Balance = 1_000;
@@ -34,7 +34,7 @@ fn assert_asset_invariant(
     let s2_u128 = Balance::try_from(s2).unwrap();
 
     let invariant = FixedU128::from((s1_u128, ONE)) / FixedU128::from((s2_u128, ONE));
-    assert_eq_approx!(invariant, FixedU128::from(1u128), tolerance, desc);
+    assert_approx_eq!(invariant, FixedU128::from(1u128), tolerance, desc);
 }
 
 proptest! {
@@ -85,7 +85,7 @@ proptest! {
         let p1 = FixedU128::from((asset_a_reserve + amount, asset_b_reserve + amount_b));
 
         // Price should not change
-        assert_eq_approx!(p0,
+        assert_approx_eq!(p0,
             p1,
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");
@@ -129,7 +129,7 @@ proptest! {
         let p1 = FixedU128::from((asset_a_reserve - amount_a, asset_b_reserve - amount_b));
 
         // Price should not change
-        assert_eq_approx!(p0,
+        assert_approx_eq!(p0,
             p1,
             FixedU128::from_float(0.0000000001),
             "Price has changed after add liquidity");

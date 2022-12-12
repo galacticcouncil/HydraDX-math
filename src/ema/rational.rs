@@ -1,6 +1,6 @@
+use crate::fraction;
+pub use crate::rational::*;
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::fraction;
-pub use crate::types::rational::*;
 use crate::types::{Balance, Fraction};
 
 use num_traits::One;
@@ -69,9 +69,15 @@ pub use super::math::smoothing_from_period;
 pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
-        rounding_add(prev, fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)))
+        rounding_add(
+            prev,
+            fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)),
+        )
     } else {
-        rounding_sub(prev, fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)))
+        rounding_sub(
+            prev,
+            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)),
+        )
     }
 }
 

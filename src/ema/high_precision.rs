@@ -1,4 +1,5 @@
-use crate::types::fraction;
+use crate::fraction;
+use crate::test_utils::{fixed_to_arbitrary_precision, into_rounded_integer, rational_to_arbitrary_precision};
 use crate::types::{Balance, Fraction, Price};
 
 use num_traits::One;
@@ -43,28 +44,8 @@ pub(crate) fn stepwise_pow_approx(mut r: Rational, i: u32) -> Rational {
     r * res_rest
 }
 
-pub fn smoothing_from_period(period: u64) -> Rational {
+pub(crate) fn smoothing_from_period(period: u64) -> Rational {
     Rational::from((2u64, period.max(1).saturating_add(1)))
-}
-
-/// Convert a fixed point number to an arbitrary precision rational number.
-pub fn fixed_to_rational(f: FixedU128) -> Rational {
-    Rational::from((f.into_inner(), FixedU128::DIV))
-}
-
-/// Convert a fixed point fraction to an arbitrary precision rational number.
-pub fn fraction_to_rational(f: Fraction) -> Rational {
-    Rational::from((f.to_bits(), fraction::DIV))
-}
-
-pub fn rational_to_rational(r: Rational128) -> Rational {
-    Rational::from((r.n(), r.d()))
-}
-
-/// Convert a `Rational` number into its rounded `Integer` equivalent.
-pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
-    let (num, den) = r.into_numer_denom();
-    num.div_rem_round(den).0
 }
 
 /// Determine the final smoothing factor from initial `smoothing` and the number of `iterations`.
@@ -93,8 +74,8 @@ pub fn rug_balance_weighted_average(prev: Balance, incoming: Balance, weight: Ra
 
 /// Calculate the weighted average for the given prices by using arbitrary precision math.
 pub fn rug_price_weighted_average(prev: Price, incoming: Price, weight: Rational) -> Rational {
-    let prev = fixed_to_rational(prev);
-    let incoming = fixed_to_rational(incoming);
+    let prev = fixed_to_arbitrary_precision(prev);
+    let incoming = fixed_to_arbitrary_precision(incoming);
     if incoming >= prev {
         prev.clone() + weight.mul(incoming - prev)
     } else {
@@ -136,35 +117,69 @@ pub fn rug_fast_balance_ema(history: Vec<(Balance, u32)>, smoothing: Rational) -
 /// Returns an arbitrary precision `Rational` number.
 pub fn rug_price_ema(history: Vec<Price>, smoothing: Rational) -> Rational {
     assert!(!history.is_empty());
-    let mut current = fixed_to_rational(history[0]);
+    let mut current = fixed_to_arbitrary_precision(history[0]);
     for price in history.into_iter().skip(1) {
-        current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing.clone());
+        current = rug_weighted_average(current.clone(), fixed_to_arbitrary_precision(price), smoothing.clone());
     }
     current
 }
 
 pub fn rug_fast_price_ema(history: Vec<(Price, u32)>, smoothing: Rational) -> Rational {
     assert!(!history.is_empty());
-    let mut current = fixed_to_rational(history[0].0);
+    let mut current = fixed_to_arbitrary_precision(history[0].0);
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
-        current = rug_weighted_average(current.clone(), fixed_to_rational(price), smoothing_adj.clone());
+        current = rug_weighted_average(
+            current.clone(),
+            fixed_to_arbitrary_precision(price),
+            smoothing_adj.clone(),
+        );
     }
     current
 }
 
 pub fn rug_fast_rational_price_ema(history: Vec<(Rational128, u32)>, smoothing: Rational) -> Rational {
     assert!(!history.is_empty());
-    let mut current = rational_to_rational(history[0].0);
+    let mut current = rational_to_arbitrary_precision(history[0].0);
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = rug_exp_smoothing(smoothing.clone(), iterations);
-        current = rug_weighted_average(current.clone(), rational_to_rational(price), smoothing_adj.clone());
+        current = rug_weighted_average(
+            current.clone(),
+            rational_to_arbitrary_precision(price),
+            smoothing_adj.clone(),
+        );
     }
     current
 }
 
-// --- Tests
 #[test]
-fn fixed_to_rational_works() {
-    assert_eq!(fixed_to_rational(FixedU128::from_float(0.25)), Rational::from((1, 4)));
+fn rug_balance_ema_works() {
+    let history = vec![1e12 as Balance, 2e12 as Balance, 3e12 as Balance, 4e12 as Balance];
+    let smoothing = FixedU128::from((1, 4));
+    let expected = {
+        let res =
+            ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
+        into_rounded_integer(res)
+    };
+    let ema = rug_balance_ema(history, fixed_to_arbitrary_precision(smoothing));
+    assert_eq!(expected, ema);
+}
+
+#[test]
+fn rug_price_ema_works() {
+    let history = vec![
+        FixedU128::from((1, 8)),
+        FixedU128::one(),
+        FixedU128::from(8),
+        FixedU128::from(4),
+    ];
+    let smoothing = FixedU128::from((1, 4));
+    let expected =
+        ((fixed_to_arbitrary_precision(history[0]) * 3 / 4 + fixed_to_arbitrary_precision(history[1]) / 4) * 3 / 4
+            + fixed_to_arbitrary_precision(history[2]) / 4)
+            * 3
+            / 4
+            + fixed_to_arbitrary_precision(history[3]) / 4;
+    let ema = rug_price_ema(history, fixed_to_arbitrary_precision(smoothing));
+    assert_eq!(expected, ema);
 }

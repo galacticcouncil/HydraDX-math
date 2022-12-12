@@ -1,58 +1,14 @@
 use super::*;
 
+use crate::fraction;
+use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
+use crate::test_utils::{fixed_to_arbitrary_precision, fraction_to_arbitrary_precision};
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::fraction;
 use crate::types::{Balance, Fraction, Price};
-use high_precision::{fixed_to_rational, fraction_to_rational};
 
 use num_traits::{Bounded, One, Zero};
 use rug::Rational;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
-
-macro_rules! assert_rational_approx_eq {
-    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x - $y } else { $y - $x };
-        assert!(
-            diff <= $z,
-            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            $r,
-            $x.to_f64(),
-            $y.to_f64(),
-            diff.to_f64(),
-            $z.to_f64()
-        );
-    }};
-}
-
-macro_rules! assert_rational_relative_approx_eq {
-    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x - $y } else { $y - $x };
-        assert!(
-            diff.clone() / $x.clone() <= $z.clone(),
-            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            $r,
-            $x.to_f64(),
-            $y.to_f64(),
-            diff.to_f64(),
-            ($x * $z).to_f64()
-        );
-    }};
-}
-
-macro_rules! assert_approx_eq {
-    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x - $y } else { $y - $x };
-        assert!(
-            diff <= $z,
-            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-            $r,
-            $x,
-            $y,
-            diff,
-            $z
-        );
-    }};
-}
 
 pub const TEN_MINUTES_PERIOD: u64 = 100;
 pub const DAY_PERIOD: u64 = 14_400;
@@ -175,11 +131,11 @@ fn exponential_smoothing_small_period() {
     let smoothing = Fraction::from_num(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
+    let rug_exp = high_precision::rug_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
 
-    let tolerance = high_precision::fixed_to_rational(FixedU128::from_inner(1));
+    let tolerance = fixed_to_arbitrary_precision(FixedU128::from_inner(1));
     assert_rational_approx_eq!(
-        fraction_to_rational(exp),
+        fraction_to_arbitrary_precision(exp),
         rug_exp.clone(),
         tolerance,
         "high precision should be equal to low precision within low precision tolerance"
@@ -189,7 +145,7 @@ fn exponential_smoothing_small_period() {
 #[test]
 fn accuracy_of_exponentiation_should_be_high_enough() {
     let smoothing = smoothing_from_period(WEEK_PERIOD);
-    let rug_smoothing = fraction_to_rational(smoothing);
+    let rug_smoothing = fraction_to_arbitrary_precision(smoothing);
     let iterations = 100_000;
     let start_balance = 1e12 as Balance;
     let incoming_balance = 1e21 as Balance;
@@ -208,8 +164,7 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing =
-        high_precision::rug_exp_smoothing(high_precision::fraction_to_rational(smoothing), iterations);
+    let rug_exp_smoothing = high_precision::rug_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
     let exponential_rug_balance =
         high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
             .to_u128()
@@ -239,40 +194,6 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
 }
 
 #[test]
-fn rug_balance_ema_works() {
-    let history = vec![1e12 as Balance, 2e12 as Balance, 3e12 as Balance, 4e12 as Balance];
-    let smoothing = FixedU128::from((1, 4));
-    let expected = {
-        let res =
-            ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
-        high_precision::into_rounded_integer(res)
-    };
-    let ema = high_precision::rug_balance_ema(history, high_precision::fixed_to_rational(smoothing));
-    assert_eq!(expected, ema);
-}
-
-#[test]
-fn rug_price_ema_works() {
-    let history = vec![
-        FixedU128::from((1, 8)),
-        FixedU128::one(),
-        FixedU128::from(8),
-        FixedU128::from(4),
-    ];
-    let smoothing = FixedU128::from((1, 4));
-    let expected = ((high_precision::fixed_to_rational(history[0]) * 3 / 4
-        + high_precision::fixed_to_rational(history[1]) / 4)
-        * 3
-        / 4
-        + high_precision::fixed_to_rational(history[2]) / 4)
-        * 3
-        / 4
-        + high_precision::fixed_to_rational(history[3]) / 4;
-    let ema = high_precision::rug_price_ema(history, high_precision::fixed_to_rational(smoothing));
-    assert_eq!(expected, ema);
-}
-
-#[test]
 fn ema_price_history_precision_crash_scenario() {
     let history = vec![
         (FixedU128::zero(), 1),
@@ -280,7 +201,7 @@ fn ema_price_history_precision_crash_scenario() {
         (FixedU128::from((1, 1e15 as u128)), invariants::MAX_ITERATIONS),
     ];
     let smoothing = smoothing_from_period(WEEK_PERIOD);
-    let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_rational(smoothing));
+    let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
 
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
@@ -289,8 +210,8 @@ fn ema_price_history_precision_crash_scenario() {
 
     let relative_tolerance = Rational::from((1, 1e15 as u128));
     assert_rational_relative_approx_eq!(
+        fixed_to_arbitrary_precision(ema),
         rug_ema.clone(),
-        fixed_to_rational(ema),
         relative_tolerance,
         "high precision should be equal to low precision within tolerance"
     );
