@@ -1,8 +1,8 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-    calculate_delta_imbalance, calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes,
-    calculate_sell_state_changes,
+    calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -590,4 +590,25 @@ fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided()
     let delta_imbalance = delta_imbalance.unwrap();
 
     assert_eq!(delta_imbalance, 363636363636u128);
+}
+
+#[test]
+fn calculate_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        reserve: 80,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+    let asset_state_2 = AssetReserveState {
+        reserve: 20,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = calculate_cap_difference(&asset_state, 800_000_000_000_000_000, 100);
+    assert_eq!(result, Some(0));
+    let result = calculate_cap_difference(&asset_state_2, 300_000_000_000_000_000, 100);
+    assert_eq!(result, Some(10));
 }

@@ -422,3 +422,13 @@ pub fn calculate_spot_sprice(
     let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
     price_a.checked_mul(&price_b)
 }
+
+pub fn calculate_cap_difference(
+    asset: &AssetReserveState<Balance>,
+    asset_cap: u128,
+    total_hub_reserve: Balance,
+) -> Option<Balance> {
+    let weight_cap = FixedU128::from_inner(asset_cap);
+    let max_allowed = weight_cap.checked_mul_int(total_hub_reserve)?;
+    Some(max_allowed.saturating_sub(asset.reserve))
+}
