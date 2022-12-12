@@ -11,8 +11,16 @@ use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 /// Asserts that two expressions `$x` and `$y` are approximately equal to each other up to a delta `$z`.
 #[macro_export]
 macro_rules! assert_approx_eq {
-    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x - $y } else { $y - $x };
+    ($x:expr, $y:expr, $z:expr) => {{
+        assert_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
+    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
         assert!(
             diff <= $z,
             "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
@@ -26,10 +34,43 @@ macro_rules! assert_approx_eq {
 }
 pub(crate) use assert_approx_eq;
 
+/// Asserts that two expressions `$x` and `$y` are approximately equal to each other up to a delta `$z`.
+macro_rules! prop_assert_approx_eq {
+    ($x:expr, $y:expr, $z:expr) => {{
+        prop_assert_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
+    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+        prop_assert!(
+            diff <= $z,
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x,
+            $y,
+            diff,
+            $z
+        );
+    }};
+}
+pub(crate) use prop_assert_approx_eq;
+
 /// Asserts that two `Rational` numbers `$x` and `$y` are approximately equal to each other up to a delta `$z`.
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! assert_rational_approx_eq {
-    ( $x:expr, $y:expr, $z:expr, $r:expr) => {{
+    ($x:expr, $y:expr, $z:expr) => {{
+        assert_rational_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
+    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y {
             $x.clone() - $y.clone()
         } else {
@@ -48,10 +89,45 @@ macro_rules! assert_rational_approx_eq {
 }
 pub(crate) use assert_rational_approx_eq;
 
+/// Asserts that two `Rational` numbers `$x` and `$y` are approximately equal to each other up to a delta `$z`.
+/// Converts the `Rational` numbers to `f64` for display.
+macro_rules! prop_assert_rational_approx_eq {
+    ($x:expr, $y:expr, $z:expr) => {{
+        prop_assert_rational_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
+    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+        prop_assert!(
+            diff <= $z,
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x.to_f64(),
+            $y.to_f64(),
+            diff.to_f64(),
+            $z.to_f64()
+        );
+    }};
+}
+pub(crate) use prop_assert_rational_approx_eq;
+
 /// Asserts that two `Rational` numbers `$x` and `$y` are approximately equal to each other up to a
 /// relative error `$z`.
+/// `$y` is used as the reference value to determine the error.
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! assert_rational_relative_approx_eq {
+    ($x:expr, $y:expr, $z:expr) => {{
+        assert_rational_relative_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y {
             $x.clone() - $y.clone()
@@ -70,6 +146,38 @@ macro_rules! assert_rational_relative_approx_eq {
     }};
 }
 pub(crate) use assert_rational_relative_approx_eq;
+
+/// Asserts that two `Rational` numbers `$x` and `$y` are approximately equal to each other up to a
+/// relative error `$z`.
+/// `$y` is used as the reference value to determine the error.
+/// Converts the `Rational` numbers to `f64` for display.
+macro_rules! prop_assert_rational_relative_approx_eq {
+    ($x:expr, $y:expr, $z:expr) => {{
+        prop_assert_rational_relative_approx_eq!(
+            $x,
+            $y,
+            $z,
+            "values are not approximately equal"
+        );
+    }};
+    ($x:expr, $y:expr, $z:expr, $r:expr) => {{
+        let diff = if $x >= $y {
+            $x.clone() - $y.clone()
+        } else {
+            $y.clone() - $x.clone()
+        };
+        prop_assert!(
+            diff.clone() / $y.clone() <= $z.clone(),
+            "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
+            $r,
+            $x.clone().to_f64(),
+            $y.to_f64(),
+            diff.to_f64(),
+            ($y * $z).to_f64()
+        );
+    }};
+}
+pub(crate) use prop_assert_rational_relative_approx_eq;
 
 // ----- Constants
 
@@ -120,6 +228,16 @@ pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
 }
 
 // ----- Property Test Strategies
+
+/// Generates an arbitrary `FixedU128` number.
+pub fn any_fixed() -> impl Strategy<Value = FixedU128> {
+    any::<u128>().prop_map(|x| FixedU128::from_inner(x))
+}
+
+/// Generates an arbitrary `Rational128` number, ensuring that the denominator is greater 0.
+pub fn any_rational() -> impl Strategy<Value = Rational128> {
+    (any::<u128>(), 1..u128::MAX).prop_map(|(n, d)| Rational128::from(n, d))
+}
 
 /// Generates two tuples representing two rational numbers with the first being bigger than the second.
 pub fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {

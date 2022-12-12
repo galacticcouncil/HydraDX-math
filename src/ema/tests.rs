@@ -2,13 +2,13 @@ use super::*;
 
 use crate::fraction;
 use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
-use crate::test_utils::{fixed_to_arbitrary_precision, fraction_to_arbitrary_precision};
+use crate::test_utils::{fixed_to_arbitrary_precision, fraction_to_arbitrary_precision, rational_to_arbitrary_precision};
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::{Balance, Fraction, Price};
 
 use num_traits::{Bounded, One, Zero};
 use rug::Rational;
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 
 pub const TEN_MINUTES_PERIOD: u64 = 100;
 pub const DAY_PERIOD: u64 = 14_400;
@@ -19,15 +19,15 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
     let smoothing = smoothing_from_period(7);
 
     // price
-    let start_price = 4.into();
-    let incoming_price = 8.into();
+    let start_price = Rational128::from(4, 1);
+    let incoming_price = Rational128::from(8, 1);
     let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-    assert_eq!(next_price, 5.into());
+    assert_eq!(next_price, Rational128::from(5, 1));
 
-    let start_price = Price::saturating_from_rational(4, 100);
-    let incoming_price = Price::saturating_from_rational(8, 100);
+    let start_price = Rational128::from(4, 100);
+    let incoming_price = Rational128::from(8, 100);
     let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-    assert_eq!(next_price, Price::saturating_from_rational(5, 100));
+    assert_eq!(next_price, Rational128::from(5, 100));
 
     // balance
     let start_balance = 4u128;
@@ -87,14 +87,14 @@ fn price_weighted_average_boundary_values() {
     let smoothing = fraction::frac(1, 2);
     debug_assert!(smoothing <= Fraction::one());
 
+    let max_price = Rational128::from(u128::MAX, 1);
+    let half_max_price = Rational128::from(u128::MAX / 2, 1);
     // previously zero, incoming max
-    let next_price = price_weighted_average(Price::zero(), Price::max_value(), smoothing);
-    assert_eq!(next_price, Price::max_value() / 2.into());
-    // the oracle is biased towards the previous value
-    let bias = Price::saturating_from_rational(1, Price::DIV);
+    let next_price = price_weighted_average(Rational128::zero(), max_price, smoothing);
+    assert_eq!(next_price, half_max_price);
     // previously max, incoming zero
-    let next_price = price_weighted_average(Price::max_value(), Price::zero(), smoothing);
-    assert_eq!(next_price, Price::max_value() / 2.into() + bias);
+    let next_price = price_weighted_average(max_price, Rational128::zero(), smoothing);
+    assert_eq!(next_price, half_max_price);
 }
 
 #[test]
@@ -131,12 +131,12 @@ fn exponential_smoothing_small_period() {
     let smoothing = Fraction::from_num(0.999);
     let iterations = 100_000;
     let exp = exp_smoothing(smoothing, iterations);
-    let rug_exp = high_precision::rug_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
+    let rug_exp = high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
 
-    let tolerance = fixed_to_arbitrary_precision(FixedU128::from_inner(1));
+    let tolerance = Rational::from((1, FixedU128::DIV));
     assert_rational_approx_eq!(
         fraction_to_arbitrary_precision(exp),
-        rug_exp.clone(),
+        rug_exp,
         tolerance,
         "high precision should be equal to low precision within low precision tolerance"
     );
@@ -154,7 +154,7 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
     for i in 0..iterations {
         next_balance = balance_weighted_average(next_balance, incoming_balance, smoothing);
         next_rug_balance =
-            high_precision::rug_balance_weighted_average(next_rug_balance, incoming_balance, rug_smoothing.clone())
+            high_precision::precise_balance_weighted_average(next_rug_balance, incoming_balance, rug_smoothing.clone())
                 .to_u128()
                 .unwrap();
         if i % 100_000 == 0 {
@@ -164,9 +164,9 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let rug_exp_smoothing = high_precision::rug_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
+    let precise_exp_smoothing = high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
     let exponential_rug_balance =
-        high_precision::rug_balance_weighted_average(start_balance, incoming_balance, rug_exp_smoothing)
+        high_precision::precise_balance_weighted_average(start_balance, incoming_balance, precise_exp_smoothing)
             .to_u128()
             .unwrap();
     println!("===== final:");
@@ -196,12 +196,12 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
 #[test]
 fn ema_price_history_precision_crash_scenario() {
     let history = vec![
-        (FixedU128::zero(), 1),
-        (FixedU128::from((1e15 as u128, 1)), invariants::MAX_ITERATIONS),
-        (FixedU128::from((1, 1e15 as u128)), invariants::MAX_ITERATIONS),
+        (Rational128::zero(), 1),
+        (Rational128::from(1e15 as u128, 1), invariants::MAX_ITERATIONS),
+        (Rational128::from(1, 1e15 as u128), invariants::MAX_ITERATIONS),
     ];
     let smoothing = smoothing_from_period(WEEK_PERIOD);
-    let rug_ema = high_precision::rug_fast_price_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+    let rug_ema = high_precision::precise_price_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
 
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
@@ -210,7 +210,7 @@ fn ema_price_history_precision_crash_scenario() {
 
     let relative_tolerance = Rational::from((1, 1e15 as u128));
     assert_rational_relative_approx_eq!(
-        fixed_to_arbitrary_precision(ema),
+        rational_to_arbitrary_precision(ema),
         rug_ema.clone(),
         relative_tolerance,
         "high precision should be equal to low precision within tolerance"

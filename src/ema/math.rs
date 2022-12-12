@@ -1,8 +1,12 @@
 use crate::fraction;
+use crate::rational::*;
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::{Balance, Fraction, Price};
+use crate::types::{Balance, Fraction};
 
-use sp_arithmetic::traits::One;
+use num_traits::One;
+use sp_arithmetic::Rational128;
+
+pub type Price = Rational128;
 
 /// Calculate the iterated exponential moving average for the given prices.
 /// `iterations` is the number of iterations of the EMA to calculate.
@@ -53,15 +57,15 @@ pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
     Fraction::one() - exp_complement
 }
 
-/// Calculates smoothing factor alpha for an exponential moving average based on `period`:
-/// `alpha = 2 / (period + 1)`. It leads to the "center of mass" of the EMA corresponding to be the
-/// "center of mass" of a `period`-length SMA.
-///
-/// Possible alternatives for `alpha = 2 / (period + 1)`:
-/// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
-/// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
-/// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
-pub fn smoothing_from_period(period: u64) -> Fraction {
+ /// Calculates smoothing factor alpha for an exponential moving average based on `period`:
+ /// `alpha = 2 / (period + 1)`. It leads to the "center of mass" of the EMA corresponding to be the
+ /// "center of mass" of a `period`-length SMA.
+ ///
+ /// Possible alternatives for `alpha = 2 / (period + 1)`:
+ /// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
+ /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
+ /// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
+ pub fn smoothing_from_period(period: u64) -> Fraction {
     fraction::frac(2, u128::from(period.max(1)).saturating_add(1))
 }
 
@@ -75,12 +79,15 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
 pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
-        // Safe to use bare `+` because `weight <= 1` and `a + (b - a) <= b`.
-        // Safe to use bare `-` because of the conditional.
-        prev + fraction::multiply_by_fixed(weight, incoming - prev)
+        rounding_add(
+            prev,
+            fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)),
+        )
     } else {
-        // Safe to use bare `-` because `weight <= 1` and `a - (a - b) >= 0` and the conditional.
-        prev - fraction::multiply_by_fixed(weight, prev - incoming)
+        rounding_sub(
+            prev,
+            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)),
+        )
     }
 }
 

@@ -1,4 +1,3 @@
-use crate::fraction;
 use crate::rational::round_to_rational;
 use crate::types::{Balance, Fraction};
 
@@ -90,9 +89,11 @@ pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::assert_rational_approx_eq;
+    use crate::test_utils::{any_fixed, assert_rational_approx_eq, fixed_to_arbitrary_precision, fraction_to_arbitrary_precision, prop_assert_rational_relative_approx_eq};
+    use crate::test_utils::MIN_BALANCE;
 
     use num_traits::One;
+    use proptest::prelude::*;
     use rug::Rational;
     use sp_arithmetic::{FixedPointNumber, Rational128};
 
@@ -175,15 +176,57 @@ mod tests {
             to_tuple(expected)
         );
 
-        let f = fraction::frac(1, 9 << 124);
+        let f = frac(1, 9 << 124);
         let r = rat(9, 10);
         let expected = Rational::from((1, (1_u128 << 124) * 10));
         let res = multiply_by_rational(f, r);
         assert_rational_approx_eq!(
             Rational::from((res.n(), res.d())),
             expected.clone(),
-            Rational::from((1, fraction::DIV)),
+            Rational::from((1, DIV)),
             "not approximately equal!"
         );
+    }
+
+    // ----- Property Tests
+
+    /// Strategy to generate a typical `Fraction` value.
+    fn typical_fraction() -> impl Strategy<Value = Fraction> {
+        (1u128..110_000).prop_map(|n| frac(2, n.max(1).saturating_add(1)))
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1_000))]
+        #[test]
+        fn fraction_times_fixed_precision(
+            fraction in typical_fraction(),
+            fixed in any_fixed(),
+        ) {
+            let rational = fixed_to_arbitrary_precision(fixed) * fraction_to_arbitrary_precision(fraction);
+            let conversion = fixed * to_fixed(fraction);
+            let conversion_distance = (rational.clone() - fixed_to_arbitrary_precision(conversion)).abs();
+            let multiply = multiply_by_fixed(fraction, fixed);
+            let multiply_distance = (rational.clone() - fixed_to_arbitrary_precision(multiply)).abs();
+            prop_assert!(multiply_distance <= conversion_distance);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
+        #[test]
+        fn fraction_times_rational(
+            fraction in typical_fraction(),
+            price in (MIN_BALANCE..u128::MAX, MIN_BALANCE..u128::MAX),
+        ) {
+            let price = Rational128::from(price.0, price.1);
+    
+            let res = multiply_by_rational(fraction, price);
+            let expected = fraction_to_arbitrary_precision(fraction) * Rational::from((price.n(), price.d()));
+    
+            let res = Rational::from((res.n(), res.d()));
+            let tolerance = Rational::from((1, 1u128 << 85));
+    
+            prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
+        }
     }
 }
