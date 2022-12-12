@@ -2,7 +2,7 @@ use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
     calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
-    calculate_sell_hub_state_changes, calculate_sell_state_changes,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes, verify_asset_cap,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -595,14 +595,14 @@ fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided()
 #[test]
 fn calculate_cap_diff_should_work_correctly() {
     let asset_state = AssetReserveState {
-        reserve: 80,
-        hub_reserve: 20 * UNIT,
+        hub_reserve: 80,
+        reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
     };
     let asset_state_2 = AssetReserveState {
-        reserve: 20,
-        hub_reserve: 20 * UNIT,
+        hub_reserve: 20,
+        reserve: 20 * UNIT,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
     };
@@ -611,4 +611,37 @@ fn calculate_cap_diff_should_work_correctly() {
     assert_eq!(result, Some(0));
     let result = calculate_cap_difference(&asset_state_2, 300_000_000_000_000_000, 100);
     assert_eq!(result, Some(10));
+}
+
+#[test]
+fn verify_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        hub_reserve: 80,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 800_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(false));
+
+    let asset_state = AssetReserveState {
+        hub_reserve: 60,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 800_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(true));
+
+    let asset_state = AssetReserveState {
+        hub_reserve: 100,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 1_000_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(true));
 }
