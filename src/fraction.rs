@@ -1,7 +1,7 @@
 use crate::rational::round_to_rational;
 use crate::types::{Balance, Fraction};
 
-use num_traits::One;
+use num_traits::{One, Zero};
 use primitive_types::U128;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding;
@@ -78,12 +78,15 @@ pub fn multiply_by_fixed(fraction: Fraction, fixed: FixedU128) -> FixedU128 {
 /// is greater 0 if the U256 representation is greater 0.
 pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
     debug_assert!(f <= Fraction::ONE);
+    if f.is_zero() || r.n().is_zero() {
+        return Rational128::zero();
+    } else if f.is_one() {
+        return r;
+    }
     // n / d = l.n * f.to_bits / (l.d * DIV)
     let n = U128::from(r.n()).full_mul(f.to_bits().into());
     let d = U128::from(r.d()).full_mul(DIV.into());
-    // only round up the numerator if it was not zero
-    let min_n = if n.is_zero() { 0 } else { 1 };
-    round_to_rational((n, d), (min_n, 1))
+    round_to_rational((n, d), (1, 1))
 }
 
 #[cfg(test)]

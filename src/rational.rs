@@ -17,6 +17,11 @@ pub fn round_to_rational((n, d): (U256, U256), (min_n, min_d): (u128, u128)) -> 
 /// Adds two rational numbers, rounding the result to make sure it fits in a `Rational128`.
 /// Ensures the resulting numerator and denominator are greater than zero.
 pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
+    if l.n() == 0 {
+        return r;
+    } else if r.n() == 0 {
+        return l;
+    }
     let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
     // n = l.n * r.d + r.n * l.d
     let n = l_n.full_mul(r_d).saturating_add(r_n.full_mul(l_d));
@@ -29,6 +34,9 @@ pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
 /// Ensures the resulting denominator is greater than zero and that the denominator is greater than
 /// zero if the subtraction did not saturate.
 pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
+    if l.n() == 0 || r.n() == 0{
+        return l;
+    }
     let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
     // n = l.n * r.d + r.n * l.d
     let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));

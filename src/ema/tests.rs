@@ -2,11 +2,11 @@ use super::*;
 
 use crate::fraction;
 use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
-use crate::test_utils::{fixed_to_arbitrary_precision, fraction_to_arbitrary_precision, rational_to_arbitrary_precision};
+use crate::test_utils::{fraction_to_arbitrary_precision, rational_to_arbitrary_precision};
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::{Balance, Fraction, Price};
+use crate::types::{Balance, Fraction};
 
-use num_traits::{Bounded, One, Zero};
+use num_traits::One;
 use rug::Rational;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 
@@ -88,7 +88,7 @@ fn price_weighted_average_boundary_values() {
     debug_assert!(smoothing <= Fraction::one());
 
     let max_price = Rational128::from(u128::MAX, 1);
-    let half_max_price = Rational128::from(u128::MAX / 2, 1);
+    let half_max_price = Rational128::from(u128::MAX, 2);
     // previously zero, incoming max
     let next_price = price_weighted_average(Rational128::zero(), max_price, smoothing);
     assert_eq!(next_price, half_max_price);

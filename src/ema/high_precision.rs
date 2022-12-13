@@ -1,12 +1,12 @@
 use crate::fraction;
-use crate::test_utils::{fixed_to_arbitrary_precision, fraction_to_arbitrary_precision, into_rounded_integer, rational_to_arbitrary_precision};
-use crate::types::{Balance, Fraction, Price};
+use crate::test_utils::{fraction_to_arbitrary_precision, into_rounded_integer, rational_to_arbitrary_precision};
+use crate::types::Balance;
 
 use num_traits::{One, Pow};
 use proptest::prelude::*;
 use rug::ops::PowAssign;
 use rug::{Integer, Rational};
-use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
+use sp_arithmetic::Rational128;
 use std::ops::{Mul, ShrAssign};
 
 /// Round the given `r` to a close number where numerator and denominator have <= 256 bits.

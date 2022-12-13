@@ -79,10 +79,16 @@ pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
 pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
-        rounding_add(
+        let res1 = rounding_sub(incoming, prev);
+        dbg!(res1.n(), res1.d());
+        let res2 = fraction::multiply_by_rational(weight, res1);
+        dbg!(res2.n(), res2.d());
+        let res3 = rounding_add(
             prev,
-            fraction::multiply_by_rational(weight, rounding_sub(incoming, prev)),
-        )
+            res2,
+        );
+        dbg!(res3.n(), res3.d());
+        res3
     } else {
         rounding_sub(
             prev,
