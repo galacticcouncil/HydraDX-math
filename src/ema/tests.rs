@@ -157,11 +157,11 @@ fn ema_price_history_precision_crash_scenario() {
         ema = iterated_price_ema(iterations, ema, price, smoothing);
     }
 
-    let relative_tolerance = Rational::from((1, 1e15 as u128));
+    let tolerance = Rational::from((1, 1e30 as u128));
     assert_rational_relative_approx_eq!(
         rational_to_arbitrary_precision(ema),
         rug_ema.clone(),
-        relative_tolerance,
+        tolerance,
         "high precision should be equal to low precision within tolerance"
     );
 }

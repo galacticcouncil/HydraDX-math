@@ -17,7 +17,6 @@ codec = { package = "parity-scale-codec", version = "3.0.0", default-features = 
 sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.29", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.29", default-features = false }
 
-
 [dev-dependencies]
 approx = "0.5.1"
 criterion = "0.4.0"
