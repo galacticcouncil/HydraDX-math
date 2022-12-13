@@ -164,7 +164,8 @@ fn accuracy_of_exponentiation_should_be_high_enough() {
         }
     }
     let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let precise_exp_smoothing = high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
+    let precise_exp_smoothing =
+        high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
     let exponential_rug_balance =
         high_precision::precise_balance_weighted_average(start_balance, incoming_balance, precise_exp_smoothing)
             .to_u128()

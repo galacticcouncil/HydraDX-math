@@ -57,15 +57,15 @@ pub fn exp_smoothing(smoothing: Fraction, iterations: u32) -> Fraction {
     Fraction::one() - exp_complement
 }
 
- /// Calculates smoothing factor alpha for an exponential moving average based on `period`:
- /// `alpha = 2 / (period + 1)`. It leads to the "center of mass" of the EMA corresponding to be the
- /// "center of mass" of a `period`-length SMA.
- ///
- /// Possible alternatives for `alpha = 2 / (period + 1)`:
- /// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
- /// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
- /// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
- pub fn smoothing_from_period(period: u64) -> Fraction {
+/// Calculates smoothing factor alpha for an exponential moving average based on `period`:
+/// `alpha = 2 / (period + 1)`. It leads to the "center of mass" of the EMA corresponding to be the
+/// "center of mass" of a `period`-length SMA.
+///
+/// Possible alternatives for `alpha = 2 / (period + 1)`:
+/// + `alpha = 1 - 0.5^(1 / period)` for a half-life of `period` or
+/// + `alpha = 1 - 0.5^(2 / period)` to have the same median as a `period`-length SMA.
+/// See https://en.wikipedia.org/wiki/Moving_average#Relationship_between_SMA_and_EMA
+pub fn smoothing_from_period(period: u64) -> Fraction {
     fraction::frac(2, u128::from(period.max(1)).saturating_add(1))
 }
 
@@ -83,10 +83,7 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) ->
         dbg!(res1.n(), res1.d());
         let res2 = fraction::multiply_by_rational(weight, res1);
         dbg!(res2.n(), res2.d());
-        let res3 = rounding_add(
-            prev,
-            res2,
-        );
+        let res3 = rounding_add(prev, res2);
         dbg!(res3.n(), res3.d());
         res3
     } else {

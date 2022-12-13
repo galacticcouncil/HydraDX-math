@@ -112,7 +112,11 @@ pub fn naive_precise_price_ema(history: Vec<Rational128>, smoothing: Rational) -
     assert!(!history.is_empty());
     let mut current = rational_to_arbitrary_precision(history[0]);
     for price in history.into_iter().skip(1) {
-        current = precise_weighted_average(current.clone(), rational_to_arbitrary_precision(price), smoothing.clone());
+        current = precise_weighted_average(
+            current.clone(),
+            rational_to_arbitrary_precision(price),
+            smoothing.clone(),
+        );
     }
     current
 }
@@ -163,7 +167,8 @@ fn precise_price_ema_works() {
     ];
     let smoothing = fraction::frac(1, 4);
     let expected =
-        ((rational_to_arbitrary_precision(history[0]) * 3 / 4 + rational_to_arbitrary_precision(history[1]) / 4) * 3 / 4
+        ((rational_to_arbitrary_precision(history[0]) * 3 / 4 + rational_to_arbitrary_precision(history[1]) / 4) * 3
+            / 4
             + rational_to_arbitrary_precision(history[2]) / 4)
             * 3
             / 4

@@ -12,15 +12,14 @@ use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 #[macro_export]
 macro_rules! assert_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        assert_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        assert_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+        let diff = if $x >= $y {
+            $x.clone() - $y.clone()
+        } else {
+            $y.clone() - $x.clone()
+        };
         assert!(
             diff <= $z,
             "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
@@ -37,15 +36,14 @@ pub(crate) use assert_approx_eq;
 /// Asserts that two expressions `$x` and `$y` are approximately equal to each other up to a delta `$z`.
 macro_rules! prop_assert_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        prop_assert_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        prop_assert_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+        let diff = if $x >= $y {
+            $x.clone() - $y.clone()
+        } else {
+            $y.clone() - $x.clone()
+        };
         prop_assert!(
             diff <= $z,
             "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
@@ -63,12 +61,7 @@ pub(crate) use prop_assert_approx_eq;
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        assert_rational_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        assert_rational_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y {
@@ -93,15 +86,14 @@ pub(crate) use assert_rational_approx_eq;
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! prop_assert_rational_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        prop_assert_rational_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        prop_assert_rational_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
-        let diff = if $x >= $y { $x.clone() - $y.clone() } else { $y.clone() - $x.clone() };
+        let diff = if $x >= $y {
+            $x.clone() - $y.clone()
+        } else {
+            $y.clone() - $x.clone()
+        };
         prop_assert!(
             diff <= $z,
             "\n{}\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
@@ -121,12 +113,7 @@ pub(crate) use prop_assert_rational_approx_eq;
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! assert_rational_relative_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        assert_rational_relative_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        assert_rational_relative_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y {
@@ -153,12 +140,7 @@ pub(crate) use assert_rational_relative_approx_eq;
 /// Converts the `Rational` numbers to `f64` for display.
 macro_rules! prop_assert_rational_relative_approx_eq {
     ($x:expr, $y:expr, $z:expr) => {{
-        prop_assert_rational_relative_approx_eq!(
-            $x,
-            $y,
-            $z,
-            "values are not approximately equal"
-        );
+        prop_assert_rational_relative_approx_eq!($x, $y, $z, "values are not approximately equal");
     }};
     ($x:expr, $y:expr, $z:expr, $r:expr) => {{
         let diff = if $x >= $y {

@@ -34,7 +34,7 @@ pub fn rounding_add(l: Rational128, r: Rational128) -> Rational128 {
 /// Ensures the resulting denominator is greater than zero and that the denominator is greater than
 /// zero if the subtraction did not saturate.
 pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
-    if l.n() == 0 || r.n() == 0{
+    if l.n() == 0 || r.n() == 0 {
         return l;
     }
     let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
