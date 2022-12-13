@@ -596,13 +596,13 @@ fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided()
 fn calculate_cap_diff_should_work_correctly() {
     let asset_state = AssetReserveState {
         hub_reserve: 80,
-        reserve: 20 * UNIT,
+        reserve: 160,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
     };
     let asset_state_2 = AssetReserveState {
         hub_reserve: 20,
-        reserve: 20 * UNIT,
+        reserve: 100,
         shares: 10 * UNIT,
         protocol_shares: 0u128,
     };
@@ -610,7 +610,7 @@ fn calculate_cap_diff_should_work_correctly() {
     let result = calculate_cap_difference(&asset_state, 800_000_000_000_000_000, 100);
     assert_eq!(result, Some(0));
     let result = calculate_cap_difference(&asset_state_2, 300_000_000_000_000_000, 100);
-    assert_eq!(result, Some(10));
+    assert_eq!(result, Some(50));
 }
 
 #[test]
