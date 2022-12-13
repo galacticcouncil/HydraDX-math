@@ -300,7 +300,7 @@ pub fn calculate_remove_liquidity_state_changes(
     let current_hub_reserve = asset_state.hub_reserve;
 
     let current_price = asset_state.price()?;
-    let position_price = position.price;
+    let position_price = position.price()?;
 
     let (
         current_reserve_hp,

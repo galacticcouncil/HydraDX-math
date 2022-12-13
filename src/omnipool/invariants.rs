@@ -76,7 +76,7 @@ fn position() -> impl Strategy<Value = Position<Balance>> {
     (trade_amount(), price()).prop_map(|(amount, price)| Position {
         amount,
         shares: amount,
-        price,
+        price: (price.into_inner(), 1_000_000_000_000_000_000),
     })
 }
 
@@ -582,7 +582,7 @@ proptest! {
             "Invariant is not correct after remove liquidity");
 
         let delta_b = U256::from(new_asset_state.protocol_shares) - U256::from(asset.protocol_shares);
-        let price_x_r = U256::from(position.price.checked_mul_int(asset.reserve).unwrap());
+        let price_x_r = U256::from(position.price().unwrap().checked_mul_int(asset.reserve).unwrap());
         let hub_reserve = U256::from(asset.hub_reserve);
         let position_shares = U256::from(position.shares);
 

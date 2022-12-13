@@ -148,6 +148,8 @@ proptest! {
 
         //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
         assert_loyalty_factor(b, periods, scale_coef, multiplier);
+
+        assert!(multiplier.lt(&FixedU128::one()), "Loyalty multiplier always must be < one");
     }
 }
 
@@ -178,6 +180,8 @@ proptest! {
 
         //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
         assert_loyalty_factor(b, periods, scale_coef, multiplier);
+
+        assert!(multiplier.lt(&FixedU128::one()), "Loyalty multiplier always must be < one");
     }
 }
 
