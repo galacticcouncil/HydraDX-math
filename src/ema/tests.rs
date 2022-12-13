@@ -4,7 +4,7 @@ use crate::fraction;
 use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
 use crate::test_utils::{fraction_to_arbitrary_precision, rational_to_arbitrary_precision};
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::{Balance, Fraction};
+use crate::types::Fraction;
 
 use num_traits::One;
 use rug::Rational;
@@ -139,58 +139,6 @@ fn exponential_smoothing_small_period() {
         rug_exp,
         tolerance,
         "high precision should be equal to low precision within low precision tolerance"
-    );
-}
-
-#[test]
-fn accuracy_of_exponentiation_should_be_high_enough() {
-    let smoothing = smoothing_from_period(WEEK_PERIOD);
-    let rug_smoothing = fraction_to_arbitrary_precision(smoothing);
-    let iterations = 100_000;
-    let start_balance = 1e12 as Balance;
-    let incoming_balance = 1e21 as Balance;
-    let mut next_balance = start_balance;
-    let mut next_rug_balance = start_balance;
-    for i in 0..iterations {
-        next_balance = balance_weighted_average(next_balance, incoming_balance, smoothing);
-        next_rug_balance =
-            high_precision::precise_balance_weighted_average(next_rug_balance, incoming_balance, rug_smoothing.clone())
-                .to_u128()
-                .unwrap();
-        if i % 100_000 == 0 {
-            println!("iwa {}: {}", i, next_balance);
-            println!("rug {}: {}", i, next_rug_balance);
-            println!("");
-        }
-    }
-    let exponential_balance = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
-    let precise_exp_smoothing =
-        high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
-    let exponential_rug_balance =
-        high_precision::precise_balance_weighted_average(start_balance, incoming_balance, precise_exp_smoothing)
-            .to_u128()
-            .unwrap();
-    println!("===== final:");
-    println!("initial balance: {}", start_balance);
-    println!(" target balance: {}", incoming_balance);
-    println!("       iterated: {}", next_balance);
-    println!("    exponential: {}", exponential_balance);
-    println!("   rug iterated: {}", next_rug_balance);
-    println!("rug exponential: {}", exponential_rug_balance);
-
-    let tolerance = 100;
-    assert_approx_eq!(
-        next_balance,
-        exponential_rug_balance,
-        tolerance,
-        "iterated balance should be within tolerance of the high precision balance"
-    );
-    let tolerance = 1;
-    assert_approx_eq!(
-        exponential_balance,
-        exponential_rug_balance,
-        tolerance,
-        "exponentially determined balance should be within tolerance of the high precision balance"
     );
 }
 
