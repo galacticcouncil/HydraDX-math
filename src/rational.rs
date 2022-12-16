@@ -38,7 +38,7 @@ pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
         return l;
     }
     let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
-    // n = l.n * r.d + r.n * l.d
+    // n = l.n * r.d - r.n * l.d
     let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
     // d = l.d * r.d
     let d = U128::from(l.d()).full_mul(r.d().into());
@@ -51,65 +51,49 @@ pub fn rounding_sub(l: Rational128, r: Rational128) -> Rational128 {
 mod tests {
     use super::*;
     use crate::test_utils::bigger_and_smaller_rational;
-    use crate::test_utils::rational_to_arbitrary_precision;
+    use crate::test_utils::{prop_assert_rational_relative_approx_eq, rational_to_arbitrary_precision};
     use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 
     use proptest::prelude::*;
     use rug::Rational;
 
+    /// The maximum balance value for the precision tests.
+    const MAX_VAL: u128 = MAX_BALANCE * 1000;
+
+    fn typical_balance() -> impl Strategy<Value = u128> {
+        MIN_BALANCE..MAX_VAL
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
-        fn rational_rounding_add(
-            (a, b) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-            (c, d) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
+        fn rational_rounding_add_should_have_high_enough_precision(
+            (a, b) in (typical_balance(), typical_balance()),
+            (c, d) in (typical_balance(), typical_balance()),
         ) {
-            let price1 = Rational128::from(a, b);
-            let price2 = Rational128::from(c, d);
-
-            let res = rounding_add(price1, price2);
+            let res = rounding_add(Rational128::from(a, b), Rational128::from(c, d));
             let expected = Rational::from((a, b)) + Rational::from((c, d));
 
             let res = rational_to_arbitrary_precision(res);
+            // make sure the result has a precision of 100 bits
             let tolerance = Rational::from((1, 1u128 << 100));
-
-            let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
-            let small_enough = diff.clone() / expected.clone() <= tolerance;
-            let max_diff = expected.clone() * tolerance.clone();
-            prop_assert!(
-                small_enough,
-                "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-                res.clone().to_f64(),
-                expected.clone().to_f64(),
-                diff.to_f64(),
-                max_diff.to_f64()
-            );
+            prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
         }
     }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
-        fn rational_rounding_sub(
-            ((a, b), (c, d)) in bigger_and_smaller_rational()
+        fn rational_rounding_sub_should_have_high_enough_precision(
+            ((a, b), (c, d)) in bigger_and_smaller_rational(),
         ) {
             let res = rounding_sub(Rational128::from(a, b), Rational128::from(c, d));
             let expected = Rational::from((a, b)) - Rational::from((c, d));
 
             let res = rational_to_arbitrary_precision(res);
-            let tolerance = Rational::from((1, 1u128 << 100));
-
-            let diff = if res >= expected { res.clone() - expected.clone() } else { expected.clone() - res.clone() };
-            let small_enough = diff.clone() / expected.clone() <= tolerance;
-            let max_diff = expected.clone() * tolerance.clone();
-            prop_assert!(
-                small_enough,
-                "\n    left: {:?}\n   right: {:?}\n    diff: {:?}\nmax_diff: {:?}\n",
-                res.clone().to_f64(),
-                expected.clone().to_f64(),
-                diff.to_f64(),
-                max_diff.to_f64()
-            );
+            // make sure the result has a precision of 77 bits
+            let tolerance = Rational::from((1, 1u128 << 77));
+            prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
         }
     }
 }
