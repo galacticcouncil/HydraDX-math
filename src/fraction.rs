@@ -1,4 +1,4 @@
-use crate::rational::round_to_rational;
+use crate::rational::{round_to_rational, Rounding as RationalRounding};
 use crate::types::{Balance, Fraction};
 
 use num_traits::{One, Zero};
@@ -86,7 +86,7 @@ pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
     // n / d = l.n * f.to_bits / (l.d * DIV)
     let n = U128::from(r.n()).full_mul(f.to_bits().into());
     let d = U128::from(r.d()).full_mul(DIV.into());
-    round_to_rational((n, d), (1, 1))
+    round_to_rational((n, d), (1, 1), RationalRounding::Minimal)
 }
 
 #[cfg(test)]
@@ -95,17 +95,13 @@ mod tests {
     use crate::test_utils::MIN_BALANCE;
     use crate::test_utils::{
         any_fixed, assert_rational_approx_eq, fixed_to_arbitrary_precision, fraction_to_arbitrary_precision,
-        prop_assert_rational_relative_approx_eq,
+        prop_assert_rational_relative_approx_eq, rational_to_tuple,
     };
 
     use num_traits::One;
     use proptest::prelude::*;
     use rug::Rational;
     use sp_arithmetic::{FixedPointNumber, Rational128};
-
-    fn to_tuple(r: Rational128) -> (u128, u128) {
-        (r.n(), r.d())
-    }
 
     fn rat(n: u128, d: u128) -> Rational128 {
         Rational128::from(n, d)
@@ -178,8 +174,8 @@ mod tests {
             res,
             expected,
             "actual: {:?}, expected: {:?}",
-            to_tuple(res),
-            to_tuple(expected)
+            rational_to_tuple(res),
+            rational_to_tuple(expected)
         );
 
         let f = frac(1, 9 << 124);

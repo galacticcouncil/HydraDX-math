@@ -2,7 +2,7 @@ use crate::ema::*;
 use crate::fraction;
 use crate::test_utils::{
     any_rational, fraction_to_arbitrary_precision, prop_assert_approx_eq, prop_assert_rational_approx_eq,
-    prop_assert_rational_relative_approx_eq, rational_to_arbitrary_precision,
+    prop_assert_rational_relative_approx_eq, rational_to_arbitrary_precision, bigger_and_smaller_rational, rational_to_tuple,
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
@@ -138,15 +138,49 @@ proptest! {
 
 proptest! {
     #[test]
-    fn new_oracle_is_between_old_and_new_value(
+    fn new_balance_oracle_is_between_old_and_new_value(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         iterations in any::<u32>(),
         (prev_balance, incoming_balance) in
             (0..(Balance::MAX - 1)).prop_perturb(|n, mut rng| (n, rng.gen_range(n..Balance::MAX)))
     ) {
         let balance = iterated_balance_ema(iterations, prev_balance, incoming_balance, smoothing);
-        prop_assert!(balance <= incoming_balance);
-        prop_assert!(prev_balance <= balance);
+        prop_assert!(balance <= incoming_balance, "{balance} not <= {incoming_balance}");
+        prop_assert!(prev_balance <= balance, "{prev_balance} not <= {balance}");
+    }
+}
+
+proptest! {
+    #[test]
+    fn new_price_oracle_is_between_old_and_new_value_where_incoming_is_greater(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        i in iterations(),
+        ((incoming_n, incoming_d), (prev_n, prev_d)) in
+            bigger_and_smaller_rational(1, u128::MAX)
+    ) {
+        let prev_price = Rational128::from(prev_n, prev_d);
+        let incoming_price = Rational128::from(incoming_n, incoming_d);
+        let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
+        dbg!(rational_to_tuple(prev_price), rational_to_tuple(incoming_price), rational_to_tuple(price));
+        prop_assert!(prev_price <= price);
+        prop_assert!(price <= incoming_price);
+    }
+}
+
+proptest! {
+    #[test]
+    fn new_price_oracle_is_between_old_and_new_value_where_previous_is_greater(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        i in iterations(),
+        ((prev_n, prev_d), (incoming_n, incoming_d)) in
+            bigger_and_smaller_rational(1, u128::MAX)
+    ) {
+        let prev_price = Rational128::from(prev_n, prev_d);
+        let incoming_price = Rational128::from(incoming_n, incoming_d);
+        let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
+        dbg!(rational_to_tuple(prev_price), rational_to_tuple(incoming_price), rational_to_tuple(price));
+        prop_assert!(incoming_price <= price);
+        prop_assert!(price <= prev_price);
     }
 }
 

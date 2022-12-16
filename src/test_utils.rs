@@ -203,6 +203,11 @@ pub fn rational_to_arbitrary_precision(r: Rational128) -> Rational {
     Rational::from((r.n(), r.d()))
 }
 
+/// Convert a `Rational128` into a tuple of `u128` numbers.
+pub fn rational_to_tuple(r: Rational128) -> (u128, u128) {
+    (r.n(), r.d())
+}
+
 /// Convert a `Rational` number into its rounded `Integer` equivalent.
 pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
     let (num, den) = r.into_numer_denom();
@@ -222,7 +227,8 @@ pub fn any_rational() -> impl Strategy<Value = Rational128> {
 }
 
 /// Generates two tuples representing two rational numbers with the first being bigger than the second.
-pub fn bigger_and_smaller_rational() -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
-    ((MIN_BALANCE + 1)..MAX_BALANCE, MIN_BALANCE..(MAX_BALANCE - 1))
-        .prop_perturb(|(a, b), mut rng| ((a, b), (rng.gen_range(MIN_BALANCE..a), rng.gen_range(b..MAX_BALANCE))))
+/// `min` determines the minimum value a numerator or denominator can have, `max` the maximum.
+pub fn bigger_and_smaller_rational(min: u128, max: u128) -> impl Strategy<Value = ((u128, u128), (u128, u128))> {
+    ((min + 1)..max, (min.max(1))..(max - 1))
+        .prop_perturb(move |(a, b), mut rng| ((a, b), (rng.gen_range(min..a), rng.gen_range(b..max))))
 }

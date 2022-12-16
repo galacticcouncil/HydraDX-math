@@ -19,15 +19,41 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
     let smoothing = smoothing_from_period(7);
 
     // price
+    let tolerance = Rational::from((100, u128::MAX));
     let start_price = Rational128::from(4, 1);
     let incoming_price = Rational128::from(8, 1);
     let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-    assert_eq!(next_price, Rational128::from(5, 1));
+    let expected = Rational::from((5, 1));
+    // oracle should be biased towards previous value
+    assert!(rational_to_arbitrary_precision(next_price) < expected);
+    assert_rational_approx_eq!(rational_to_arbitrary_precision(next_price), expected, tolerance);
 
+    let tolerance = Rational::from((100, u128::MAX));
     let start_price = Rational128::from(4, 100);
     let incoming_price = Rational128::from(8, 100);
     let next_price = price_weighted_average(start_price, incoming_price, smoothing);
-    assert_eq!(next_price, Rational128::from(5, 100));
+    let expected = Rational::from((5, 100));
+    // oracle should be biased towards previous value
+    assert!(rational_to_arbitrary_precision(next_price) < expected);
+    assert_rational_approx_eq!(rational_to_arbitrary_precision(next_price), expected, tolerance);
+
+    let tolerance = Rational::from((100, u128::MAX));
+    let start_price = Rational128::from(8, 1);
+    let incoming_price = Rational128::from(4, 1);
+    let next_price = price_weighted_average(start_price, incoming_price, smoothing);
+    let expected = Rational::from((7, 1));
+    // oracle should be biased towards previous value
+    assert!(rational_to_arbitrary_precision(next_price) > expected);
+    assert_rational_approx_eq!(rational_to_arbitrary_precision(next_price), expected, tolerance);
+
+    let tolerance = Rational::from((100, u128::MAX));
+    let start_price = Rational128::from(8, 100);
+    let incoming_price = Rational128::from(4, 100);
+    let next_price = price_weighted_average(start_price, incoming_price, smoothing);
+    let expected = Rational::from((7, 100));
+    // oracle should be biased towards previous value
+    assert!(rational_to_arbitrary_precision(next_price) > expected);
+    assert_rational_approx_eq!(rational_to_arbitrary_precision(next_price), expected, tolerance);
 
     // balance
     let start_balance = 4u128;

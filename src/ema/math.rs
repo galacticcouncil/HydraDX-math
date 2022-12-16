@@ -73,23 +73,25 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
 ///
-/// Note: Rounding is slightly biased towards `prev`.
-/// (`FixedU128::mul` rounds to the nearest representable value, rounding down on equidistance.
-/// See [doc comment here](https://github.com/paritytech/substrate/blob/ce10b9f29353e89fc3e59d447041bb29622def3f/primitives/arithmetic/src/fixed_point.rs#L670-L671).)
+/// Note: Rounding is biased towards `prev`.
 pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+    dbg!("price_weighted_average");
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
-        let res1 = rounding_sub(incoming, prev);
+        dbg!("incoming >= prev");
+        let res1 = rounding_sub(incoming, prev, Rounding::Down);
         dbg!(res1.n(), res1.d());
+        dbg!(weight);
         let res2 = fraction::multiply_by_rational(weight, res1);
         dbg!(res2.n(), res2.d());
-        let res3 = rounding_add(prev, res2);
+        let res3 = rounding_add(prev, res2, Rounding::Down);
         dbg!(res3.n(), res3.d());
         res3
     } else {
         rounding_sub(
             prev,
-            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming)),
+            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming, Rounding::Down)),
+            Rounding::Up,
         )
     }
 }
