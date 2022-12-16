@@ -413,3 +413,38 @@ pub fn calculate_delta_imbalance(
 
     to_balance!(delta_imbalance_hp).ok()
 }
+
+pub fn calculate_spot_sprice(
+    asset_a: &AssetReserveState<Balance>,
+    asset_b: &AssetReserveState<Balance>,
+) -> Option<FixedU128> {
+    let price_a = FixedU128::checked_from_rational(asset_a.hub_reserve, asset_a.reserve)?;
+    let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
+    price_a.checked_mul(&price_b)
+}
+
+pub fn calculate_cap_difference(
+    asset: &AssetReserveState<Balance>,
+    asset_cap: u128,
+    total_hub_reserve: Balance,
+) -> Option<Balance> {
+    let weight_cap = FixedU128::from_inner(asset_cap);
+    let max_allowed = weight_cap.checked_mul_int(total_hub_reserve)?;
+    let diff = max_allowed.saturating_sub(asset.hub_reserve);
+    diff.checked_mul(asset.reserve)?.checked_div(asset.hub_reserve)
+}
+
+/// Verify if cap does or does exceed asset's weight cap.
+pub fn verify_asset_cap(
+    asset: &AssetReserveState<Balance>,
+    asset_cap: u128,
+    hub_amount: Balance,
+    total_hub_reserve: Balance,
+) -> Option<bool> {
+    let weight_cap = FixedU128::from_inner(asset_cap);
+    let weight = FixedU128::checked_from_rational(
+        asset.hub_reserve.checked_add(hub_amount)?,
+        total_hub_reserve.checked_add(hub_amount)?,
+    )?;
+    Some(weight <= weight_cap)
+}
