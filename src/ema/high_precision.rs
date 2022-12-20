@@ -187,7 +187,8 @@ proptest! {
         exponent in 1u32..200_000,
     ) {
             let res_pow = num.clone().pow(exponent);
-            let res_step = stepwise_pow_approx(num.clone(), exponent);
-            prop_assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
+            let res_step = stepwise_pow_approx(num, exponent);
+            let boundary = Rational::from((1, u128::MAX));
+            prop_assert!((res_pow - res_step).abs() < boundary);
     }
 }

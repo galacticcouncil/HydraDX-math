@@ -24,7 +24,7 @@ pub const MAX_ITERATIONS: u32 = 201_600;
 
 /// Strategy for generating a random fixed point number between near 0 and 1.
 fn fraction_above_zero_and_less_or_equal_one() -> impl Strategy<Value = Fraction> {
-    (1..fraction::DIV).prop_map(|x| Fraction::from_bits(x))
+    (1..fraction::DIV).prop_map(Fraction::from_bits)
 }
 
 fn typical_period() -> impl Strategy<Value = u64> {
@@ -48,11 +48,11 @@ fn iterations() -> impl Strategy<Value = u32> {
 }
 
 fn typical_price_rational() -> impl Strategy<Value = Rational128> {
-    ((MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE)).prop_map(|(n, d)| Rational128::from(n, d))
+    (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE).prop_map(|(n, d)| Rational128::from(n, d))
 }
 
 fn period_fraction() -> impl Strategy<Value = Fraction> {
-    (typical_period()).prop_map(|period| smoothing_from_period(period))
+    (typical_period()).prop_map(smoothing_from_period)
 }
 
 prop_compose! {
@@ -200,7 +200,7 @@ proptest! {
         let expected_balance = expected.round();
         prop_assert_approx_eq!(
             next_balance,
-            expected_balance.clone(),
+            expected_balance,
             tolerance,
             "averaged balance values should be within tolerance of the expected value"
         );
@@ -323,7 +323,7 @@ proptest! {
         let tolerance = 1;
         prop_assert_approx_eq!(
             new_oracle,
-            expected.clone(),
+            expected,
             tolerance,
             "high precision should be equal to low precision within tolerance"
         );

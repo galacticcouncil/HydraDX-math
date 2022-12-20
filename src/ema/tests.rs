@@ -177,7 +177,7 @@ fn balance_weighted_averages_work_on_typical_values_with_day_smoothing() {
     let expected_balance = expected.round();
     assert_approx_eq!(
         next_balance,
-        expected_balance.clone(),
+        expected_balance,
         tolerance,
         "averaged balance values should be within 1 of the expected value"
     );
@@ -290,7 +290,7 @@ fn precision_of_ema_over_price_history_should_be_high_enough_in_crash_scenario()
         (Rational128::from(1, 1e15 as u128), invariants::MAX_ITERATIONS),
     ];
     let smoothing = smoothing_from_period(WEEK_PERIOD);
-    let rug_ema = high_precision::precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
+    let precise_ema = high_precision::precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
 
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
@@ -300,7 +300,7 @@ fn precision_of_ema_over_price_history_should_be_high_enough_in_crash_scenario()
     let tolerance = Rational::from((1, 1e20 as u128));
     assert_rational_relative_approx_eq!(
         rational_to_high_precision(ema),
-        rug_ema.clone(),
+        precise_ema,
         tolerance,
         "high precision should be equal to low precision within tolerance"
     );
@@ -317,18 +317,18 @@ fn precision_of_ema_over_balancer_three_months_data_scrape_history_should_be_hig
         .collect();
     let smoothing = smoothing_from_period(WEEK_PERIOD);
 
-    let mut rug_ema = rational_to_high_precision(history[0].0);
+    let mut precise_ema = rational_to_high_precision(history[0].0);
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        rug_ema =
-            high_precision::precise_weighted_average(rug_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema =
+            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
         ema = iterated_price_ema(iterations, ema, price, smoothing);
 
         let tolerance = Rational::from((1, 1e25 as u128));
         assert_rational_relative_approx_eq!(
             rational_to_high_precision(ema),
-            rug_ema.clone(),
+            precise_ema,
             tolerance,
             "high precision should be equal to low precision within tolerance"
         );
@@ -345,18 +345,18 @@ fn precision_of_ema_over_balancer_one_year_data_scrape_history_should_be_high_en
         .collect();
     let smoothing = smoothing_from_period(WEEK_PERIOD);
 
-    let mut rug_ema = rational_to_high_precision(history[0].0);
+    let mut precise_ema = rational_to_high_precision(history[0].0);
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        rug_ema =
-            high_precision::precise_weighted_average(rug_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema =
+            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
         ema = iterated_price_ema(iterations, ema, price, smoothing);
 
         let tolerance = Rational::from((1, 1e20 as u128));
         assert_rational_relative_approx_eq!(
             rational_to_high_precision(ema),
-            rug_ema.clone(),
+            precise_ema,
             tolerance,
             "high precision should be equal to low precision within tolerance"
         );
@@ -377,21 +377,21 @@ fn precision_of_ema_over_balancer_expanded_one_year_data_scrape_history_should_b
         .collect();
     let smoothing = smoothing_from_period(WEEK_PERIOD);
 
-    let mut rug_ema = rational_to_high_precision(history[0].0);
+    let mut precise_ema = rational_to_high_precision(history[0].0);
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        rug_ema =
-            high_precision::precise_weighted_average(rug_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema =
+            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
         // reduces precision of the high precision comparison ema but speeds up the test by orders
         // of magnitude.
-        high_precision::round(&mut rug_ema);
+        high_precision::round(&mut precise_ema);
         ema = iterated_price_ema(iterations, ema, price, smoothing);
 
         let tolerance = Rational::from((1, 1e20 as u128));
         assert_rational_relative_approx_eq!(
             rational_to_high_precision(ema),
-            rug_ema.clone(),
+            precise_ema,
             tolerance,
             "high precision should be equal to low precision within tolerance"
         );

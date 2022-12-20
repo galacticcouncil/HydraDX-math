@@ -156,7 +156,7 @@ mod tests {
             let conversion = fixed * to_fixed(fraction);
             let conversion_distance = (rational.clone() - fixed_to_high_precision(conversion)).abs();
             let multiply = multiply_by_fixed(fraction, fixed);
-            let multiply_distance = (rational.clone() - fixed_to_high_precision(multiply)).abs();
+            let multiply_distance = (rational - fixed_to_high_precision(multiply)).abs();
             prop_assert!(multiply_distance <= conversion_distance);
         }
     }

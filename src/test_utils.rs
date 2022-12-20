@@ -215,7 +215,7 @@ pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
 
 /// Generates an arbitrary `FixedU128` number.
 pub fn any_fixed() -> impl Strategy<Value = FixedU128> {
-    any::<u128>().prop_map(|x| FixedU128::from_inner(x))
+    any::<u128>().prop_map(FixedU128::from_inner)
 }
 
 /// Generates an arbitrary `Rational128` number, ensuring that the denominator is greater 0.
