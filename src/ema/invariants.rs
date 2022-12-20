@@ -3,7 +3,6 @@ use crate::fraction;
 use crate::test_utils::{
     any_rational, bigger_and_smaller_rational, fraction_to_high_precision, prop_assert_approx_eq,
     prop_assert_rational_approx_eq, prop_assert_rational_relative_approx_eq, rational_to_high_precision,
-    rational_to_tuple,
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
@@ -163,7 +162,6 @@ proptest! {
         let prev_price = Rational128::from(prev_n, prev_d);
         let incoming_price = Rational128::from(incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        dbg!(rational_to_tuple(prev_price), rational_to_tuple(incoming_price), rational_to_tuple(price));
         prop_assert!(prev_price <= price);
         prop_assert!(price <= incoming_price);
     }
@@ -181,7 +179,6 @@ proptest! {
         let prev_price = Rational128::from(prev_n, prev_d);
         let incoming_price = Rational128::from(incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        dbg!(rational_to_tuple(prev_price), rational_to_tuple(incoming_price), rational_to_tuple(price));
         prop_assert!(incoming_price <= price);
         prop_assert!(price <= prev_price);
     }
@@ -429,5 +426,57 @@ proptest! {
             relative_tolerance,
             "high precision should be equal to low precision within tolerance"
         );
+    }
+}
+
+/// The maximum balance value for the precision tests.
+const MAX_VAL: u128 = MAX_BALANCE * 1000;
+
+fn typical_balance() -> impl Strategy<Value = u128> {
+    MIN_BALANCE..MAX_VAL
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn rational_rounding_add_should_have_high_enough_precision(
+        (a, b) in (typical_balance(), typical_balance()),
+        (c, d) in (typical_balance(), typical_balance()),
+    ) {
+        let res = rounding_add(Rational128::from(a, b), (c.into(), d.into()), Rounding::Nearest);
+        let expected = Rational::from((a, b)) + Rational::from((c, d));
+
+        let res = rational_to_high_precision(res);
+        // make sure the result has a precision of 100 bits
+        let tolerance = Rational::from((1, 1u128 << 100));
+        prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn rational_rounding_sub_should_have_high_enough_precision(
+        ((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_VAL),
+    ) {
+        let res = rounding_sub(Rational128::from(a, b), (c.into(), d.into()), Rounding::Down);
+        let expected = Rational::from((a, b)) - Rational::from((c, d));
+
+        let res = rational_to_high_precision(res);
+        // make sure the result has a precision of 77 bits
+        let tolerance = Rational::from((1, 1u128 << 77));
+        prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
+    #[test]
+    fn rational_rounding_sub_result_should_be_smaller_or_equal_to_input(
+        (a, b) in any_rational().prop_map(|r| (r.n(), r.d())),
+        (c, d) in any_rational().prop_map(|r| (r.n(), r.d())),
+    ) {
+        let res = rounding_sub(Rational128::from(a, b), (c.into(), d.into()), Rounding::Down);
+        prop_assert!(res <= Rational128::from(a, b));
     }
 }

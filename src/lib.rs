@@ -21,7 +21,6 @@ pub mod fraction;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod omnipool;
-pub mod rational;
 pub mod stableswap;
 #[cfg(test)]
 pub mod test_utils;

@@ -1,8 +1,6 @@
-use crate::rational::{round_to_rational, Rounding as RationalRounding};
 use crate::types::{Balance, Fraction};
 
-use num_traits::{One, Zero};
-use primitive_types::U128;
+use num_traits::One;
 use sp_arithmetic::helpers_128bit::multiply_by_rational_with_rounding;
 use sp_arithmetic::per_things::Rounding;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
@@ -73,44 +71,15 @@ pub fn multiply_by_fixed(fraction: Fraction, fixed: FixedU128) -> FixedU128 {
     )
 }
 
-/// Multiply a `Rational128` by a `Fraction`.
-/// Rounds the result to fit in a `Rational128`, ensuring denominator is greater 0 and the numerator
-/// is greater 0 if the U256 representation is greater 0.
-pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
-    dbg!("multiply_by_rational");
-    debug_assert!(f <= Fraction::ONE);
-    if f.is_zero() || r.n().is_zero() {
-        return Rational128::zero();
-    } else if f.is_one() {
-        return r;
-    }
-    // n = l.n * f.to_bits
-    let n = U128::from(r.n()).full_mul(f.to_bits().into());
-    // d = l.d * DIV
-    let d = U128::from(r.d()).full_mul(DIV.into());
-    dbg!(n, d);
-    let res = round_to_rational((n, d), (1, 1), RationalRounding::Minimal);
-    dbg!(res.n(), res.d());
-    res
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::MIN_BALANCE;
-    use crate::test_utils::{
-        any_fixed, assert_rational_approx_eq, fixed_to_high_precision, fraction_to_high_precision,
-        prop_assert_rational_relative_approx_eq, rational_to_tuple,
-    };
+
+    use crate::test_utils::{any_fixed, fixed_to_high_precision, fraction_to_high_precision};
 
     use num_traits::One;
     use proptest::prelude::*;
-    use rug::Rational;
-    use sp_arithmetic::{FixedPointNumber, Rational128};
-
-    fn rat(n: u128, d: u128) -> Rational128 {
-        Rational128::from(n, d)
-    }
+    use sp_arithmetic::FixedPointNumber;
 
     #[test]
     fn fraction_representation() {
@@ -169,32 +138,6 @@ mod tests {
         assert_eq!(multiply_by_fixed(frac, fixed), expected);
     }
 
-    #[test]
-    fn multply_by_rational_works() {
-        let f = Fraction::from_num(0.25);
-        let r = rat(5, 100);
-        let expected = rat(1, 80);
-        let res = multiply_by_rational(f, r);
-        assert_eq!(
-            res,
-            expected,
-            "actual: {:?}, expected: {:?}",
-            rational_to_tuple(res),
-            rational_to_tuple(expected)
-        );
-
-        let f = frac(1, 9 << 124);
-        let r = rat(9, 10);
-        let expected = Rational::from((1, (1_u128 << 124) * 10));
-        let res = multiply_by_rational(f, r);
-        assert_rational_approx_eq!(
-            Rational::from((res.n(), res.d())),
-            expected.clone(),
-            Rational::from((1, DIV)),
-            "not approximately equal!"
-        );
-    }
-
     // ----- Property Tests
 
     /// Strategy to generate a typical `Fraction` value.
@@ -215,25 +158,6 @@ mod tests {
             let multiply = multiply_by_fixed(fraction, fixed);
             let multiply_distance = (rational.clone() - fixed_to_high_precision(multiply)).abs();
             prop_assert!(multiply_distance <= conversion_distance);
-        }
-    }
-
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(5_000))]
-        #[test]
-        fn fraction_times_rational(
-            fraction in typical_fraction(),
-            price in (MIN_BALANCE..u128::MAX, MIN_BALANCE..u128::MAX),
-        ) {
-            let price = Rational128::from(price.0, price.1);
-
-            let res = multiply_by_rational(fraction, price);
-            let expected = fraction_to_high_precision(fraction) * Rational::from((price.n(), price.d()));
-
-            let res = Rational::from((res.n(), res.d()));
-            let tolerance = Rational::from((1, 1u128 << 85));
-
-            prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
         }
     }
 }

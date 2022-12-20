@@ -188,10 +188,6 @@ proptest! {
     ) {
             let res_pow = num.clone().pow(exponent);
             let res_step = stepwise_pow_approx(num.clone(), exponent);
-            dbg!(res_pow.clone().to_f64());
-            dbg!(res_step.clone().to_f64());
-            dbg!((res_pow.clone() - res_step.clone()).abs().to_f64());
-            dbg!(Rational::from((1, u128::MAX)).to_f64());
             prop_assert!((res_pow - res_step).abs() < Rational::from((1, u128::MAX)));
     }
 }

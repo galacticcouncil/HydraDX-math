@@ -2,17 +2,105 @@ use super::*;
 
 use crate::fraction;
 use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
-use crate::test_utils::{fraction_to_high_precision, rational_to_high_precision};
+use crate::test_utils::{fraction_to_high_precision, rational_to_high_precision, rational_to_tuple};
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::Fraction;
 
 use num_traits::One;
+use primitive_types::{U128, U256, U512};
 use rug::Rational;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
 
 pub const TEN_MINUTES_PERIOD: u64 = 100;
 pub const DAY_PERIOD: u64 = 14_400;
 pub const WEEK_PERIOD: u64 = 100_800;
+
+#[test]
+fn saturating_sub_works() {
+    assert_eq!(
+        saturating_sub(Rational128::one(), Rational128::one()),
+        (U256::zero(), U256::one())
+    );
+    assert_eq!(
+        saturating_sub(Rational128::from(2, 1), Rational128::one()),
+        (U256::one(), U256::one())
+    );
+    assert_eq!(
+        saturating_sub(Rational128::from(4, 1), Rational128::from(30, 6)),
+        (U256::zero(), U256::from(6))
+    );
+    assert_eq!(
+        saturating_sub(Rational128::from(4, 5), Rational128::from(2, 3)),
+        (U256::from(2), U256::from(15))
+    );
+    assert_eq!(
+        saturating_sub(Rational128::from(1, 10), Rational128::from(2, u128::MAX)),
+        (
+            U256::from(U128::MAX - 20),
+            U128::from(u128::MAX).full_mul(10_u128.into())
+        )
+    );
+}
+
+#[test]
+fn round_to_rational_should_work() {
+    let res = round_to_rational((U512::from(1), U512::from(1)), Rounding::Nearest);
+    let expected = Rational128::from(1, 1);
+    assert_eq!(
+        res,
+        expected,
+        "actual: {:?}, expected: {:?}",
+        rational_to_tuple(res),
+        rational_to_tuple(expected)
+    );
+
+    let res = round_to_rational((U512::MAX, U512::MAX), Rounding::Nearest);
+    let expected = Rational128::from(u128::MAX, u128::MAX);
+    assert_eq!(
+        res,
+        expected,
+        "actual: {:?}, expected: {:?}",
+        rational_to_tuple(res),
+        rational_to_tuple(expected)
+    );
+
+    let res = round_to_rational((U512::MAX, U512::from(1)), Rounding::Nearest);
+    let expected = Rational128::from(u128::MAX, 1);
+    assert_eq!(
+        res,
+        expected,
+        "actual: {:?}, expected: {:?}",
+        rational_to_tuple(res),
+        rational_to_tuple(expected)
+    );
+
+    let res = round_to_rational((U512::from(1), U512::MAX), Rounding::Nearest);
+    let expected = Rational128::from(1, u128::MAX);
+    assert_eq!(
+        res,
+        expected,
+        "actual: {:?}, expected: {:?}",
+        rational_to_tuple(res),
+        rational_to_tuple(expected)
+    );
+
+    let d = 323853616005226055489000679651893043332_u128;
+    let res = round_to_rational(
+        (
+            U512::from_dec_str("34599284998074995708396179719034205723253966454380752564716172454912477882716")
+                .unwrap(),
+            U512::from(d),
+        ),
+        Rounding::Down,
+    );
+    let boundary = Rational::from_str_radix(
+        "34599284998074995708396179719034205723253966454380752564716172454912477882716",
+        10,
+    )
+    .unwrap()
+        / d;
+    assert!(rational_to_high_precision(res) <= boundary);
+}
 
 #[test]
 fn weighted_averages_work_on_small_values_with_correct_ratios() {
