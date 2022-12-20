@@ -77,16 +77,21 @@ pub fn multiply_by_fixed(fraction: Fraction, fixed: FixedU128) -> FixedU128 {
 /// Rounds the result to fit in a `Rational128`, ensuring denominator is greater 0 and the numerator
 /// is greater 0 if the U256 representation is greater 0.
 pub fn multiply_by_rational(f: Fraction, r: Rational128) -> Rational128 {
+    dbg!("multiply_by_rational");
     debug_assert!(f <= Fraction::ONE);
     if f.is_zero() || r.n().is_zero() {
         return Rational128::zero();
     } else if f.is_one() {
         return r;
     }
-    // n / d = l.n * f.to_bits / (l.d * DIV)
+    // n = l.n * f.to_bits
     let n = U128::from(r.n()).full_mul(f.to_bits().into());
+    // d = l.d * DIV
     let d = U128::from(r.d()).full_mul(DIV.into());
-    round_to_rational((n, d), (1, 1), RationalRounding::Minimal)
+    dbg!(n, d);
+    let res = round_to_rational((n, d), (1, 1), RationalRounding::Minimal);
+    dbg!(res.n(), res.d());
+    res
 }
 
 #[cfg(test)]
@@ -94,7 +99,7 @@ mod tests {
     use super::*;
     use crate::test_utils::MIN_BALANCE;
     use crate::test_utils::{
-        any_fixed, assert_rational_approx_eq, fixed_to_arbitrary_precision, fraction_to_arbitrary_precision,
+        any_fixed, assert_rational_approx_eq, fixed_to_high_precision, fraction_to_high_precision,
         prop_assert_rational_relative_approx_eq, rational_to_tuple,
     };
 
@@ -204,11 +209,11 @@ mod tests {
             fraction in typical_fraction(),
             fixed in any_fixed(),
         ) {
-            let rational = fixed_to_arbitrary_precision(fixed) * fraction_to_arbitrary_precision(fraction);
+            let rational = fixed_to_high_precision(fixed) * fraction_to_high_precision(fraction);
             let conversion = fixed * to_fixed(fraction);
-            let conversion_distance = (rational.clone() - fixed_to_arbitrary_precision(conversion)).abs();
+            let conversion_distance = (rational.clone() - fixed_to_high_precision(conversion)).abs();
             let multiply = multiply_by_fixed(fraction, fixed);
-            let multiply_distance = (rational.clone() - fixed_to_arbitrary_precision(multiply)).abs();
+            let multiply_distance = (rational.clone() - fixed_to_high_precision(multiply)).abs();
             prop_assert!(multiply_distance <= conversion_distance);
         }
     }
@@ -223,7 +228,7 @@ mod tests {
             let price = Rational128::from(price.0, price.1);
 
             let res = multiply_by_rational(fraction, price);
-            let expected = fraction_to_arbitrary_precision(fraction) * Rational::from((price.n(), price.d()));
+            let expected = fraction_to_high_precision(fraction) * Rational::from((price.n(), price.d()));
 
             let res = Rational::from((res.n(), res.d()));
             let tolerance = Rational::from((1, 1u128 << 85));

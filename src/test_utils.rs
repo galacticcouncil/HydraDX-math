@@ -173,33 +173,30 @@ pub const MAX_BALANCE: Balance = 1e22 as Balance;
 // ----- High Precision Test Util Functions
 
 /// Convert a fixed point number to an arbitrary precision rational number.
-pub fn fixed_to_arbitrary_precision(f: FixedU128) -> Rational {
+pub fn fixed_to_high_precision(f: FixedU128) -> Rational {
     Rational::from((f.into_inner(), FixedU128::DIV))
 }
 
 #[test]
-fn fixed_to_arbitrary_precision_works() {
+fn fixed_to_high_precision_works() {
     assert_eq!(
-        fixed_to_arbitrary_precision(FixedU128::from_float(0.25)),
+        fixed_to_high_precision(FixedU128::from_float(0.25)),
         Rational::from((1, 4))
     );
 }
 
 /// Convert a fixed point fraction to an arbitrary precision rational number.
-pub fn fraction_to_arbitrary_precision(f: Fraction) -> Rational {
+pub fn fraction_to_high_precision(f: Fraction) -> Rational {
     Rational::from((f.to_bits(), fraction::DIV))
 }
 
 #[test]
-fn fraction_to_arbitrary_precision_works() {
-    assert_eq!(
-        fraction_to_arbitrary_precision(fraction::frac(1, 4)),
-        Rational::from((1, 4))
-    );
+fn fraction_to_high_precision_works() {
+    assert_eq!(fraction_to_high_precision(fraction::frac(1, 4)), Rational::from((1, 4)));
 }
 
 /// Convert a `Rational128` into an arbitrary precision `Rational`.
-pub fn rational_to_arbitrary_precision(r: Rational128) -> Rational {
+pub fn rational_to_high_precision(r: Rational128) -> Rational {
     Rational::from((r.n(), r.d()))
 }
 

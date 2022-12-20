@@ -15,11 +15,11 @@ pub enum Rounding {
 }
 
 impl Rounding {
-    pub fn to_bias(self) -> (u128, u128) {
+    pub fn to_bias(self, magnitude: u128) -> (u128, u128) {
         match self {
             Rounding::Minimal => (0, 0),
-            Rounding::Down => (0, 1),
-            Rounding::Up => (1, 0),
+            Rounding::Down => (0, magnitude),
+            Rounding::Up => (magnitude, 0),
         }
     }
 }
@@ -32,9 +32,13 @@ impl Rounding {
 pub fn round_to_rational((n, d): (U256, U256), (min_n, min_d): (u128, u128), rounding: Rounding) -> Rational128 {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     let (n, d) = if shift > 0 {
-        let (bias_n, bias_d) = rounding.to_bias();
-        ((n >> shift).low_u128().saturating_add(bias_n).max(min_n),
-        (d >> shift).low_u128().saturating_add(bias_d).max(min_d))
+        let (bias_n, bias_d) = rounding.to_bias(1);
+        let shifted_n = (n >> shift).low_u128();
+        let shifted_d = (d >> shift).low_u128();
+        (
+            shifted_n.saturating_add(bias_n).max(min_n),
+            shifted_d.saturating_add(bias_d).max(min_d),
+        )
     } else {
         (n.low_u128(), d.low_u128())
     };
@@ -87,10 +91,10 @@ pub fn rounding_sub(l: Rational128, r: Rational128, rounding: Rounding) -> Ratio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Rounding::*;
     use crate::test_utils::{any_rational, bigger_and_smaller_rational};
-    use crate::test_utils::{prop_assert_rational_relative_approx_eq, rational_to_arbitrary_precision, rational_to_tuple};
+    use crate::test_utils::{prop_assert_rational_relative_approx_eq, rational_to_high_precision, rational_to_tuple};
     use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
+    use Rounding::*;
 
     use proptest::prelude::*;
     use rug::Rational;
@@ -99,24 +103,61 @@ mod tests {
     fn round_to_rational_should_work() {
         let res = round_to_rational((U256::from(1), U256::from(1)), (1, 1), Minimal);
         let expected = Rational128::from(1, 1);
-        assert_eq!(res, expected, "actual: {:?}, expected: {:?}", rational_to_tuple(res), rational_to_tuple(expected));
+        assert_eq!(
+            res,
+            expected,
+            "actual: {:?}, expected: {:?}",
+            rational_to_tuple(res),
+            rational_to_tuple(expected)
+        );
 
         let res = round_to_rational((U256::MAX, U256::MAX), (1, 1), Minimal);
         let expected = Rational128::from(u128::MAX, u128::MAX);
-        assert_eq!(res, expected, "actual: {:?}, expected: {:?}", rational_to_tuple(res), rational_to_tuple(expected));
+        assert_eq!(
+            res,
+            expected,
+            "actual: {:?}, expected: {:?}",
+            rational_to_tuple(res),
+            rational_to_tuple(expected)
+        );
 
         let res = round_to_rational((U256::MAX, U256::from(1)), (1, 1), Minimal);
         let expected = Rational128::from(u128::MAX, 1);
-        assert_eq!(res, expected, "actual: {:?}, expected: {:?}", rational_to_tuple(res), rational_to_tuple(expected));
+        assert_eq!(
+            res,
+            expected,
+            "actual: {:?}, expected: {:?}",
+            rational_to_tuple(res),
+            rational_to_tuple(expected)
+        );
 
         let res = round_to_rational((U256::from(1), U256::MAX), (1, 1), Minimal);
         let expected = Rational128::from(1, u128::MAX);
-        assert_eq!(res, expected, "actual: {:?}, expected: {:?}", rational_to_tuple(res), rational_to_tuple(expected));
+        assert_eq!(
+            res,
+            expected,
+            "actual: {:?}, expected: {:?}",
+            rational_to_tuple(res),
+            rational_to_tuple(expected)
+        );
 
         let d = 323853616005226055489000679651893043332_u128;
-        let res = round_to_rational((U256::from_dec_str("34599284998074995708396179719034205723253966454380752564716172454912477882716").unwrap(), U256::from(d)), (1, 1), Down);
-        let boundary = Rational::from_str_radix("34599284998074995708396179719034205723253966454380752564716172454912477882716", 10).unwrap() / d;
-        assert!(rational_to_arbitrary_precision(res) <= boundary);
+        let res = round_to_rational(
+            (
+                U256::from_dec_str("34599284998074995708396179719034205723253966454380752564716172454912477882716")
+                    .unwrap(),
+                U256::from(d),
+            ),
+            (1, 1),
+            Down,
+        );
+        let boundary = Rational::from_str_radix(
+            "34599284998074995708396179719034205723253966454380752564716172454912477882716",
+            10,
+        )
+        .unwrap()
+            / d;
+        assert!(rational_to_high_precision(res) <= boundary);
     }
 
     /// The maximum balance value for the precision tests.
@@ -136,7 +177,7 @@ mod tests {
             let res = rounding_add(Rational128::from(a, b), Rational128::from(c, d), Minimal);
             let expected = Rational::from((a, b)) + Rational::from((c, d));
 
-            let res = rational_to_arbitrary_precision(res);
+            let res = rational_to_high_precision(res);
             // make sure the result has a precision of 100 bits
             let tolerance = Rational::from((1, 1u128 << 100));
             prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
@@ -152,7 +193,7 @@ mod tests {
             let res = rounding_sub(Rational128::from(a, b), Rational128::from(c, d), Down);
             let expected = Rational::from((a, b)) - Rational::from((c, d));
 
-            let res = rational_to_arbitrary_precision(res);
+            let res = rational_to_high_precision(res);
             // make sure the result has a precision of 77 bits
             let tolerance = Rational::from((1, 1u128 << 77));
             prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
@@ -160,7 +201,7 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(1_000_000))]
+        #![proptest_config(ProptestConfig::with_cases(5_000))]
         #[test]
         fn rational_rounding_sub_result_should_be_smaller_or_equal_to_input(
             (a, b) in any_rational().prop_map(|r| (r.n(), r.d())),

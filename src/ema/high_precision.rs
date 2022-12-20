@@ -1,5 +1,5 @@
 use crate::fraction;
-use crate::test_utils::{fraction_to_arbitrary_precision, into_rounded_integer, rational_to_arbitrary_precision};
+use crate::test_utils::{fraction_to_high_precision, into_rounded_integer, rational_to_high_precision};
 use crate::types::Balance;
 
 use num_traits::{One, Pow};
@@ -110,13 +110,9 @@ pub fn precise_balance_ema(history: Vec<(Balance, u32)>, smoothing: Rational) ->
 /// Returns an arbitrary precision `Rational` number.
 pub fn naive_precise_price_ema(history: Vec<Rational128>, smoothing: Rational) -> Rational {
     assert!(!history.is_empty());
-    let mut current = rational_to_arbitrary_precision(history[0]);
+    let mut current = rational_to_high_precision(history[0]);
     for price in history.into_iter().skip(1) {
-        current = precise_weighted_average(
-            current.clone(),
-            rational_to_arbitrary_precision(price),
-            smoothing.clone(),
-        );
+        current = precise_weighted_average(current.clone(), rational_to_high_precision(price), smoothing.clone());
     }
     current
 }
@@ -127,12 +123,12 @@ pub fn naive_precise_price_ema(history: Vec<Rational128>, smoothing: Rational) -
 /// Uses a `pow` approximation with 256 bit precision to reduce execution time.
 pub fn precise_price_ema(history: Vec<(Rational128, u32)>, smoothing: Rational) -> Rational {
     assert!(!history.is_empty());
-    let mut current = rational_to_arbitrary_precision(history[0].0);
+    let mut current = rational_to_high_precision(history[0].0);
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = precise_exp_smoothing(smoothing.clone(), iterations);
         current = precise_weighted_average(
             current.clone(),
-            rational_to_arbitrary_precision(price),
+            rational_to_high_precision(price),
             smoothing_adj.clone(),
         );
     }
@@ -150,10 +146,10 @@ fn precise_balance_ema_works() {
             ((Rational::from(history[0]) * 3 / 4 + history[1] / 4) * 3 / 4 + history[2] / 4) * 3 / 4 + history[3] / 4;
         into_rounded_integer(res)
     };
-    let naive_ema = naive_precise_balance_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+    let naive_ema = naive_precise_balance_ema(history.clone(), fraction_to_high_precision(smoothing));
     assert_eq!(expected, naive_ema);
     let history = history.into_iter().map(|b| (b, 1)).collect();
-    let ema = precise_balance_ema(history, fraction_to_arbitrary_precision(smoothing));
+    let ema = precise_balance_ema(history, fraction_to_high_precision(smoothing));
     assert_eq!(expected, ema);
 }
 
@@ -166,17 +162,16 @@ fn precise_price_ema_works() {
         Rational128::from(4, 1),
     ];
     let smoothing = fraction::frac(1, 4);
-    let expected =
-        ((rational_to_arbitrary_precision(history[0]) * 3 / 4 + rational_to_arbitrary_precision(history[1]) / 4) * 3
-            / 4
-            + rational_to_arbitrary_precision(history[2]) / 4)
-            * 3
-            / 4
-            + rational_to_arbitrary_precision(history[3]) / 4;
-    let naive_ema = naive_precise_price_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+    let expected = ((rational_to_high_precision(history[0]) * 3 / 4 + rational_to_high_precision(history[1]) / 4) * 3
+        / 4
+        + rational_to_high_precision(history[2]) / 4)
+        * 3
+        / 4
+        + rational_to_high_precision(history[3]) / 4;
+    let naive_ema = naive_precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
     assert_eq!(expected, naive_ema);
     let history = history.into_iter().map(|p| (p, 1)).collect();
-    let ema = precise_price_ema(history, fraction_to_arbitrary_precision(smoothing));
+    let ema = precise_price_ema(history, fraction_to_high_precision(smoothing));
     assert_eq!(expected, ema);
 }
 

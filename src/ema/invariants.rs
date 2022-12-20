@@ -1,8 +1,9 @@
 use crate::ema::*;
 use crate::fraction;
 use crate::test_utils::{
-    any_rational, fraction_to_arbitrary_precision, prop_assert_approx_eq, prop_assert_rational_approx_eq,
-    prop_assert_rational_relative_approx_eq, rational_to_arbitrary_precision, bigger_and_smaller_rational, rational_to_tuple,
+    any_rational, bigger_and_smaller_rational, fraction_to_high_precision, prop_assert_approx_eq,
+    prop_assert_rational_approx_eq, prop_assert_rational_relative_approx_eq, rational_to_high_precision,
+    rational_to_tuple,
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
@@ -151,12 +152,13 @@ proptest! {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn new_price_oracle_is_between_old_and_new_value_where_incoming_is_greater(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         i in iterations(),
         ((incoming_n, incoming_d), (prev_n, prev_d)) in
-            bigger_and_smaller_rational(1, u128::MAX)
+            bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
         let prev_price = Rational128::from(prev_n, prev_d);
         let incoming_price = Rational128::from(incoming_n, incoming_d);
@@ -168,12 +170,13 @@ proptest! {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn new_price_oracle_is_between_old_and_new_value_where_previous_is_greater(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         i in iterations(),
         ((prev_n, prev_d), (incoming_n, incoming_d)) in
-            bigger_and_smaller_rational(1, u128::MAX)
+            bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
         let prev_price = Rational128::from(prev_n, prev_d);
         let incoming_price = Rational128::from(incoming_n, incoming_d);
@@ -228,7 +231,7 @@ proptest! {
         let smoothing = smoothing_from_period(period);
         let rug_smoothing = high_precision::smoothing_from_period(period);
         let epsilon = Rational::from((1, 1e18 as u128));
-        let smoothing = fraction_to_arbitrary_precision(smoothing);
+        let smoothing = fraction_to_high_precision(smoothing);
         prop_assert_rational_approx_eq!(smoothing, rug_smoothing, epsilon);
     }
 }
@@ -241,7 +244,7 @@ proptest! {
     ) {
         let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
         let rug_balance = high_precision::precise_balance_weighted_average(
-            prev_balance, incoming_balance, fraction_to_arbitrary_precision(smoothing));
+            prev_balance, incoming_balance, fraction_to_high_precision(smoothing));
         prop_assert_eq!(balance, rug_balance);
     }
 }
@@ -254,7 +257,7 @@ proptest! {
         let smoothing = fraction::SMALLEST_NON_ZERO;
         let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
         let rug_balance = high_precision::precise_balance_weighted_average(
-            prev_balance, incoming_balance,  fraction_to_arbitrary_precision(smoothing));
+            prev_balance, incoming_balance,  fraction_to_high_precision(smoothing));
         prop_assert_eq!(balance, rug_balance);
     }
 }
@@ -267,7 +270,7 @@ proptest! {
         let smoothing = Fraction::from_bits(fraction::DIV - 1);
         let balance = balance_weighted_average(prev_balance, incoming_balance, smoothing);
         let rug_balance = high_precision::precise_balance_weighted_average(
-            prev_balance, incoming_balance, fraction_to_arbitrary_precision(smoothing));
+            prev_balance, incoming_balance, fraction_to_high_precision(smoothing));
         prop_assert_eq!(balance, rug_balance);
     }
 }
@@ -279,9 +282,9 @@ proptest! {
         (prev_price, incoming_price) in (typical_price_rational(), typical_price_rational())
     ) {
         let price = price_weighted_average(prev_price, incoming_price, smoothing);
-        let rug_price = high_precision::precise_weighted_average(rational_to_arbitrary_precision(prev_price), rational_to_arbitrary_precision(incoming_price), fraction_to_arbitrary_precision(smoothing));
+        let rug_price = high_precision::precise_weighted_average(rational_to_high_precision(prev_price), rational_to_high_precision(incoming_price), fraction_to_high_precision(smoothing));
         let tolerance = Rational::from((1, 1e30 as u128));
-        let price = rational_to_arbitrary_precision(price);
+        let price = rational_to_high_precision(price);
         prop_assert_rational_relative_approx_eq!(price, rug_price, tolerance);
     }
 }
@@ -294,11 +297,11 @@ proptest! {
     ) {
         let smoothing = smoothing_from_period(period);
         let result = exp_smoothing(smoothing, iterations);
-        let expected = high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
+        let expected = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
 
         let tolerance = Rational::from((1, 1e18 as u128));
         prop_assert_rational_approx_eq!(
-            fraction_to_arbitrary_precision(result),
+            fraction_to_high_precision(result),
             expected,
             tolerance,
             "high precision should be equal to low precision within tolerance"
@@ -317,7 +320,7 @@ proptest! {
     ) {
         let smoothing = smoothing_from_period(period);
 
-        let expected = high_precision::precise_balance_weighted_average(start_balance, incoming_balance, high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations));
+        let expected = high_precision::precise_balance_weighted_average(start_balance, incoming_balance, high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations));
         let new_oracle = iterated_balance_ema(iterations, start_balance, incoming_balance, smoothing);
 
         let tolerance = 1;
@@ -331,7 +334,7 @@ proptest! {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(2_000))]
+    #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn iterated_price_precision(
         (period, iterations) in period_and_iterations(),
@@ -343,10 +346,10 @@ proptest! {
         let incoming = Rational128::from(c, d);
 
         let res = iterated_price_ema(iterations, prev, incoming, smoothing);
-        let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_arbitrary_precision(smoothing), iterations);
-        let expected = high_precision::precise_weighted_average(rational_to_arbitrary_precision(prev), rational_to_arbitrary_precision(incoming), smoothing_adj);
+        let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
+        let expected = high_precision::precise_weighted_average(rational_to_high_precision(prev), rational_to_high_precision(incoming), smoothing_adj);
 
-        let res = rational_to_arbitrary_precision(res);
+        let res = rational_to_high_precision(res);
         let tolerance = Rational::from((1, 1e30 as u128));
 
         prop_assert_rational_relative_approx_eq!(
@@ -364,7 +367,7 @@ proptest! {
         period in typical_period(),
     ) {
         let smoothing = smoothing_from_period(period);
-        let rug_ema = high_precision::precise_balance_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+        let rug_ema = high_precision::precise_balance_ema(history.clone(), fraction_to_high_precision(smoothing));
 
         let mut ema = history[0].0;
         for (balance, iterations) in history.into_iter().skip(1) {
@@ -387,7 +390,7 @@ proptest! {
         (period, history) in ema_balance_crash_history(),
     ) {
         let smoothing = smoothing_from_period(period);
-        let rug_ema = high_precision::precise_balance_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+        let rug_ema = high_precision::precise_balance_ema(history.clone(), fraction_to_high_precision(smoothing));
 
         let mut ema = history[0].0;
         for (balance, iterations) in history.into_iter().skip(1) {
@@ -412,7 +415,7 @@ proptest! {
         period in typical_period(),
     ) {
         let smoothing = smoothing_from_period(period);
-        let rug_ema = high_precision::precise_price_ema(history.clone(), fraction_to_arbitrary_precision(smoothing));
+        let rug_ema = high_precision::precise_price_ema(history.clone(), fraction_to_high_precision(smoothing));
 
         let mut ema = history[0].0;
         for (price, iterations) in history.into_iter().skip(1) {
@@ -421,7 +424,7 @@ proptest! {
 
         let relative_tolerance = Rational::from((1, 1e24 as u128));
         prop_assert_rational_relative_approx_eq!(
-            rational_to_arbitrary_precision(ema),
+            rational_to_high_precision(ema),
             rug_ema,
             relative_tolerance,
             "high precision should be equal to low precision within tolerance"

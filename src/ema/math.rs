@@ -1,10 +1,13 @@
 use crate::fraction;
 use crate::rational::*;
+use crate::to_u128_wrapper;
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::{Balance, Fraction};
 
 use num_traits::One;
 use sp_arithmetic::Rational128;
+
+use primitive_types::{U128, U256, U512};
 
 pub type Price = Rational128;
 
@@ -74,12 +77,12 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
 /// `weight` is how much weight to give the new value.
 ///
 /// Note: Rounding is biased towards `prev`.
-pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+pub fn old_price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
     dbg!("price_weighted_average");
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
     if incoming >= prev {
         dbg!("incoming >= prev");
-        let res1 = rounding_sub(incoming, prev, Rounding::Down);
+        let res1 = rounding_sub(incoming, prev, Rounding::Minimal);
         dbg!(res1.n(), res1.d());
         dbg!(weight);
         let res2 = fraction::multiply_by_rational(weight, res1);
@@ -90,9 +93,130 @@ pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) ->
     } else {
         rounding_sub(
             prev,
-            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming, Rounding::Down)),
+            fraction::multiply_by_rational(weight, rounding_sub(prev, incoming, Rounding::Minimal)),
             Rounding::Up,
         )
+    }
+}
+
+pub fn sub(l: Rational128, r: Rational128) -> (U256, U256) {
+    dbg!("sub");
+    if l.n() == 0 || r.n() == 0 {
+        return (l.n().into(), l.d().into());
+    }
+    dbg!(l.n(), l.d(), r.n(), r.d());
+    let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n(), l.d(), r.n(), r.d());
+    // n = l.n * r.d - r.n * l.d
+    let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
+    // d = l.d * r.d
+    let d = U128::from(l.d()).full_mul(r.d().into());
+    dbg!(n, d);
+    (n, d)
+}
+
+pub fn multiply(f: Fraction, (r_n, r_d): (U256, U256)) -> (U512, U512) {
+    dbg!("multiply");
+    debug_assert!(f <= Fraction::ONE);
+    if f.is_zero() || r_n.is_zero() {
+        return (U512::zero(), U512::one());
+    } else if f.is_one() {
+        return (r_n.into(), r_d.into());
+    }
+    // n = l.n * f.to_bits
+    let n = r_n.full_mul(U256::from(f.to_bits()));
+    // d = l.d * DIV
+    let d = r_d.full_mul(U256::from(crate::fraction::DIV));
+    dbg!(n, d);
+    (n, d)
+}
+
+pub fn round_u512((n, d): (U512, U512), (min_n, min_d): (u128, u128), rounding: Rounding) -> (U512, U512) {
+    let shift = n.bits().max(d.bits()).saturating_sub(383); // anticipate the saturating_add
+    if shift > 0 {
+        let (bias_n, bias_d) = rounding.to_bias(1);
+        (
+            (n >> shift).saturating_add(bias_n.into()).max(min_n.into()),
+            (d >> shift).saturating_add(bias_d.into()).max(min_d.into()),
+        )
+    } else {
+        (n, d)
+    }
+}
+
+pub fn round_u512_to_rational((n, d): (U512, U512), (min_n, min_d): (u128, u128), rounding: Rounding) -> Rational128 {
+    let shift = n.bits().max(d.bits()).saturating_sub(128);
+    let (n, d) = if shift > 0 {
+        let (bias_n, bias_d) = rounding.to_bias(1);
+        let shifted_n = (n >> shift).low_u128();
+        let shifted_d = (d >> shift).low_u128();
+        dbg!((
+            shifted_n.saturating_add(bias_n).max(min_n),
+            shifted_d.saturating_add(bias_d).max(min_d)
+        ))
+    } else {
+        (n.low_u128(), d.low_u128())
+    };
+    Rational128::from(n, d)
+}
+
+pub fn rounding_add_u512(l: Rational128, (r_n, r_d): (U512, U512), rounding: Rounding) -> Rational128 {
+    dbg!("rounding_add_u512");
+    if l.n() == 0 {
+        return round_u512_to_rational((r_n, r_d), (1, 1), Rounding::Minimal);
+    } else if r_n.is_zero() {
+        return l;
+    }
+    dbg!(l.n(), l.d(), r_n, r_d);
+    let (l_n, l_d) = (U512::from(l.n()), U512::from(l.d()));
+    let (r_n, r_d) = round_u512((r_n, r_d), (1, 1), rounding);
+    // n = l.n * r.d + r.n * l.d
+    let n = l_n.saturating_mul(r_d).saturating_add(r_n.saturating_mul(l_d));
+    // d = l.d * r.d
+    let d = l_d.saturating_mul(r_d);
+    dbg!(n, d);
+    let res = round_u512_to_rational((n, d), (1, 1), rounding);
+    dbg!(res.n(), res.d());
+    res
+}
+
+pub fn rounding_sub_u512(l: Rational128, (r_n, r_d): (U512, U512), rounding: Rounding) -> Rational128 {
+    dbg!("rounding_sub_u512");
+    if l.n() == 0 || r_n.is_zero() {
+        return l;
+    }
+    dbg!(l.n(), l.d(), r_n, r_d);
+    let (l_n, l_d) = (U512::from(l.n()), U512::from(l.d()));
+    let (r_n, r_d) = round_u512((r_n, r_d), (1, 1), rounding);
+    // n = l.n * r.d + r.n * l.d
+    let n = l_n.saturating_mul(r_d).saturating_sub(r_n.saturating_mul(l_d));
+    // d = l.d * r.d
+    let d = l_d.saturating_mul(r_d);
+    dbg!(n, d);
+    let min_n = if n.is_zero() { 0 } else { 1 };
+    let res = round_u512_to_rational((n, d), (min_n, 1), rounding);
+    dbg!(res.n(), res.d());
+    res
+}
+
+pub fn price_weighted_average(prev: Price, incoming: Price, weight: Fraction) -> Price {
+    dbg!("price_weighted_average");
+    debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
+    if incoming >= prev {
+        dbg!("incoming >= prev");
+        let res1 = dbg!(sub(incoming, prev));
+        dbg!(weight);
+        let res2 = dbg!(multiply(weight, res1));
+        let res3 = dbg!(rounding_add_u512(prev, res2, Rounding::Down));
+        dbg!(res3.n(), res3.d());
+        res3
+    } else {
+        dbg!("prev > incoming");
+        let res1 = dbg!(sub(prev, incoming));
+        dbg!(weight);
+        let res2 = dbg!(multiply(weight, res1));
+        let res3 = dbg!(rounding_sub_u512(prev, res2, Rounding::Up));
+        dbg!(res3.n(), res3.d());
+        res3
     }
 }
 
