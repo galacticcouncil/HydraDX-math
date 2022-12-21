@@ -621,6 +621,16 @@ fn calculate_cap_diff_should_work_correctly() {
 
     let result = calculate_cap_difference(&asset_state_2, 1_000_000_000_000_000_000, 5651225591124720);
     assert_eq!(result, Some(31772950583866634024008));
+
+    let asset_state_2 = AssetReserveState {
+        hub_reserve: 1584818376248207,
+        reserve: 675534123147791411,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = calculate_cap_difference(&asset_state_2, 100_000_000_000_000_000, 5651225591124720);
+    assert_eq!(result, Some(0));
 }
 
 #[test]
