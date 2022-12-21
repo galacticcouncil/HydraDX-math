@@ -430,8 +430,8 @@ pub fn calculate_cap_difference(
 ) -> Option<Balance> {
     let weight_cap = FixedU128::from_inner(asset_cap);
     let max_allowed = weight_cap.checked_mul_int(total_hub_reserve)?;
-    let diff = max_allowed.saturating_sub(asset.hub_reserve);
-    diff.checked_mul(asset.reserve)?.checked_div(asset.hub_reserve)
+    let p = FixedU128::checked_from_rational(asset.hub_reserve, max_allowed)?;
+    FixedU128::from(1).checked_sub(&p)?.checked_mul_int(asset.reserve)
 }
 
 /// Verify if cap does or does exceed asset's weight cap.
