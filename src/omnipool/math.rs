@@ -433,7 +433,7 @@ pub fn calculate_cap_difference(
     let p = FixedU128::checked_from_rational(asset.hub_reserve, max_allowed)?;
     if p > FixedU128::one() {
         Some(0)
-    }else{
+    } else {
         FixedU128::one().checked_sub(&p)?.checked_mul_int(asset.reserve)
     }
 }
