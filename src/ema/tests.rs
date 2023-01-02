@@ -321,8 +321,11 @@ fn precision_of_ema_over_balancer_three_months_data_scrape_history_should_be_hig
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        precise_ema =
-            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema = high_precision::precise_weighted_average(
+            precise_ema.clone(),
+            rational_to_high_precision(price),
+            smoothing_adj,
+        );
         ema = iterated_price_ema(iterations, ema, price, smoothing);
 
         let tolerance = Rational::from((1, 1e25 as u128));
@@ -349,8 +352,11 @@ fn precision_of_ema_over_balancer_one_year_data_scrape_history_should_be_high_en
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        precise_ema =
-            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema = high_precision::precise_weighted_average(
+            precise_ema.clone(),
+            rational_to_high_precision(price),
+            smoothing_adj,
+        );
         ema = iterated_price_ema(iterations, ema, price, smoothing);
 
         let tolerance = Rational::from((1, 1e20 as u128));
@@ -381,8 +387,11 @@ fn precision_of_ema_over_balancer_expanded_one_year_data_scrape_history_should_b
     let mut ema = history[0].0;
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        precise_ema =
-            high_precision::precise_weighted_average(precise_ema.clone(), rational_to_high_precision(price), smoothing_adj);
+        precise_ema = high_precision::precise_weighted_average(
+            precise_ema.clone(),
+            rational_to_high_precision(price),
+            smoothing_adj,
+        );
         // reduces precision of the high precision comparison ema but speeds up the test by orders
         // of magnitude.
         high_precision::round(&mut precise_ema);
