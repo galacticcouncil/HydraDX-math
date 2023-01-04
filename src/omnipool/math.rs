@@ -423,6 +423,10 @@ pub fn calculate_spot_sprice(
     price_a.checked_mul(&price_b)
 }
 
+pub fn calculate_lrna_spot_sprice(asset: &AssetReserveState<Balance>) -> Option<FixedU128> {
+    FixedU128::checked_from_rational(asset.reserve, asset.hub_reserve)
+}
+
 pub fn calculate_cap_difference(
     asset: &AssetReserveState<Balance>,
     asset_cap: u128,
