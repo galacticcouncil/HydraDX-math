@@ -461,7 +461,7 @@ pub fn calculate_hub_asset_in_given_stable_out(
         share_issuance
             .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
-            .try_to_inner()?,
+            .try_to_inner()?.checked_add(1u128)?,
     )?.checked_add(1u128)?;
 
     let buy_changes = calculate_buy_for_hub_asset_state_changes(
