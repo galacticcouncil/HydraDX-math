@@ -438,6 +438,29 @@ pub fn calculate_cap_difference(
     }
 }
 
+pub fn calculate_tvl_cap_difference(
+    asset: &AssetReserveState<Balance>,
+    stable_asset: &AssetReserveState<Balance>,
+    tvl_cap: Balance,
+    total_hub_reserve: Balance,
+) -> Option<Balance> {
+    let (tvl, stable_hub_reserve, stable_reserve, total_hub_reserve, asset_reserve, asset_hub_reserve) = to_u256!(
+        tvl_cap,
+        stable_asset.hub_reserve,
+        stable_asset.reserve,
+        total_hub_reserve,
+        asset.reserve,
+        asset.hub_reserve
+    );
+    let max_hub_reserve = tvl.checked_mul(stable_hub_reserve)?.checked_div(stable_reserve)?;
+
+    let delta_q = max_hub_reserve.checked_sub(total_hub_reserve)?;
+
+    let amount = delta_q.checked_mul(asset_reserve)?.checked_div(asset_hub_reserve)?;
+
+    to_balance!(amount).ok()
+}
+
 /// Verify if cap does or does exceed asset's weight cap.
 pub fn verify_asset_cap(
     asset: &AssetReserveState<Balance>,
