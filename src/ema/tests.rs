@@ -202,7 +202,8 @@ fn price_weighted_average_boundary_values() {
     let tolerance = Rational::from((1, 1e30 as u128));
     let max_price = Rational128::from(1_000_000_000_000_000_000_000_000_u128, 1); // 1e24
     let half_max_price = Rational128::from(1_000_000_000_000_000_000_000_000_u128, 2); // 1e24 / 2
-                                                                                       // previously zero, incoming max
+
+    // previously zero, incoming max
     let next_price = price_weighted_average(Rational128::zero(), max_price, smoothing);
     assert_rational_relative_approx_eq!(
         rational_to_high_precision(next_price),
@@ -221,7 +222,8 @@ fn price_weighted_average_boundary_values() {
     let tolerance = Rational::from((1, 1e14 as u128));
     let max_price = Rational128::from(1_000_000_000_000_000_000_000_001_u128, 1); // 1e24 + 1
     let half_max_price = Rational128::from(1_000_000_000_000_000_000_000_002_u128, 2); // (1e24 + 2) / 2
-                                                                                       // previously one, incoming max
+
+    // previously one, incoming max
     let next_price = price_weighted_average(Rational128::one(), max_price, smoothing);
     assert_rational_relative_approx_eq!(
         rational_to_high_precision(next_price),
