@@ -163,8 +163,8 @@ proptest! {
         let prev_price = (prev_n, prev_d);
         let incoming_price = (incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        prop_assert!(prev_price <= price);
-        prop_assert!(price <= incoming_price);
+        prop_assert!(cmp(prev_price, price).is_le());
+        prop_assert!(cmp(price, incoming_price).is_le());
     }
 }
 
@@ -180,8 +180,8 @@ proptest! {
         let prev_price = (prev_n, prev_d);
         let incoming_price = (incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        prop_assert!(incoming_price <= price);
-        prop_assert!(price <= prev_price);
+        prop_assert!(cmp(incoming_price, price).is_le());
+        prop_assert!(cmp(price, prev_price).is_le());
     }
 }
 
@@ -348,7 +348,7 @@ proptest! {
         let expected = high_precision::precise_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
 
         let res = Rational::from(res);
-        let tolerance = Rational::from((1, 1_000_000_000_000_000_000_u128)); // 1e18
+        let tolerance = Rational::from((1, 1e30 as u128));
 
         prop_assert_rational_relative_approx_eq!(
             res,
@@ -495,6 +495,6 @@ proptest! {
         (c, d) in any_rational(),
     ) {
         let res = rounding_sub((a, b), (c.into(), d.into()), Rounding::Down);
-        prop_assert!(res <= (a, b));
+        prop_assert!(cmp(res, (a, b)).is_le());
     }
 }

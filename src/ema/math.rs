@@ -70,6 +70,26 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
     fraction::frac(2, u128::from(period.max(1)).saturating_add(1))
 }
 
+use sp_arithmetic::helpers_128bit;
+use core::cmp::Ordering;
+
+pub(crate) fn cmp(l: EmaPrice, r: EmaPrice) -> Ordering {
+    // handle some edge cases.
+    if l.1 == r.1 {
+        l.0.cmp(&r.0)
+    } else if l.1.is_zero() {
+        Ordering::Greater
+    } else if r.1.is_zero() {
+        Ordering::Less
+    } else {
+        // Don't even compute gcd.
+        let l_n = helpers_128bit::to_big_uint(l.0) * helpers_128bit::to_big_uint(r.1);
+        let r_n =
+            helpers_128bit::to_big_uint(r.0) * helpers_128bit::to_big_uint(l.1);
+        l_n.cmp(&r_n)
+    }
+}
+
 /// Calculate a weighted average for the given prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
@@ -77,7 +97,7 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
 /// Note: Rounding is biased towards `prev`.
 pub fn price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
-    if incoming >= prev {
+    if cmp(incoming, prev).is_ge() {
         rounding_add(prev, multiply(weight, saturating_sub(incoming, prev)), Rounding::Down)
     } else {
         rounding_sub(prev, multiply(weight, saturating_sub(prev, incoming)), Rounding::Up)
