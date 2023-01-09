@@ -357,6 +357,30 @@ proptest! {
     }
 }
 
+#[test]
+fn failing_iterated_price_precision(){
+    let (period, iterations) = (10000, 1);
+    let (a, b) = (2865300986016986668982, 50);
+    let (c, d) = (2865300986016986668982, 51);
+    let smoothing = smoothing_from_period(period);
+    let prev = Rational128::from(a, b);
+    let incoming = Rational128::from(c, d);
+
+    let res = iterated_price_ema(iterations, prev, incoming, smoothing);
+    let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
+    let expected = high_precision::precise_weighted_average(rational_to_high_precision(prev), rational_to_high_precision(incoming), smoothing_adj);
+
+    let res = rational_to_high_precision(res);
+    let tolerance = Rational::from((1, 1e30 as u128));
+    
+    use crate::test_utils::assert_rational_relative_approx_eq;
+    assert_rational_relative_approx_eq!(
+        res,
+        expected,
+        tolerance
+    );
+}
+
 proptest! {
     #[test]
     fn ema_balance_history_precision(
