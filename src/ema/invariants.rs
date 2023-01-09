@@ -2,7 +2,7 @@ use crate::ema::*;
 use crate::fraction;
 use crate::test_utils::{
     any_rational, bigger_and_smaller_rational, fraction_to_high_precision, prop_assert_approx_eq,
-    prop_assert_rational_approx_eq, prop_assert_rational_relative_approx_eq, rational_to_high_precision,
+    prop_assert_rational_approx_eq, prop_assert_rational_relative_approx_eq,
 };
 use crate::test_utils::{MAX_BALANCE, MIN_BALANCE};
 use crate::types::{Balance, Fraction};
@@ -10,10 +10,7 @@ use crate::types::{Balance, Fraction};
 use proptest::prelude::*;
 
 use rug::Rational;
-use sp_arithmetic::{
-    traits::{One, Zero},
-    Rational128,
-};
+use sp_arithmetic::traits::{One, Zero};
 
 /// 2 weeks at 6s block time
 pub const MAX_ITERATIONS: u32 = 201_600;
@@ -47,8 +44,12 @@ fn iterations() -> impl Strategy<Value = u32> {
     1_u32..MAX_ITERATIONS
 }
 
-fn typical_price_rational() -> impl Strategy<Value = Rational128> {
-    (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE).prop_map(|(n, d)| Rational128::from(n, d))
+fn high_balance() -> impl Strategy<Value = Balance> {
+    MIN_BALANCE..(MAX_BALANCE * 1000)
+}
+
+fn realistic_price() -> impl Strategy<Value = EmaPrice> {
+    (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE)
 }
 
 fn period_fraction() -> impl Strategy<Value = Fraction> {
@@ -64,7 +65,7 @@ prop_compose! {
     }
 }
 
-fn ema_price_history() -> impl Strategy<Value = Vec<(Rational128, u32)>> {
+fn ema_price_history() -> impl Strategy<Value = Vec<(EmaPrice, u32)>> {
     prop::collection::vec((any_rational(), iterations()), 2..50)
 }
 
@@ -94,7 +95,7 @@ proptest! {
     #[test]
     fn price_ema_stays_stable_if_the_value_does_not_change(
         smoothing in period_fraction(),
-        price in typical_price_rational(),
+        price in realistic_price(),
     ) {
         let next_price = price_weighted_average(price, price, smoothing);
         prop_assert_eq!(next_price, price);
@@ -159,8 +160,8 @@ proptest! {
         ((incoming_n, incoming_d), (prev_n, prev_d)) in
             bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
-        let prev_price = Rational128::from(prev_n, prev_d);
-        let incoming_price = Rational128::from(incoming_n, incoming_d);
+        let prev_price = (prev_n, prev_d);
+        let incoming_price = (incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
         prop_assert!(prev_price <= price);
         prop_assert!(price <= incoming_price);
@@ -176,8 +177,8 @@ proptest! {
         ((prev_n, prev_d), (incoming_n, incoming_d)) in
             bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
-        let prev_price = Rational128::from(prev_n, prev_d);
-        let incoming_price = Rational128::from(incoming_n, incoming_d);
+        let prev_price = (prev_n, prev_d);
+        let incoming_price = (incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
         prop_assert!(incoming_price <= price);
         prop_assert!(price <= prev_price);
@@ -276,12 +277,12 @@ proptest! {
     #[test]
     fn low_precision_loss_for_prices(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
-        (prev_price, incoming_price) in (typical_price_rational(), typical_price_rational())
+        (prev_price, incoming_price) in (realistic_price(), realistic_price())
     ) {
         let price = price_weighted_average(prev_price, incoming_price, smoothing);
-        let rug_price = high_precision::precise_weighted_average(rational_to_high_precision(prev_price), rational_to_high_precision(incoming_price), fraction_to_high_precision(smoothing));
+        let rug_price = high_precision::precise_weighted_average(Rational::from(prev_price), Rational::from(incoming_price), fraction_to_high_precision(smoothing));
         let tolerance = Rational::from((1, 1e30 as u128));
-        let price = rational_to_high_precision(price);
+        let price = Rational::from(price);
         prop_assert_rational_relative_approx_eq!(price, rug_price, tolerance);
     }
 }
@@ -335,19 +336,19 @@ proptest! {
     #[test]
     fn iterated_price_precision(
         (period, iterations) in period_and_iterations(),
-        (a, b) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
-        (c, d) in (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE),
+        (a, b) in realistic_price(),
+        (c, d) in realistic_price(),
     ) {
         let smoothing = smoothing_from_period(period);
-        let prev = Rational128::from(a, b);
-        let incoming = Rational128::from(c, d);
+        let prev = (a, b);
+        let incoming = (c, d);
 
         let res = iterated_price_ema(iterations, prev, incoming, smoothing);
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-        let expected = high_precision::precise_weighted_average(rational_to_high_precision(prev), rational_to_high_precision(incoming), smoothing_adj);
+        let expected = high_precision::precise_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
 
-        let res = rational_to_high_precision(res);
-        let tolerance = Rational::from((1, 1e30 as u128));
+        let res = Rational::from(res);
+        let tolerance = Rational::from((1, 1_000_000_000_000_000_000_u128)); // 1e18
 
         prop_assert_rational_relative_approx_eq!(
             res,
@@ -421,7 +422,7 @@ proptest! {
 
         let relative_tolerance = Rational::from((1, 1e24 as u128));
         prop_assert_rational_relative_approx_eq!(
-            rational_to_high_precision(ema),
+            Rational::from(ema),
             rug_ema,
             relative_tolerance,
             "high precision should be equal to low precision within tolerance"
@@ -429,24 +430,17 @@ proptest! {
     }
 }
 
-/// The maximum balance value for the precision tests.
-const MAX_VAL: u128 = MAX_BALANCE * 1000;
-
-fn typical_balance() -> impl Strategy<Value = u128> {
-    MIN_BALANCE..MAX_VAL
-}
-
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn rational_rounding_add_should_have_high_enough_precision(
-        (a, b) in (typical_balance(), typical_balance()),
-        (c, d) in (typical_balance(), typical_balance()),
+        (a, b) in (high_balance(), high_balance()),
+        (c, d) in (high_balance(), high_balance()),
     ) {
-        let res = rounding_add(Rational128::from(a, b), (c.into(), d.into()), Rounding::Nearest);
+        let res = rounding_add((a, b), (c.into(), d.into()), Rounding::Nearest);
         let expected = Rational::from((a, b)) + Rational::from((c, d));
 
-        let res = rational_to_high_precision(res);
+        let res = Rational::from(res);
         // make sure the result has a precision of 100 bits
         let tolerance = Rational::from((1, 1u128 << 100));
         prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
@@ -457,12 +451,12 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn rational_rounding_sub_should_have_high_enough_precision(
-        ((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_VAL),
+        ((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_BALANCE * 1000),
     ) {
-        let res = rounding_sub(Rational128::from(a, b), (c.into(), d.into()), Rounding::Down);
+        let res = rounding_sub((a, b), (c.into(), d.into()), Rounding::Down);
         let expected = Rational::from((a, b)) - Rational::from((c, d));
 
-        let res = rational_to_high_precision(res);
+        let res = Rational::from(res);
         // make sure the result has a precision of 77 bits
         let tolerance = Rational::from((1, 1u128 << 77));
         prop_assert_rational_relative_approx_eq!(res, expected, tolerance);
@@ -473,10 +467,10 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(1_000))]
     #[test]
     fn rational_rounding_sub_result_should_be_smaller_or_equal_to_input(
-        (a, b) in any_rational().prop_map(|r| (r.n(), r.d())),
-        (c, d) in any_rational().prop_map(|r| (r.n(), r.d())),
+        (a, b) in any_rational(),
+        (c, d) in any_rational(),
     ) {
-        let res = rounding_sub(Rational128::from(a, b), (c.into(), d.into()), Rounding::Down);
-        prop_assert!(res <= Rational128::from(a, b));
+        let res = rounding_sub((a, b), (c.into(), d.into()), Rounding::Down);
+        prop_assert!(res <= (a, b));
     }
 }
