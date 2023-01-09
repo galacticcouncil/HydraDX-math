@@ -458,6 +458,10 @@ pub fn calculate_tvl_cap_difference(
     );
     let max_hub_reserve = tvl.checked_mul(stable_hub_reserve)?.checked_div(stable_reserve)?;
 
+    if max_hub_reserve < total_hub_reserve {
+        return Some(0);
+    }
+
     let delta_q = max_hub_reserve.checked_sub(total_hub_reserve)?;
 
     let amount = delta_q.checked_mul(asset_reserve)?.checked_div(asset_hub_reserve)?;

@@ -2,7 +2,7 @@ use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
     calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
-    calculate_sell_hub_state_changes, calculate_sell_state_changes, verify_asset_cap,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference, verify_asset_cap,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -664,4 +664,25 @@ fn verify_cap_diff_should_work_correctly() {
 
     let result = verify_asset_cap(&asset_state, 1_000_000_000_000_000_000, 20, 100);
     assert_eq!(result, Some(true));
+}
+
+#[test]
+fn calculate_tvl_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        hub_reserve: 3306347306384663,
+        reserve: 67829448624524361905510,
+        ..Default::default()
+    };
+
+    let stable_asset = AssetReserveState {
+        hub_reserve: 3306347306384663,
+        reserve: 67829448624524361905510,
+        ..Default::default()
+    };
+
+    let tvl_cap: Balance = 222_222_000_000_000_000_000_000;
+    let total_hub_resrerve = 11413797633709387;
+
+    let result = calculate_tvl_cap_difference(&asset_state, &stable_asset, tvl_cap, total_hub_resrerve);
+    assert_eq!(result, Some(0));
 }
