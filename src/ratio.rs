@@ -16,29 +16,31 @@ pub struct Ratio {
 
 impl Ratio {
     /// Build from a raw `n/d`. Ensures that `d > 0`.
-    pub fn new(n: u128, d: u128) -> Self {
-        Self { n, d: d.max(1) }
-    }
-
-    /// Build from a raw `n/d`. This could lead to / 0 if not properly handled.
-    pub fn new_unchecked(n: u128, d: u128) -> Self {
+    pub const fn new(n: u128, d: u128) -> Self {
+        // reimplement `.max(1)` so this can be `const`
+        let d = if d > 0 { d } else { 1 };
         Self { n, d }
     }
 
-    pub fn one() -> Self {
-        Self::new(1, 1)
+    /// Build from a raw `n/d`. This could lead to / 0 if not properly handled.
+    pub const fn new_unchecked(n: u128, d: u128) -> Self {
+        Self { n, d }
     }
 
-    pub fn is_one(&self) -> bool {
+    pub const fn one() -> Self {
+        Self::new_unchecked(1, 1)
+    }
+
+    pub const fn is_one(&self) -> bool {
         self.d > 0 && self.n == self.d
     }
 
-    pub fn zero() -> Self {
-        Self::new(0, 1)
+    pub const fn zero() -> Self {
+        Self::new_unchecked(0, 1)
     }
 
-    pub fn is_zero(&self) -> bool {
-        self.n.is_zero()
+    pub const fn is_zero(&self) -> bool {
+        self.n == 0
     }
 }
 
