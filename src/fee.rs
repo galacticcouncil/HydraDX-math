@@ -1,5 +1,6 @@
-use crate::types::Balance;
 use num_traits::Zero;
+use primitive_types::U256;
+use crate::{to_balance, to_u256, types::Balance, MathError::Overflow};
 
 pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32, u32)) -> Option<Balance> {
     let numerator = fee.0;
@@ -16,6 +17,16 @@ pub fn calculate_pool_trade_fee(amount: Balance, fee: (u32, u32)) -> Option<Bala
     amount
         .checked_div(denominator as Balance)?
         .checked_mul(numerator as Balance)
+}
+
+pub fn multiply_rational(numerator: u128, denominator: u128, amount: Balance) -> Option<Balance> {
+    let (numerator, denominator, amount) = to_u256!(numerator, denominator, amount);
+
+    let result = amount
+        .checked_mul(numerator)
+        .and_then(|v| v.checked_div(denominator))?;
+
+    to_balance!(result).ok()
 }
 
 #[cfg(test)]
@@ -95,5 +106,99 @@ mod tests {
 
         assert_eq!(calculate_pool_trade_fee(max_amount, (1, 0)), Some(0));
         assert_eq!(calculate_pool_trade_fee(1_000, (0, 1)), Some(0));
+    }
+
+    #[test]
+    fn multiply_rational_should_work() {
+        let zero_percent= (0, 10_000);
+
+        assert_eq!(multiply_rational(zero_percent.0, zero_percent.1, 1_000), Some(0));
+        assert_eq!(
+            multiply_rational(zero_percent.0, zero_percent.1, 1_000_000_000_000),
+            Some(0)
+        );
+
+        let ten_percent= (1, 10);
+
+        assert_eq!(multiply_rational(ten_percent.0, ten_percent.1, 1_000), Some(100));
+        assert_eq!(
+            multiply_rational(ten_percent.0, ten_percent.1, 1_000_000_000_000),
+            Some(100_000_000_000)
+        );
+
+        let ten_percent= (1_000, 10_000);
+
+        assert_eq!(multiply_rational(ten_percent.0, ten_percent.1, 1_000), Some(100));
+        assert_eq!(
+            multiply_rational(ten_percent.0, ten_percent.1, 1_000_000_000_000),
+            Some(100_000_000_000)
+        );
+
+        let hundred_percent= (10_000, 10_000);
+
+        assert_eq!(multiply_rational(hundred_percent.0, hundred_percent.1, 1_000), Some(1_000));
+        assert_eq!(
+            multiply_rational(hundred_percent.0, hundred_percent.1, 1_000_000_000_000),
+            Some(1_000_000_000_000)
+        );
+
+        let thousand_percent= (10_000, 1_000);
+
+        assert_eq!(multiply_rational(thousand_percent.0, thousand_percent.1, 1_000), Some(10_000));
+        assert_eq!(
+            multiply_rational(thousand_percent.0, thousand_percent.1, 1_000_000_000_000),
+            Some(10_000_000_000_000)
+        );
+
+        let max_amount = Balance::MAX;
+
+        assert_eq!(
+            multiply_rational(ten_percent.0, ten_percent.1, max_amount),
+            Some(34028236692093846346337460743176821145)
+        );
+        assert_eq!(
+            multiply_rational(hundred_percent.0, hundred_percent.1, max_amount),
+            Some(340282366920938463463374607431768211455)
+        );
+        assert_eq!(
+            multiply_rational(thousand_percent.0, thousand_percent.1, max_amount),
+            None
+        );
+
+        let zero_amount = 0u128;
+
+        assert_eq!(
+            multiply_rational(ten_percent.0, ten_percent.1, zero_amount),
+            Some(0)
+        );
+        assert_eq!(
+            multiply_rational(hundred_percent.0, hundred_percent.1, zero_amount),
+            Some(0)
+        );
+        assert_eq!(
+            multiply_rational(thousand_percent.0, thousand_percent.1, zero_amount),
+            Some(0)
+        );
+
+        let min_percent = (1, u128::MAX);
+
+        assert_eq!(
+            multiply_rational(min_percent.0, min_percent.1, max_amount),
+            Some(1)
+        );
+
+        let max_percent = (u128::MAX, 1);
+
+        assert_eq!(multiply_rational(max_percent.0, max_percent.1, max_amount), None);
+
+        let zero_fee = (0, 0);
+
+        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, max_amount), None);
+        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, 1_000), None);
+
+        let zero_fee = (10_000, 0);
+
+        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, max_amount), None);
+        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, 1_000), None);
     }
 }
