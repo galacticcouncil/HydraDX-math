@@ -4,7 +4,7 @@ use crate::types::{Balance, Fraction};
 use proptest::prelude::*;
 use rand::Rng;
 use rug::{Integer, Rational};
-use sp_arithmetic::{FixedPointNumber, FixedU128, Rational128};
+use sp_arithmetic::{FixedPointNumber, FixedU128};
 
 // ----- Macros
 
@@ -195,16 +195,6 @@ fn fraction_to_high_precision_works() {
     assert_eq!(fraction_to_high_precision(fraction::frac(1, 4)), Rational::from((1, 4)));
 }
 
-/// Convert a `Rational128` into an arbitrary precision `Rational`.
-pub fn rational_to_high_precision(r: Rational128) -> Rational {
-    Rational::from((r.n(), r.d()))
-}
-
-/// Convert a `Rational128` into a tuple of `u128` numbers.
-pub fn rational_to_tuple(r: Rational128) -> (u128, u128) {
-    (r.n(), r.d())
-}
-
 /// Convert a `Rational` number into its rounded `Integer` equivalent.
 pub(crate) fn into_rounded_integer(r: Rational) -> Integer {
     let (num, den) = r.into_numer_denom();
@@ -218,9 +208,9 @@ pub fn any_fixed() -> impl Strategy<Value = FixedU128> {
     any::<u128>().prop_map(FixedU128::from_inner)
 }
 
-/// Generates an arbitrary `Rational128` number, ensuring that the denominator is greater 0.
-pub fn any_rational() -> impl Strategy<Value = Rational128> {
-    (any::<u128>(), 1..u128::MAX).prop_map(|(n, d)| Rational128::from(n, d))
+/// Generates an arbitrary tuple representing a rational number, ensuring that the denominator is greater 0.
+pub fn any_rational() -> impl Strategy<Value = (u128, u128)> {
+    (any::<u128>(), 1..u128::MAX)
 }
 
 /// Generates two tuples representing two rational numbers with the first being bigger than the second.

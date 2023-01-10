@@ -1,6 +1,8 @@
 use fixed::types::U89F39 as F;
 use sp_arithmetic::FixedU128;
 
+pub use crate::ratio::Ratio;
+
 pub type Balance = u128;
 pub type Price = FixedU128;
 pub type Fraction = fixed::types::U1F127;
