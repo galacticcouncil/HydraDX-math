@@ -49,7 +49,11 @@ fn high_balance() -> impl Strategy<Value = Balance> {
 }
 
 fn realistic_price() -> impl Strategy<Value = EmaPrice> {
-    (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE)
+    (MIN_BALANCE..MAX_BALANCE, MIN_BALANCE..MAX_BALANCE).prop_map(|(n, d)| EmaPrice::new_unchecked(n, d))
+}
+
+fn any_price() -> impl Strategy<Value = EmaPrice> {
+    any_rational().prop_map(|(n, d)| EmaPrice::new_unchecked(n, d))
 }
 
 fn period_fraction() -> impl Strategy<Value = Fraction> {
@@ -66,7 +70,13 @@ prop_compose! {
 }
 
 fn ema_price_history() -> impl Strategy<Value = Vec<(EmaPrice, u32)>> {
-    prop::collection::vec((any_rational(), iterations()), 2..50)
+    prop::collection::vec(
+        (
+            any_rational().prop_map(|(n, d)| EmaPrice::new_unchecked(n, d)),
+            iterations(),
+        ),
+        2..50,
+    )
 }
 
 prop_compose! {
@@ -117,7 +127,7 @@ proptest! {
     #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
-        (prev_price, incoming_price) in (any_rational(), any_rational())
+        (prev_price, incoming_price) in (any_price(), any_price())
     ) {
         let iter_price = iterated_price_ema(1, prev_price, incoming_price, smoothing);
         let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
@@ -160,11 +170,11 @@ proptest! {
         ((incoming_n, incoming_d), (prev_n, prev_d)) in
             bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
-        let prev_price = (prev_n, prev_d);
-        let incoming_price = (incoming_n, incoming_d);
+        let prev_price = EmaPrice::new(prev_n, prev_d);
+        let incoming_price = EmaPrice::new(incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        prop_assert!(cmp(prev_price, price).is_le());
-        prop_assert!(cmp(price, incoming_price).is_le());
+        prop_assert!(prev_price <= price);
+        prop_assert!(price <= incoming_price);
     }
 }
 
@@ -177,11 +187,11 @@ proptest! {
         ((prev_n, prev_d), (incoming_n, incoming_d)) in
             bigger_and_smaller_rational(1, MAX_BALANCE * 1_000)
     ) {
-        let prev_price = (prev_n, prev_d);
-        let incoming_price = (incoming_n, incoming_d);
+        let prev_price = EmaPrice::new_unchecked(prev_n, prev_d);
+        let incoming_price = EmaPrice::new_unchecked(incoming_n, incoming_d);
         let price = iterated_price_ema(i, prev_price, incoming_price, smoothing);
-        prop_assert!(cmp(incoming_price, price).is_le());
-        prop_assert!(cmp(price, prev_price).is_le());
+        prop_assert!(incoming_price <= price);
+        prop_assert!(price <= prev_price);
     }
 }
 
@@ -336,12 +346,10 @@ proptest! {
     #[test]
     fn iterated_price_precision(
         (period, iterations) in period_and_iterations(),
-        (a, b) in realistic_price(),
-        (c, d) in realistic_price(),
+        prev in realistic_price(),
+        incoming in realistic_price(),
     ) {
         let smoothing = smoothing_from_period(period);
-        let prev = (a, b);
-        let incoming = (c, d);
 
         let res = iterated_price_ema(iterations, prev, incoming, smoothing);
         let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
@@ -359,27 +367,24 @@ proptest! {
 }
 
 #[test]
-fn failing_iterated_price_precision(){
+fn failing_iterated_price_precision() {
     let (period, iterations) = (10000, 1);
     let (a, b) = (2865300986016986668982, 50);
     let (c, d) = (2865300986016986668982, 51);
     let smoothing = smoothing_from_period(period);
-    let prev = (a, b);
-    let incoming = (c, d);
+    let prev = EmaPrice::new(a, b);
+    let incoming = EmaPrice::new(c, d);
 
     let res = iterated_price_ema(iterations, prev, incoming, smoothing);
     let smoothing_adj = high_precision::precise_exp_smoothing(fraction_to_high_precision(smoothing), iterations);
-    let expected = high_precision::precise_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
+    let expected =
+        high_precision::precise_weighted_average(Rational::from(prev), Rational::from(incoming), smoothing_adj);
 
     let res = Rational::from(res);
     let tolerance = Rational::from((1, 1e30 as u128));
-    
+
     use crate::test_utils::assert_rational_relative_approx_eq;
-    assert_rational_relative_approx_eq!(
-        res,
-        expected,
-        tolerance
-    );
+    assert_rational_relative_approx_eq!(res, expected, tolerance);
 }
 
 proptest! {
@@ -461,7 +466,7 @@ proptest! {
         (a, b) in (high_balance(), high_balance()),
         (c, d) in (high_balance(), high_balance()),
     ) {
-        let res = rounding_add((a, b), (c.into(), d.into()), Rounding::Nearest);
+        let res = rounding_add(EmaPrice::new(a, b), (c.into(), d.into()), Rounding::Nearest);
         let expected = Rational::from((a, b)) + Rational::from((c, d));
 
         let res = Rational::from(res);
@@ -477,7 +482,7 @@ proptest! {
     fn rational_rounding_sub_should_have_high_enough_precision(
         ((a, b), (c, d)) in bigger_and_smaller_rational(MIN_BALANCE, MAX_BALANCE * 1000),
     ) {
-        let res = rounding_sub((a, b), (c.into(), d.into()), Rounding::Down);
+        let res = rounding_sub(EmaPrice::new(a, b), (c.into(), d.into()), Rounding::Down);
         let expected = Rational::from((a, b)) - Rational::from((c, d));
 
         let res = Rational::from(res);
@@ -494,7 +499,7 @@ proptest! {
         (a, b) in any_rational(),
         (c, d) in any_rational(),
     ) {
-        let res = rounding_sub((a, b), (c.into(), d.into()), Rounding::Down);
-        prop_assert!(cmp(res, (a, b)).is_le());
+        let res = rounding_sub(EmaPrice::new_unchecked(a, b), (c.into(), d.into()), Rounding::Down);
+        prop_assert!(res <= EmaPrice::new_unchecked(a, b));
     }
 }

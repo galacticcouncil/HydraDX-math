@@ -370,6 +370,8 @@ dependencies = [
  "rand",
  "rand_xoshiro",
  "rug",
+ "scale-info",
+ "serde",
  "sp-arithmetic",
  "sp-std",
  "test-case",

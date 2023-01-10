@@ -9,7 +9,6 @@ use rug::ops::PowAssign;
 use rug::{Integer, Rational};
 use std::ops::{Mul, ShrAssign};
 
-
 /// Round the given `r` to a close number where numerator and denominator have <= 256 bits.
 pub(crate) fn round(r: &mut Rational) {
     r.mutate_numer_denom(|n, d| {
@@ -127,11 +126,7 @@ pub fn precise_price_ema(history: Vec<(EmaPrice, u32)>, smoothing: Rational) -> 
     let mut current = Rational::from(history[0].0);
     for (price, iterations) in history.into_iter().skip(1) {
         let smoothing_adj = precise_exp_smoothing(smoothing.clone(), iterations);
-        current = precise_weighted_average(
-            current.clone(),
-            Rational::from(price),
-            smoothing_adj.clone(),
-        );
+        current = precise_weighted_average(current.clone(), Rational::from(price), smoothing_adj.clone());
     }
     current
 }
@@ -157,14 +152,13 @@ fn precise_balance_ema_works() {
 #[test]
 fn precise_price_ema_works() {
     let history = vec![
-        (1, 8),
-        (1, 1),
-        (8, 1),
-        (4, 1),
+        EmaPrice::new(1, 8),
+        EmaPrice::new(1, 1),
+        EmaPrice::new(8, 1),
+        EmaPrice::new(4, 1),
     ];
     let smoothing = fraction::frac(1, 4);
-    let expected = ((Rational::from(history[0]) * 3 / 4 + Rational::from(history[1]) / 4) * 3
-        / 4
+    let expected = ((Rational::from(history[0]) * 3 / 4 + Rational::from(history[1]) / 4) * 3 / 4
         + Rational::from(history[2]) / 4)
         * 3
         / 4

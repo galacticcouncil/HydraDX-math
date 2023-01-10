@@ -1,13 +1,13 @@
 use crate::fraction;
 use crate::to_u128_wrapper;
 use crate::transcendental::saturating_powi_high_precision;
-use crate::types::{Balance, Fraction};
+use crate::types::{Balance, Fraction, Ratio};
 
 use num_traits::{One, Zero};
 use primitive_types::{U128, U256, U512};
 
 /// EmaPrice is a rational number represented by a `u128` for both numerator and denominator.
-pub type EmaPrice = (u128, u128);
+pub type EmaPrice = Ratio;
 
 /// Calculate the iterated exponential moving average for the given prices.
 /// `iterations` is the number of iterations of the EMA to calculate.
@@ -70,26 +70,6 @@ pub fn smoothing_from_period(period: u64) -> Fraction {
     fraction::frac(2, u128::from(period.max(1)).saturating_add(1))
 }
 
-use sp_arithmetic::helpers_128bit;
-use core::cmp::Ordering;
-
-pub(crate) fn cmp(l: EmaPrice, r: EmaPrice) -> Ordering {
-    // handle some edge cases.
-    if l.1 == r.1 {
-        l.0.cmp(&r.0)
-    } else if l.1.is_zero() {
-        Ordering::Greater
-    } else if r.1.is_zero() {
-        Ordering::Less
-    } else {
-        // Don't even compute gcd.
-        let l_n = helpers_128bit::to_big_uint(l.0) * helpers_128bit::to_big_uint(r.1);
-        let r_n =
-            helpers_128bit::to_big_uint(r.0) * helpers_128bit::to_big_uint(l.1);
-        l_n.cmp(&r_n)
-    }
-}
-
 /// Calculate a weighted average for the given prices.
 /// `prev` is the previous oracle value, `incoming` is the new value to integrate.
 /// `weight` is how much weight to give the new value.
@@ -97,7 +77,7 @@ pub(crate) fn cmp(l: EmaPrice, r: EmaPrice) -> Ordering {
 /// Note: Rounding is biased towards `prev`.
 pub fn price_weighted_average(prev: EmaPrice, incoming: EmaPrice, weight: Fraction) -> EmaPrice {
     debug_assert!(weight <= Fraction::one(), "weight must be <= 1");
-    if cmp(incoming, prev).is_ge() {
+    if incoming >= prev {
         rounding_add(prev, multiply(weight, saturating_sub(incoming, prev)), Rounding::Down)
     } else {
         rounding_sub(prev, multiply(weight, saturating_sub(prev, incoming)), Rounding::Up)
@@ -147,11 +127,11 @@ pub fn volume_weighted_average(
 
 /// Subtract `r` from `l` and return a tuple of `U256` for full precision.
 /// Saturates if `r >= l`.
-pub(super) fn saturating_sub((l_n, l_d): EmaPrice, (r_n, r_d): EmaPrice) -> (U256, U256) {
-    if l_n.is_zero() || r_n.is_zero() {
-        return (l_n.into(), l_d.into());
+pub(super) fn saturating_sub(l: EmaPrice, r: EmaPrice) -> (U256, U256) {
+    if l.n.is_zero() || r.n.is_zero() {
+        return (l.n.into(), l.d.into());
     }
-    let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l_n, l_d, r_n, r_d);
+    let (l_n, l_d, r_n, r_d) = to_u128_wrapper!(l.n, l.d, r.n, r.d);
     // n = l.n * r.d - r.n * l.d
     let n = l_n.full_mul(r_d).saturating_sub(r_n.full_mul(l_d));
     // d = l.d * r.d
@@ -203,7 +183,6 @@ impl Rounding {
 pub(super) fn round((n, d): (U512, U512), rounding: Rounding) -> (U512, U512) {
     let shift = n.bits().max(d.bits()).saturating_sub(383); // anticipate the saturating_add
     if shift > 0 {
-        dbg!("round", shift);
         let min_n = if n.is_zero() { U512::zero() } else { U512::one() };
         let (bias_n, bias_d) = rounding.to_bias(1);
         (
@@ -222,30 +201,29 @@ pub(super) fn round((n, d): (U512, U512), rounding: Rounding) -> (U512, U512) {
 pub(super) fn round_to_rational((n, d): (U512, U512), rounding: Rounding) -> EmaPrice {
     let shift = n.bits().max(d.bits()).saturating_sub(128);
     let (n, d) = if shift > 0 {
-        dbg!("round_to_rational", shift, n, d, rounding);
         let min_n = if n.is_zero() { 0 } else { 1 };
         let (bias_n, bias_d) = rounding.to_bias(1);
-        let shifted_n = dbg!((n >> shift).low_u128());
-        let shifted_d = dbg!((d >> shift).low_u128());
-        dbg!((
+        let shifted_n = (n >> shift).low_u128();
+        let shifted_d = (d >> shift).low_u128();
+        (
             shifted_n.saturating_add(bias_n).max(min_n),
             shifted_d.saturating_add(bias_d).max(1),
-        ))
+        )
     } else {
         (n.low_u128(), d.low_u128())
     };
-    (n, d)
+    EmaPrice::new(n, d)
 }
 
 /// Add `l` and `r` and round the result to a 128 bit rational number.
 /// The precision of `r` is reduced to 383 bits so the multiplications don't saturate.
-pub(super) fn rounding_add((l_n, l_d): EmaPrice, (r_n, r_d): (U512, U512), rounding: Rounding) -> EmaPrice {
-    if l_n.is_zero() {
+pub(super) fn rounding_add(l: EmaPrice, (r_n, r_d): (U512, U512), rounding: Rounding) -> EmaPrice {
+    if l.is_zero() {
         return round_to_rational((r_n, r_d), Rounding::Nearest);
     } else if r_n.is_zero() {
-        return (l_n, l_d);
+        return l;
     }
-    let (l_n, l_d) = (U512::from(l_n), U512::from(l_d));
+    let (l_n, l_d) = (U512::from(l.n), U512::from(l.d));
     let (r_n, r_d) = round((r_n, r_d), rounding);
     // n = l.n * r.d + r.n * l.d
     let n = l_n.saturating_mul(r_d).saturating_add(r_n.saturating_mul(l_d));
@@ -256,11 +234,11 @@ pub(super) fn rounding_add((l_n, l_d): EmaPrice, (r_n, r_d): (U512, U512), round
 
 /// Subract `l` and `r` (saturating) and round the result to a 128 bit rational number.
 /// The precision of `r` is reduced to 383 bits so the multiplications don't saturate.
-pub(super) fn rounding_sub((l_n, l_d): EmaPrice, (r_n, r_d): (U512, U512), rounding: Rounding) -> EmaPrice {
-    if l_n.is_zero() || r_n.is_zero() {
-        return (l_n, l_d);
+pub(super) fn rounding_sub(l: EmaPrice, (r_n, r_d): (U512, U512), rounding: Rounding) -> EmaPrice {
+    if l.is_zero() || r_n.is_zero() {
+        return l;
     }
-    let (l_n, l_d) = (U512::from(l_n), U512::from(l_d));
+    let (l_n, l_d) = (U512::from(l.n), U512::from(l.d));
     let (r_n, r_d) = round((r_n, r_d), rounding);
     // n = l.n * r.d - r.n * l.d
     let n = l_n.saturating_mul(r_d).saturating_sub(r_n.saturating_mul(l_d));
