@@ -189,14 +189,14 @@ mod tests {
 
         assert_eq!(multiply_rational(max_percent.0, max_percent.1, max_amount), None);
 
-        let zero_fee = (0, 0);
+        let zero_percent = (0, 0);
 
-        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, max_amount), None);
-        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, 1_000), None);
+        assert_eq!(multiply_rational(zero_percent.0, zero_percent.1, max_amount), None);
+        assert_eq!(multiply_rational(zero_percent.0, zero_percent.1, 1_000), None);
 
-        let zero_fee = (10_000, 0);
+        let zero_percent = (10_000, 0);
 
-        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, max_amount), None);
-        assert_eq!(multiply_rational(zero_fee.0, zero_fee.1, 1_000), None);
+        assert_eq!(multiply_rational(zero_percent.0, zero_percent.1, max_amount), None);
+        assert_eq!(multiply_rational(zero_percent.0, zero_percent.1, 1_000), None);
     }
 }
