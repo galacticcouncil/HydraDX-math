@@ -413,3 +413,73 @@ pub fn calculate_delta_imbalance(
 
     to_balance!(delta_imbalance_hp).ok()
 }
+
+pub fn calculate_spot_sprice(
+    asset_a: &AssetReserveState<Balance>,
+    asset_b: &AssetReserveState<Balance>,
+) -> Option<FixedU128> {
+    let price_a = FixedU128::checked_from_rational(asset_a.hub_reserve, asset_a.reserve)?;
+    let price_b = FixedU128::checked_from_rational(asset_b.reserve, asset_b.hub_reserve)?;
+    price_a.checked_mul(&price_b)
+}
+
+pub fn calculate_lrna_spot_sprice(asset: &AssetReserveState<Balance>) -> Option<FixedU128> {
+    FixedU128::checked_from_rational(asset.reserve, asset.hub_reserve)
+}
+
+pub fn calculate_cap_difference(
+    asset: &AssetReserveState<Balance>,
+    asset_cap: u128,
+    total_hub_reserve: Balance,
+) -> Option<Balance> {
+    let weight_cap = FixedU128::from_inner(asset_cap);
+    let max_allowed = weight_cap.checked_mul_int(total_hub_reserve)?;
+    let p = FixedU128::checked_from_rational(asset.hub_reserve, max_allowed)?;
+    if p > FixedU128::one() {
+        Some(0)
+    } else {
+        FixedU128::one().checked_sub(&p)?.checked_mul_int(asset.reserve)
+    }
+}
+
+pub fn calculate_tvl_cap_difference(
+    asset: &AssetReserveState<Balance>,
+    stable_asset: &AssetReserveState<Balance>,
+    tvl_cap: Balance,
+    total_hub_reserve: Balance,
+) -> Option<Balance> {
+    let (tvl, stable_hub_reserve, stable_reserve, total_hub_reserve, asset_reserve, asset_hub_reserve) = to_u256!(
+        tvl_cap,
+        stable_asset.hub_reserve,
+        stable_asset.reserve,
+        total_hub_reserve,
+        asset.reserve,
+        asset.hub_reserve
+    );
+    let max_hub_reserve = tvl.checked_mul(stable_hub_reserve)?.checked_div(stable_reserve)?;
+
+    if max_hub_reserve < total_hub_reserve {
+        return Some(0);
+    }
+
+    let delta_q = max_hub_reserve.checked_sub(total_hub_reserve)?;
+
+    let amount = delta_q.checked_mul(asset_reserve)?.checked_div(asset_hub_reserve)?;
+
+    to_balance!(amount).ok()
+}
+
+/// Verify if cap does or does exceed asset's weight cap.
+pub fn verify_asset_cap(
+    asset: &AssetReserveState<Balance>,
+    asset_cap: u128,
+    hub_amount: Balance,
+    total_hub_reserve: Balance,
+) -> Option<bool> {
+    let weight_cap = FixedU128::from_inner(asset_cap);
+    let weight = FixedU128::checked_from_rational(
+        asset.hub_reserve.checked_add(hub_amount)?,
+        total_hub_reserve.checked_add(hub_amount)?,
+    )?;
+    Some(weight <= weight_cap)
+}

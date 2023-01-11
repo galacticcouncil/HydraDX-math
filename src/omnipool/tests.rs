@@ -1,8 +1,8 @@
 use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
-    calculate_delta_imbalance, calculate_remove_liquidity_state_changes, calculate_sell_hub_state_changes,
-    calculate_sell_state_changes,
+    calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference, verify_asset_cap,
 };
 use crate::types::Balance;
 use sp_arithmetic::{FixedU128, Permill};
@@ -590,4 +590,99 @@ fn calculate_delta_imbalance_for_asset_should_work_when_correct_input_provided()
     let delta_imbalance = delta_imbalance.unwrap();
 
     assert_eq!(delta_imbalance, 363636363636u128);
+}
+
+#[test]
+fn calculate_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        hub_reserve: 80,
+        reserve: 160,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+    let asset_state_2 = AssetReserveState {
+        hub_reserve: 20,
+        reserve: 100,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = calculate_cap_difference(&asset_state, 800_000_000_000_000_000, 100);
+    assert_eq!(result, Some(0));
+    let result = calculate_cap_difference(&asset_state_2, 300_000_000_000_000_000, 100);
+    assert_eq!(result, Some(33));
+
+    let asset_state_2 = AssetReserveState {
+        hub_reserve: 2218128255986034,
+        reserve: 52301491602723449004308,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = calculate_cap_difference(&asset_state_2, 1_000_000_000_000_000_000, 5651225591124720);
+    assert_eq!(result, Some(31772950583866634024008));
+
+    let asset_state_2 = AssetReserveState {
+        hub_reserve: 1584818376248207,
+        reserve: 675534123147791411,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = calculate_cap_difference(&asset_state_2, 100_000_000_000_000_000, 5651225591124720);
+    assert_eq!(result, Some(0));
+}
+
+#[test]
+fn verify_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        hub_reserve: 80,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 800_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(false));
+
+    let asset_state = AssetReserveState {
+        hub_reserve: 60,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 800_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(true));
+
+    let asset_state = AssetReserveState {
+        hub_reserve: 100,
+        reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let result = verify_asset_cap(&asset_state, 1_000_000_000_000_000_000, 20, 100);
+    assert_eq!(result, Some(true));
+}
+
+#[test]
+fn calculate_tvl_cap_diff_should_work_correctly() {
+    let asset_state = AssetReserveState {
+        hub_reserve: 3306347306384663,
+        reserve: 67829448624524361905510,
+        ..Default::default()
+    };
+
+    let stable_asset = AssetReserveState {
+        hub_reserve: 3306347306384663,
+        reserve: 67829448624524361905510,
+        ..Default::default()
+    };
+
+    let tvl_cap: Balance = 222_222_000_000_000_000_000_000;
+    let total_hub_resrerve = 11413797633709387;
+
+    let result = calculate_tvl_cap_difference(&asset_state, &stable_asset, tvl_cap, total_hub_resrerve);
+    assert_eq!(result, Some(0));
 }
