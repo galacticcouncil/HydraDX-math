@@ -21,6 +21,11 @@ where
     Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
     /// Calculate price for actual state
+    pub(crate) fn price_as_rational(&self) -> (Balance, Balance) {
+        (self.hub_reserve, self.reserve)
+    }
+
+    /// Calculate price for actual state
     pub(crate) fn price(&self) -> Option<FixedU128> {
         FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
     }
@@ -139,7 +144,7 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 }
 
 /// Delta changes of asset state
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct AssetStateChange<Balance>
 where
     Balance: Default,
@@ -151,7 +156,7 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct TradeStateChange<Balance>
 where
     Balance: Default,
