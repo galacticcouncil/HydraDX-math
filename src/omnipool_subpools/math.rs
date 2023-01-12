@@ -7,7 +7,7 @@ use crate::omnipool::{
     calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes, calculate_sell_hub_state_changes,
     calculate_sell_state_changes,
 };
-use crate::stableswap::{calculate_d, calculate_y};
+use crate::stableswap::{calculate_d, calculate_shares_for_amount, calculate_withdraw_one_asset, calculate_y};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use crate::types::Balance;
@@ -32,7 +32,7 @@ pub struct TradeResult {
     pub iso_pool: TradeStateChange<Balance>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct MixedTradeResult {
     pub subpool: SubpoolStateChange,
     pub isopool: TradeStateChange<Balance>,
@@ -238,6 +238,16 @@ pub fn calculate_stable_out_given_iso_in(
         imbalance,
     )?;
 
+    let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
+        &pool_out.reserves,
+        *sell_changes.asset_out.delta_reserve,
+        idx_out,
+        share_issuance,
+        pool_out.amplification,
+        withdraw_fee,
+    )?;
+
+    /*
     let initial_out_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
 
     let delta_u_t = *sell_changes.asset_out.delta_reserve;
@@ -260,6 +270,8 @@ pub fn calculate_stable_out_given_iso_in(
 
     let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
     let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
+
+     */
 
     Some(MixedTradeResult {
         subpool: SubpoolStateChange {

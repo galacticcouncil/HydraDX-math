@@ -1,7 +1,8 @@
 use crate::omnipool::types::BalanceUpdate::{Decrease, Increase};
 use crate::omnipool::types::{AssetReserveState, AssetStateChange, TradeStateChange};
 use crate::omnipool_subpools::{
-    calculate_buy_between_subpools, calculate_iso_in_given_stable_out, SubpoolState, SubpoolStateChange, TradeResult,
+    calculate_buy_between_subpools, calculate_iso_in_given_stable_out, calculate_stable_out_given_iso_in,
+    MixedTradeResult, SubpoolState, SubpoolStateChange, TradeResult,
 };
 use sp_arithmetic::Permill;
 
@@ -46,6 +47,73 @@ fn mixed_trade_should_work_when_buying_stable_with_omnipool_asset() {
     );
 
     assert!(result.is_some());
+}
+
+#[test]
+fn mixed_trade_should_work_when_trading_stable_out_given_asset_in() {
+    let pool_out = SubpoolState {
+        reserves: &[3_000_000_000_000_000, 4_000_000_000_000_000],
+        amplification: 100,
+    };
+
+    let idx_out = 0;
+
+    let asset_state_in = AssetReserveState {
+        reserve: 5_000_000_000_000_000,
+        hub_reserve: 3250000000000000,
+        shares: 5000000000000000,
+        protocol_shares: 0,
+    };
+
+    let sshare_issuance_out = 4_550_000_000_000_000;
+
+    let share_state_out = AssetReserveState {
+        reserve: 4550000000000000,
+        hub_reserve: 4550000000000000,
+        shares: 4550000000000000,
+        protocol_shares: 0,
+    };
+
+    let amount = 100_000_000_000_000;
+
+    let result = calculate_stable_out_given_iso_in(
+        pool_out,
+        idx_out,
+        &asset_state_in,
+        &share_state_out,
+        sshare_issuance_out,
+        amount,
+        Permill::zero(),
+        Permill::zero(),
+        Permill::zero(),
+        0u128,
+    );
+
+    assert_eq!(
+        result,
+        Some(MixedTradeResult {
+            subpool: SubpoolStateChange {
+                idx: 0,
+                amount: Increase(96598337725477,),
+            },
+            isopool: TradeStateChange {
+                asset_in: AssetStateChange {
+                    delta_reserve: Increase(100000000000000,),
+                    delta_hub_reserve: Decrease(63725490196078,),
+                    delta_shares: Increase(0,),
+                    delta_protocol_shares: Increase(0,),
+                },
+                asset_out: AssetStateChange {
+                    delta_reserve: Decrease(62845303867402,),
+                    delta_hub_reserve: Increase(63725490196078,),
+                    delta_shares: Increase(0,),
+                    delta_protocol_shares: Increase(0,),
+                },
+                delta_imbalance: Decrease(0,),
+                hdx_hub_amount: 0,
+            },
+        })
+    );
 }
 
 #[test]
