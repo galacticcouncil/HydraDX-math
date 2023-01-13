@@ -44,9 +44,9 @@ impl Ratio {
     }
 }
 
-impl Into<(u128, u128)> for Ratio {
-    fn into(self) -> (u128, u128) {
-        (self.n, self.d)
+impl From<Ratio> for (u128, u128) {
+    fn from(ratio: Ratio) -> (u128, u128) {
+        (ratio.n, ratio.d)
     }
 }
 

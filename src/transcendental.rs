@@ -220,7 +220,6 @@ where
         return S::one();
     }
 
-    let exp = exp as u32;
     let msb_pos = 32 - exp.leading_zeros();
 
     let mut result = S::one();
