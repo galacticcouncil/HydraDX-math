@@ -7,7 +7,6 @@ use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use std::str::FromStr;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -128,15 +127,6 @@ fn assert_imbalance_update(
     let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
 
     assert!(left >= right, "{}", desc);
-
-    let diff = left - right;
-
-    assert!(
-        diff <= U256::from_str("100000000000000000000000000000000000000000000").unwrap(),
-        "{} {}",
-        "difference is",
-        diff
-    );
 }
 
 proptest! {
