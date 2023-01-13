@@ -14,15 +14,14 @@ pub const SMALLEST_NON_ZERO: Fraction = Fraction::from_bits(1);
 pub const DIV: u128 = 1u128 << 127;
 
 /// Create a fraction based on a `n`umerator and `d`enominator.
+///
+/// Warning: Panics if `n > d` in debug mode, but saturates in release.
 pub fn frac(n: u128, d: u128) -> Fraction {
     debug_assert!(
         d >= n,
         "fraction should be less than or equal to 1 -> denominator should be greater equal the numerator"
     );
-    Fraction::from_bits(
-        multiply_by_rational_with_rounding(n, DIV, d, Rounding::NearestPrefDown)
-            .expect("d >= n, therefore the result must fit in u128; qed"),
-    )
+    Fraction::from_bits(multiply_by_rational_with_rounding(n, DIV, d, Rounding::NearestPrefDown).unwrap_or(DIV))
 }
 
 /// Convert a `Fraction` to a `FixedU128`.
