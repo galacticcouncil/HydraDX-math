@@ -7,6 +7,7 @@ use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use std::str::FromStr;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -112,75 +113,30 @@ fn assert_asset_invariant(
 }
 
 fn assert_imbalance_update(
-    old_state: &AssetReserveState<Balance>,
-    new_state: &AssetReserveState<Balance>,
     old_imbalance: I129<Balance>,
     new_imbalance: I129<Balance>,
     old_hub_reserve: Balance,
     new_hub_reserve: Balance,
     desc: &str,
 ) {
-    let r_i = U256::from(old_state.reserve);
-    let q_i = U256::from(old_state.hub_reserve);
-
-    let r_i_plus = U256::from(new_state.reserve);
-    let q_i_plus = U256::from(new_state.hub_reserve);
-
     let q = U256::from(old_hub_reserve);
     let q_plus = U256::from(new_hub_reserve);
+    let l = U256::from(old_imbalance.value);
+    let l_plus = U256::from(new_imbalance.value);
 
-    let imbalance = U256::from(old_imbalance.value);
-    let imbalance_plus = U256::from(new_imbalance.value);
-
-    let left = r_i_plus * q_i * q_plus * (q - imbalance);
-    let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
-
-    assert!(left >= right, "{}", desc);
-}
-
-fn assert_imbalance_update_extreme(
-    old_state: &AssetReserveState<Balance>,
-    new_state: &AssetReserveState<Balance>,
-    old_imbalance: I129<Balance>,
-    new_imbalance: I129<Balance>,
-    old_hub_reserve: Balance,
-    new_hub_reserve: Balance,
-    desc: &str,
-) {
-    /*
-    let r_i = U256::from(old_state.reserve);
-    let q_i = U256::from(old_state.hub_reserve);
-
-    let r_i_plus = U256::from(new_state.reserve);
-    let q_i_plus = U256::from(new_state.hub_reserve);
-
-    let q = U256::from(old_hub_reserve);
-    let q_plus = U256::from(new_hub_reserve);
-
-    let imbalance = U256::from(old_imbalance.value);
-    let imbalance_plus = U256::from(new_imbalance.value);
-
-    let left = r_i_plus * q_i * q_plus * (q - imbalance);
-    let right = r_i * q * q_i_plus * (q_plus - imbalance_plus);
-    assert!(left >= right, "{}", desc);
-     */
-
-    let l_x = FixedU128::checked_from_rational(old_state.hub_reserve, old_hub_reserve)
-        .unwrap()
-        .checked_mul_int(old_imbalance.value)
-        .unwrap();
-    let r_x = FixedU128::checked_from_rational(new_state.hub_reserve, new_hub_reserve)
-        .unwrap()
-        .checked_mul_int(new_imbalance.value)
-        .unwrap();
-
-    let l_n = old_state.hub_reserve - l_x;
-    let r_n = new_state.hub_reserve - r_x;
-
-    let left = FixedU128::checked_from_rational(l_n, old_state.reserve);
-    let right = FixedU128::checked_from_rational(r_n, new_state.reserve);
+    let left = q.checked_mul(q.checked_sub(l).unwrap()).unwrap();
+    let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
 
     assert!(left >= right, "{}", desc);
+
+    let diff = left - right;
+
+    assert!(
+        diff <= U256::from_str("100000000000000000000000000000000000000000000").unwrap(),
+        "{} {}",
+        "difference is",
+        diff
+    );
 }
 
 proptest! {
@@ -247,7 +203,7 @@ proptest! {
         amount in trade_amount(),
         imbalance in some_imbalance(),
     ) {
-        let total_hub_reserve = 100 * ONE + asset_out.hub_reserve;
+        let total_hub_reserve = 100 * ONE * BALANCE_RANGE.1;
 
         let result = calculate_sell_hub_state_changes(&asset_out, amount,
             Permill::from_percent(0),
@@ -264,8 +220,7 @@ proptest! {
 
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
-        assert_imbalance_update(&asset_out,
-            &asset_out_state,
+        assert_imbalance_update(
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
@@ -300,8 +255,7 @@ proptest! {
 
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
-        assert_imbalance_update_extreme(&asset_out,
-            &asset_out_state,
+        assert_imbalance_update(
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
@@ -337,8 +291,7 @@ proptest! {
 
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
-        assert_imbalance_update(&asset_out,
-            &asset_out_state,
+        assert_imbalance_update(
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
@@ -373,8 +326,7 @@ proptest! {
 
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
-        assert_imbalance_update(&asset_out,
-            &asset_out_state,
+        assert_imbalance_update(
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
@@ -410,8 +362,7 @@ proptest! {
 
         let new_total_hub_reserve = total_hub_reserve + *state_changes.asset.delta_hub_reserve;
 
-        assert_imbalance_update(&asset_out,
-            &asset_out_state,
+        assert_imbalance_update(
             imbalance,
             I129::<Balance>{value: imbalance.value + *state_changes.delta_imbalance, negative: true},
             total_hub_reserve,
