@@ -1,3 +1,5 @@
+use super::high_precision;
+
 use crate::ema::*;
 use crate::fraction;
 use crate::test_utils::{

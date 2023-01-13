@@ -6,6 +6,11 @@ use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rati
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::Fraction;
 
+mod high_precision;
+mod invariants;
+mod test_data;
+use test_data::*;
+
 use num_traits::One;
 use primitive_types::{U128, U256, U512};
 use rug::Rational;
@@ -268,7 +273,6 @@ fn precision_of_ema_over_price_history_should_be_high_enough_in_crash_scenario()
 }
 
 // balancer history
-use super::test_data::*;
 #[test]
 fn precision_of_ema_over_balancer_three_months_data_scrape_history_should_be_high_enough() {
     let data = balancer_data_weth_wbtc_three_months();
