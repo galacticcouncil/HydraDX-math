@@ -155,10 +155,7 @@ fn calculate_sell_hub_asset_should_work_when_correct_input_provided() {
         BalanceUpdate::Increase(amount_to_sell)
     );
 
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(12972222222221u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(7454545454546));
 }
 
 #[test]
@@ -194,10 +191,7 @@ fn calculate_sell_hub_asset_with_fee_should_work_when_correct_input_provided() {
         BalanceUpdate::Increase(amount_to_sell)
     );
 
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(12914166666664u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(7454545454546));
 }
 
 #[test]
@@ -346,10 +340,7 @@ fn calculate_buy_for_hub_asset_should_work_when_correct_input_provided() {
         BalanceUpdate::Increase(5000000000001u128)
     );
 
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(15640000000002u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(9222222222224));
 }
 
 #[test]
@@ -385,10 +376,7 @@ fn calculate_buy_for_hub_asset_with_fee_should_work_when_correct_input_provided(
         BalanceUpdate::Increase(5063291139241u128)
     );
 
-    assert_eq!(
-        state_changes.delta_imbalance,
-        BalanceUpdate::Decrease(15733998209949u128)
-    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Decrease(9332954060590));
 }
 
 #[test]
