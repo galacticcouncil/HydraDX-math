@@ -211,6 +211,13 @@ proptest! {
         let right = q_plus - imbalance_plus;
 
         assert_eq!(left, right);
+        assert_imbalance_update(
+            imbalance,
+            I129::<Balance>{value: imbalance_plus, negative: true},
+            total_hub_reserve,
+            q_plus,
+            "sell imbalance invariant failed" );
+
     }
 }
 
@@ -442,6 +449,13 @@ proptest! {
             let right = q_plus - imbalance_plus;
 
             assert_eq!(left, right);
+
+            assert_imbalance_update(
+                imbalance,
+                I129::<Balance>{value: imbalance_plus, negative: true},
+                total_hub_reserve,
+                q_plus,
+                "buy imbalance invariant failed" );
         }
     }
 }
