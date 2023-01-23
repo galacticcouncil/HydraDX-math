@@ -46,66 +46,6 @@ pub struct MixedTradeHubResult {
     pub isopool: HubTradeStateChange<Balance>,
 }
 
-pub fn calculate_sell_between_subpools(
-    pool_in: SubpoolState,
-    pool_out: SubpoolState,
-    idx_in: usize,
-    idx_out: usize,
-    amount_in: Balance,
-    share_state_in: &AssetReserveState<Balance>,
-    share_state_out: &AssetReserveState<Balance>,
-    share_issuance_in: Balance,
-    share_issuance_out: Balance,
-    asset_fee: Permill,
-    protocol_fee: Permill,
-    withdraw_fee: Permill,
-    imbalance: Balance,
-) -> Option<TradeResult> {
-    if idx_in >= pool_in.reserves.len() || idx_out >= pool_out.reserves.len() {
-        return None;
-    }
-
-    let delta_u = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
-        &pool_in.reserves,
-        idx_in,
-        amount_in,
-        pool_in.amplification,
-        share_issuance_in,
-    )?;
-
-    let sell_changes = calculate_sell_state_changes(
-        share_state_in,
-        share_state_out,
-        delta_u,
-        asset_fee,
-        protocol_fee,
-        imbalance,
-    )?;
-
-    let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
-        &pool_out.reserves,
-        *sell_changes.asset_out.delta_reserve,
-        idx_out,
-        share_issuance_out,
-        pool_out.amplification,
-        withdraw_fee,
-    )?;
-
-    let delta_t_j = delta_t_j.checked_sub(f)?;
-
-    Some(TradeResult {
-        asset_in: SubpoolStateChange {
-            idx: idx_in,
-            amount: BalanceUpdate::Increase(amount_in),
-        },
-        asset_out: SubpoolStateChange {
-            idx: idx_out,
-            amount: BalanceUpdate::Decrease(delta_t_j),
-        },
-        iso_pool: sell_changes,
-    })
-}
-
 pub fn calculate_stable_out_given_iso_in(
     pool_out: SubpoolState,
     idx_out: usize,
