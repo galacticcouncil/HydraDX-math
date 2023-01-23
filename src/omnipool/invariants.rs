@@ -1,5 +1,5 @@
 use crate::assert_eq_approx;
-use crate::omnipool::types::{AssetReserveState, Position, I129};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
@@ -164,12 +164,15 @@ proptest! {
         asset_out in asset_state(),
         amount in trade_amount(),
         asset_fee in fee(),
-        protocol_fee in fee()
+        protocol_fee in fee(),
+        imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * BALANCE_RANGE.1;
+
         let result = calculate_sell_state_changes(&asset_in, &asset_out, amount,
             asset_fee,
             protocol_fee,
-            Balance::default()
+            imbalance.value,
         );
 
         assert!(result.is_some());
@@ -183,6 +186,38 @@ proptest! {
         let asset_out_state = asset_out.clone();
         let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
         assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
+
+        let delta_hub_asset = state_changes
+                .asset_in
+                .delta_hub_reserve
+                .merge(
+                    state_changes
+                        .asset_out
+                        .delta_hub_reserve
+                        .merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
+                ).unwrap();
+
+        let q_plus = match delta_hub_asset {
+            BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
+            BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
+        };
+
+        let imbalance_plus = match state_changes.delta_imbalance {
+            BalanceUpdate::Increase(v) => imbalance.value.checked_sub(v).unwrap(),
+            BalanceUpdate::Decrease(v) => imbalance.value.checked_add(v).unwrap(),
+        };
+
+        let left = total_hub_reserve - imbalance.value;
+        let right = q_plus - imbalance_plus;
+
+        assert_eq!(left, right);
+        assert_imbalance_update(
+            imbalance,
+            I129::<Balance>{value: imbalance_plus, negative: true},
+            total_hub_reserve,
+            q_plus,
+            "sell imbalance invariant failed" );
+
     }
 }
 
@@ -369,12 +404,15 @@ proptest! {
     fn buy_update_invariants_with_fees(asset_in in asset_state(), asset_out in asset_state(),
         amount in trade_amount(),
         asset_fee in fee(),
-        protocol_fee in fee()
+        protocol_fee in fee(),
+        imbalance in some_imbalance(),
     ) {
+        let total_hub_reserve = 100 * BALANCE_RANGE.1;
+
         let result = calculate_buy_state_changes(&asset_in, &asset_out, amount,
             asset_fee,
             protocol_fee,
-            Balance::default()
+            imbalance.value,
         );
 
         // ignore the invalid result
@@ -386,6 +424,38 @@ proptest! {
             let asset_out_state = asset_out.clone();
             let asset_out_state = asset_out_state.delta_update(&state_changes.asset_out).unwrap();
             assert_asset_invariant(&asset_out, &asset_out_state,  None, "Buy update invariant - token out");
+
+            let delta_hub_asset = state_changes
+                .asset_in
+                .delta_hub_reserve
+                .merge(
+                    state_changes
+                        .asset_out
+                        .delta_hub_reserve
+                        .merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
+                ).unwrap();
+
+            let q_plus = match delta_hub_asset {
+                BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
+                BalanceUpdate::Decrease(v) => total_hub_reserve.checked_sub(v).unwrap(),
+            };
+
+            let imbalance_plus = match state_changes.delta_imbalance {
+                BalanceUpdate::Increase(v) => imbalance.value.checked_sub(v).unwrap(),
+                BalanceUpdate::Decrease(v) => imbalance.value.checked_add(v).unwrap(),
+            };
+
+            let left = total_hub_reserve - imbalance.value;
+            let right = q_plus - imbalance_plus;
+
+            assert_eq!(left, right);
+
+            assert_imbalance_update(
+                imbalance,
+                I129::<Balance>{value: imbalance_plus, negative: true},
+                total_hub_reserve,
+                q_plus,
+                "buy imbalance invariant failed" );
         }
     }
 }
