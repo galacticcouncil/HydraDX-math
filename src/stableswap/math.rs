@@ -255,7 +255,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     let fixed_fee = FixedU128::from(fee);
     let fee = fixed_fee
         .checked_mul(&FixedU128::from(n_coins as u128))?
-        .checked_div(&FixedU128::from((4 * (n_coins - 1) as u128)))?;
+        .checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
     let initial_d = calculate_d::<N>(reserves, amplification)?;
 
