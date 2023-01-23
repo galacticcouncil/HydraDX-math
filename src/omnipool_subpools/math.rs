@@ -106,62 +106,6 @@ pub fn calculate_sell_between_subpools(
     })
 }
 
-pub fn calculate_buy_between_subpools(
-    pool_in: SubpoolState,
-    pool_out: SubpoolState,
-    idx_in: usize,
-    idx_out: usize,
-    amount_out: Balance,
-    share_state_in: &AssetReserveState<Balance>,
-    share_state_out: &AssetReserveState<Balance>,
-    share_issuance_in: Balance,
-    share_issuance_out: Balance,
-    asset_fee: Permill,
-    protocol_fee: Permill,
-    withdraw_fee: Permill,
-    imbalance: Balance,
-) -> Option<TradeResult> {
-    if idx_in >= pool_in.reserves.len() || idx_out >= pool_out.reserves.len() {
-        return None;
-    }
-    let delta_u = calculate_shares_removed::<MAX_D_ITERATIONS>(
-        &pool_out.reserves,
-        idx_out,
-        amount_out,
-        pool_out.amplification,
-        share_issuance_out,
-        withdraw_fee,
-    )?;
-
-    let buy_changes = calculate_buy_state_changes(
-        share_state_in,
-        share_state_out,
-        delta_u,
-        asset_fee,
-        protocol_fee,
-        imbalance,
-    )?;
-    let delta_t_j = calculate_amount_to_add_for_shares::<MAX_D_ITERATIONS>(
-        &pool_in.reserves,
-        idx_in,
-        *buy_changes.asset_in.delta_reserve,
-        pool_in.amplification,
-        share_issuance_in,
-    )?;
-
-    Some(TradeResult {
-        asset_in: SubpoolStateChange {
-            idx: idx_in,
-            amount: BalanceUpdate::Increase(delta_t_j),
-        },
-        asset_out: SubpoolStateChange {
-            idx: idx_out,
-            amount: BalanceUpdate::Decrease(amount_out),
-        },
-        iso_pool: buy_changes,
-    })
-}
-
 pub fn calculate_stable_out_given_iso_in(
     pool_out: SubpoolState,
     idx_out: usize,
