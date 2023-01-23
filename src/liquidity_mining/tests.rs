@@ -732,3 +732,23 @@ fn calculate_adjusted_shares_should_work() {
         313_948_636_755_764
     );
 }
+
+#[test]
+fn calculate_rewards_for_periods_should_work() {
+    assert_eq!(calculate_rewards_for_periods(FixedU128::from(0), 0).unwrap(), 0);
+
+    assert_eq!(
+        calculate_rewards_for_periods(FixedU128::from(0), 16_841_351,).unwrap(),
+        0
+    );
+
+    assert_eq!(
+        calculate_rewards_for_periods(FixedU128::from_inner(156_874_561_300_000_000), 16_841_351,).unwrap(),
+        2_641_979
+    );
+
+    assert_eq!(
+        calculate_rewards_for_periods(FixedU128::from_inner(18_641_535_156_874_561_300_000_000), 16_841_351,).unwrap(),
+        313_948_636_755_764
+    );
+}

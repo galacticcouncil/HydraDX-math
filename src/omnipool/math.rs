@@ -65,7 +65,7 @@ pub fn calculate_sell_state_changes(
             delta_hub_reserve: Increase(delta_hub_reserve_out),
             ..Default::default()
         },
-        delta_imbalance: BalanceUpdate::Decrease(delta_imbalance),
+        delta_imbalance: BalanceUpdate::Increase(delta_imbalance),
         hdx_hub_amount: hdx_fee_amount,
     })
 }
@@ -206,7 +206,7 @@ pub fn calculate_buy_state_changes(
             delta_hub_reserve: Increase(delta_hub_reserve_out),
             ..Default::default()
         },
-        delta_imbalance: BalanceUpdate::Decrease(delta_imbalance),
+        delta_imbalance: BalanceUpdate::Increase(delta_imbalance),
         hdx_hub_amount: hdx_fee_amount,
     })
 }
