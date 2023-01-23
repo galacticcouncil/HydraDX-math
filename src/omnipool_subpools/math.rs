@@ -333,25 +333,13 @@ pub fn calculate_iso_out_given_stable_in(
         return None;
     }
 
-    let initial_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
-
-    let new_reserve_in = pool_in.reserves[idx_in].checked_add(amount_in)?;
-
-    let updated_reserves: Vec<Balance> = pool_in
-        .reserves
-        .iter()
-        .enumerate()
-        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
-        .collect();
-
-    let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_in.amplification)?;
-
-    let delta_d = d_plus.checked_sub(initial_d)?;
-
-    let delta_u = share_issuance
-        .checked_mul_into(&delta_d)?
-        .checked_div_inner(&initial_d)?
-        .try_to_inner()?;
+    let delta_u = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+        &pool_in.reserves,
+        idx_in,
+        amount_in,
+        pool_in.amplification,
+        share_issuance,
+    )?;
 
     let sell_changes = calculate_sell_state_changes(
         share_state,
