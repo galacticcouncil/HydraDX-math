@@ -1,5 +1,5 @@
 use crate::assert_eq_approx;
-use crate::omnipool::types::{AssetReserveState, Position, I129, BalanceUpdate};
+use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::*;
 use crate::to_balance;
 use crate::types::Balance;
@@ -188,14 +188,14 @@ proptest! {
         assert_asset_invariant(&asset_out, &asset_out_state,  None, "Sell update invariant - token out");
 
         let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
+                .asset_in
+                .delta_hub_reserve
+                .merge(
+                    state_changes
+                        .asset_out
+                        .delta_hub_reserve
+                        .merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
+                ).unwrap();
 
         let q_plus = match delta_hub_asset {
             BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
@@ -426,14 +426,14 @@ proptest! {
             assert_asset_invariant(&asset_out, &asset_out_state,  None, "Buy update invariant - token out");
 
             let delta_hub_asset = state_changes
-				.asset_in
-				.delta_hub_reserve
-				.merge(
-					state_changes
-						.asset_out
-						.delta_hub_reserve
-						.merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
-				).unwrap();
+                .asset_in
+                .delta_hub_reserve
+                .merge(
+                    state_changes
+                        .asset_out
+                        .delta_hub_reserve
+                        .merge(BalanceUpdate::Increase(state_changes.hdx_hub_amount)).unwrap()
+                ).unwrap();
 
             let q_plus = match delta_hub_asset {
                 BalanceUpdate::Increase(v) => total_hub_reserve.checked_add(v).unwrap(),
