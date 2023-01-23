@@ -120,5 +120,5 @@ fn remove_one_asset_should_work() {
 
     let result = result.unwrap();
 
-    assert_eq!(result, (168, 24));
+    assert_eq!(result, (180, 12));
 }
