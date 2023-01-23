@@ -149,6 +149,7 @@ pub fn calculate_shares_for_amount<const N: u8>(
     }
 }
 
+/// Calculate amount of shares to burn if amount is removed from pool
 pub fn calculate_shares_removed<const N: u8>(
     initial_reserves: &[Balance],
     idx_out: usize,
@@ -196,6 +197,37 @@ pub fn calculate_shares_removed<const N: u8>(
             .checked_div(&FixedU128::one().checked_sub(&fee_w)?)?
             .checked_mul_int(shares)
     }
+}
+
+/// Calculate amount of asset to ithdraw add if given shares amount is added
+pub fn calculate_amount_to_add_for_shares<const N: u8>(
+    initial_reserves: &[Balance],
+    idx_in: usize,
+    shares_in: Balance,
+    amplification: Balance,
+    share_issuance: Balance,
+) -> Option<Balance> {
+    if idx_in >= initial_reserves.len() {
+        return None;
+    }
+
+    let initial_in_d = calculate_d::<N>(initial_reserves, amplification)?;
+
+    let d_plus = initial_in_d
+        .checked_mul_into(&shares_in.checked_add(share_issuance)?)?
+        .checked_div_inner(&share_issuance)?
+        .try_to_inner()?;
+
+    let xp: Vec<Balance> = initial_reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_in)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let reserve_in = calculate_y::<N>(&xp, d_plus, amplification)?;
+
+    reserve_in.checked_sub(initial_reserves[idx_in])
 }
 
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
