@@ -7,6 +7,7 @@ use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
+use crate::support::traits::Convert;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -126,7 +127,21 @@ fn assert_imbalance_update(
     let left = q.checked_mul(q.checked_sub(l).unwrap()).unwrap();
     let right = q_plus.checked_mul(q_plus.checked_sub(l_plus).unwrap()).unwrap();
 
+    dbg!(left);
+    dbg!(right);
     assert!(left >= right, "{}", desc);
+
+    let l = left.fit_to_inner();
+    let r = right.fit_to_inner();
+    dbg!(l);
+    dbg!(r);
+
+    let diff = left - right;
+
+    dbg!(diff);
+
+    assert!( diff <= U256::from(1000000000000000000000000000000000u128));
+    //assert!( diff <= U256::from(2435102262783084475));
 }
 
 proptest! {

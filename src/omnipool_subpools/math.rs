@@ -238,6 +238,10 @@ pub fn calculate_stable_out_given_iso_in(
         imbalance,
     )?;
 
+    dbg!(withdraw_fee);
+
+    dbg!(pool_out.reserves);
+
     let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
         &pool_out.reserves,
         *sell_changes.asset_out.delta_reserve,
@@ -247,7 +251,12 @@ pub fn calculate_stable_out_given_iso_in(
         withdraw_fee,
     )?;
 
+
+    dbg!(delta_t_j);
+    dbg!(f);
+    dbg!(delta_t_j - f);
     /*
+
     let initial_out_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
 
     let delta_u_t = *sell_changes.asset_out.delta_reserve;
@@ -271,7 +280,10 @@ pub fn calculate_stable_out_given_iso_in(
     let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
     let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
 
+    dbg!(delta_t_j);
+
      */
+    let delta_t_j = delta_t_j - f;
 
     Some(MixedTradeResult {
         subpool: SubpoolStateChange {
