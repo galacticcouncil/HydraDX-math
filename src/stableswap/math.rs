@@ -1,8 +1,8 @@
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::Zero;
+use num_traits::{CheckedDiv, CheckedMul, Zero};
 use primitive_types::U256;
-use sp_arithmetic::Permill;
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
@@ -169,6 +169,10 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         return None;
     }
 
+    let n_coins = reserves.len();
+    let fixed_fee = FixedU128::from(fee);
+    let fee = fixed_fee.checked_mul(&FixedU128::from(n_coins as u128))?.checked_div(&FixedU128::from((4 * (n_coins - 1) as u128)))?;
+
     let initial_d = calculate_d::<N>(reserves, amplification)?;
 
     let (shares_hp, issuance_hp, d_hp) = to_u256!(shares, share_asset_issuance, initial_d);
@@ -201,7 +205,7 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         };
 
         let expected = Balance::try_from(dx_expected).ok()?;
-        let reduced = Balance::try_from(*reserve).ok()?.checked_sub(fee.mul_floor(expected))?;
+        let reduced = Balance::try_from(*reserve).ok()?.checked_sub(fee.checked_mul_int(expected)?)?;
 
         if idx != asset_index {
             reserves_reduced.push(reduced);
