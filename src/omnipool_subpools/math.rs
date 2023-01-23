@@ -65,25 +65,13 @@ pub fn calculate_sell_between_subpools(
         return None;
     }
 
-    let initial_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
-
-    let new_reserve_in = pool_in.reserves[idx_in].checked_add(amount_in)?;
-
-    let updated_reserves: Vec<Balance> = pool_in
-        .reserves
-        .iter()
-        .enumerate()
-        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
-        .collect();
-
-    let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_in.amplification)?;
-
-    let delta_d = d_plus.checked_sub(initial_d)?;
-
-    let delta_u = share_issuance_in
-        .checked_mul_into(&delta_d)?
-        .checked_div_inner(&initial_d)?
-        .try_to_inner()?;
+    let delta_u = calculate_shares_for_amount::<MAX_D_ITERATIONS>(
+        &pool_in.reserves,
+        idx_in,
+        amount_in,
+        pool_in.amplification,
+        share_issuance_in,
+    )?;
 
     let sell_changes = calculate_sell_state_changes(
         share_state_in,
@@ -94,29 +82,16 @@ pub fn calculate_sell_between_subpools(
         imbalance,
     )?;
 
-    let initial_out_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
-
-    let delta_u_t = *sell_changes.asset_out.delta_reserve;
-    let fee_w = FixedU128::from(withdraw_fee);
-    let delta_d = FixedU128::one().checked_sub(&fee_w)?.checked_mul_int(
-        initial_out_d
-            .checked_mul_into(&delta_u_t)?
-            .checked_div_inner(&share_issuance_out)?
-            .try_to_inner()?,
+    let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
+        &pool_out.reserves,
+        *sell_changes.asset_out.delta_reserve,
+        idx_out,
+        share_issuance_out,
+        pool_out.amplification,
+        withdraw_fee,
     )?;
 
-    let d_plus = initial_out_d.checked_sub(delta_d)?;
-    let xp: Vec<Balance> = pool_out
-        .reserves
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| *idx != idx_out)
-        .map(|(_, v)| *v)
-        .collect();
-
-    let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
-
-    let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
+    let delta_t_j = delta_t_j.checked_sub(f)?;
 
     Some(TradeResult {
         asset_in: SubpoolStateChange {
@@ -149,29 +124,13 @@ pub fn calculate_buy_between_subpools(
     if idx_in >= pool_in.reserves.len() || idx_out >= pool_out.reserves.len() {
         return None;
     }
-
-    let fee_w = FixedU128::from(withdraw_fee);
-
-    let initial_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
-
-    let new_reserve_out = pool_out.reserves[idx_out].checked_sub(amount_out)?;
-
-    let updated_reserves: Vec<Balance> = pool_out
-        .reserves
-        .iter()
-        .enumerate()
-        .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
-        .collect();
-
-    let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
-
-    let delta_d = initial_d.checked_sub(d_plus)?;
-
-    let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?)?).checked_mul_int(
-        share_issuance_out
-            .checked_mul_into(&delta_d)?
-            .checked_div_inner(&initial_d)?
-            .try_to_inner()?,
+    let delta_u = calculate_shares_removed::<MAX_D_ITERATIONS>(
+        &pool_out.reserves,
+        idx_out,
+        amount_out,
+        pool_out.amplification,
+        share_issuance_out,
+        withdraw_fee,
     )?;
 
     let buy_changes = calculate_buy_state_changes(
@@ -182,26 +141,13 @@ pub fn calculate_buy_between_subpools(
         protocol_fee,
         imbalance,
     )?;
-
-    let initial_in_d = calculate_d::<MAX_D_ITERATIONS>(pool_in.reserves, pool_in.amplification)?;
-
-    let delta_u_t = *buy_changes.asset_in.delta_reserve;
-    let d_plus = initial_in_d
-        .checked_mul_into(&delta_u_t.checked_add(share_issuance_in)?)?
-        .checked_div_inner(&share_issuance_in)?
-        .try_to_inner()?;
-
-    let xp: Vec<Balance> = pool_in
-        .reserves
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| *idx != idx_in)
-        .map(|(_, v)| *v)
-        .collect();
-
-    let reserve_in = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_in.amplification)?;
-
-    let delta_t_j = reserve_in.checked_sub(pool_in.reserves[idx_in])?;
+    let delta_t_j = calculate_amount_to_add_for_shares::<MAX_D_ITERATIONS>(
+        &pool_in.reserves,
+        idx_in,
+        *buy_changes.asset_in.delta_reserve,
+        pool_in.amplification,
+        share_issuance_in,
+    )?;
 
     Some(TradeResult {
         asset_in: SubpoolStateChange {
