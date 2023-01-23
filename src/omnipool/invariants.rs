@@ -1,13 +1,13 @@
 use crate::assert_eq_approx;
 use crate::omnipool::types::{AssetReserveState, Position, I129};
 use crate::omnipool::*;
+use crate::support::traits::Convert;
 use crate::to_balance;
 use crate::types::Balance;
 use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
-use crate::support::traits::Convert;
 
 pub const ONE: Balance = 1_000_000_000_000;
 pub const TOLERANCE: Balance = 1_000;
@@ -140,7 +140,7 @@ fn assert_imbalance_update(
 
     dbg!(diff);
 
-    assert!( diff <= U256::from(1000000000000000000000000000000000u128));
+    assert!(diff <= U256::from(1000000000000000000000000000000000u128));
     //assert!( diff <= U256::from(2435102262783084475));
 }
 

@@ -7,7 +7,9 @@ use crate::omnipool::{
     calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes, calculate_sell_hub_state_changes,
     calculate_sell_state_changes,
 };
-use crate::stableswap::{calculate_d, calculate_shares_for_amount, calculate_withdraw_one_asset, calculate_y};
+use crate::stableswap::{
+    calculate_d, calculate_shares_for_amount, calculate_shares_removed, calculate_withdraw_one_asset, calculate_y,
+};
 use crate::stableswap::{MAX_D_ITERATIONS, MAX_Y_ITERATIONS};
 use crate::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use crate::types::Balance;
@@ -247,7 +249,7 @@ pub fn calculate_stable_out_given_iso_in(
         withdraw_fee,
     )?;
 
-    let delta_t_j = delta_t_j .checked_sub(f)?;
+    let delta_t_j = delta_t_j.checked_sub(f)?;
 
     Some(MixedTradeResult {
         subpool: SubpoolStateChange {
@@ -284,29 +286,16 @@ pub fn calculate_stable_out_given_hub_asset_in(
         total_hub_reserve,
     )?;
 
-    let initial_out_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
-
-    let delta_u_t = *sell_changes.asset.delta_reserve;
-    let fee_w = FixedU128::from(withdraw_fee);
-    let delta_d = (FixedU128::one().checked_sub(&fee_w)?).checked_mul_int(
-        initial_out_d
-            .checked_mul_into(&delta_u_t)?
-            .checked_div_inner(&share_issuance)?
-            .try_to_inner()?,
+    let (delta_t_j, f) = calculate_withdraw_one_asset::<MAX_D_ITERATIONS, MAX_Y_ITERATIONS>(
+        &pool_out.reserves,
+        *sell_changes.asset.delta_reserve,
+        idx_out,
+        share_issuance,
+        pool_out.amplification,
+        withdraw_fee,
     )?;
 
-    let d_plus = initial_out_d.checked_sub(delta_d)?;
-    let xp: Vec<Balance> = pool_out
-        .reserves
-        .iter()
-        .enumerate()
-        .filter(|(idx, _)| *idx != idx_out)
-        .map(|(_, v)| *v)
-        .collect();
-
-    let reserve_out = calculate_y::<MAX_Y_ITERATIONS>(&xp, d_plus, pool_out.amplification)?;
-
-    let delta_t_j = pool_out.reserves[idx_out].checked_sub(reserve_out)?;
+    let delta_t_j = delta_t_j.checked_sub(f)?;
 
     Some(MixedTradeHubResult {
         subpool: SubpoolStateChange {
@@ -371,28 +360,13 @@ pub fn calculate_iso_in_given_stable_out(
     withdraw_fee: Permill,
     imbalance: Balance,
 ) -> Option<MixedTradeResult> {
-    let fee_w = FixedU128::from(withdraw_fee);
-
-    let initial_d = calculate_d::<MAX_D_ITERATIONS>(pool_out.reserves, pool_out.amplification)?;
-
-    let new_reserve_out = pool_out.reserves[idx_out].checked_sub(amount_out)?;
-
-    let updated_reserves: Vec<Balance> = pool_out
-        .reserves
-        .iter()
-        .enumerate()
-        .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
-        .collect();
-
-    let d_plus = calculate_d::<MAX_D_ITERATIONS>(&updated_reserves, pool_out.amplification)?;
-
-    let delta_d = initial_d.checked_sub(d_plus)?;
-
-    let delta_u = (FixedU128::one().checked_div(&FixedU128::one().checked_sub(&fee_w)?))?.checked_mul_int(
-        share_issuance
-            .checked_mul_into(&delta_d)?
-            .checked_div_inner(&initial_d)?
-            .try_to_inner()?,
+    let delta_u = calculate_shares_removed::<MAX_D_ITERATIONS>(
+        &pool_out.reserves,
+        idx_out,
+        amount_out,
+        pool_out.amplification,
+        share_issuance,
+        withdraw_fee,
     )?;
 
     let buy_changes =
