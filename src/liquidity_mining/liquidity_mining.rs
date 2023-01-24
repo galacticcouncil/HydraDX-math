@@ -118,3 +118,12 @@ pub fn calculate_reward(
 pub fn calculate_adjusted_shares(shares: Balance, price_adjustment: FixedU128) -> Result<Balance, MathError> {
     price_adjustment.checked_mul_int(shares).ok_or(MathError::Overflow)
 }
+
+/// This function calculates rewards [`Balance`] for number of periods or error.
+pub fn calculate_rewards_for_periods<Period: num_traits::CheckedSub + TryInto<u32> + TryInto<u128>>(
+    reward_per_period: FixedU128,
+    periods_since_last_update: Period,
+) -> Result<Balance, MathError> {
+    let periods = TryInto::<u128>::try_into(periods_since_last_update).map_err(|_e| MathError::Overflow)?;
+    reward_per_period.checked_mul_int(periods).ok_or(MathError::Overflow)
+}
