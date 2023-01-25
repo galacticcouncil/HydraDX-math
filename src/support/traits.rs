@@ -12,7 +12,6 @@ pub trait Convert {
     type Inner;
 
     fn try_to_inner(&self) -> Option<Self::Inner>;
-    fn fit_to_inner(&self) -> Self::Inner;
     fn from_inner(s: &Self::Inner) -> Self;
 }
 

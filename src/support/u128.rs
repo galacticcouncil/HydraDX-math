@@ -28,11 +28,6 @@ impl Convert for U256 {
         Self::Inner::try_from(*self).ok()
     }
 
-    fn fit_to_inner(&self) -> Self::Inner {
-        let shift = self.bits().saturating_sub(128);
-        (self >> shift).low_u128()
-    }
-
     fn from_inner(s: &Self::Inner) -> Self {
         Self::from(*s)
     }
@@ -70,11 +65,5 @@ fn checked_mul_into_works_for_u128() {
 
 #[test]
 fn convert_should_work_for_u256() {
-    let p = u128::MAX.checked_mul_into(&u128::MAX).unwrap().fit_to_inner();
-    assert_eq!(p, 340282366920938463463374607431768211454);
-
-    let p = 100u128.checked_mul_into(&100u128).unwrap().fit_to_inner();
-    assert_eq!(p, 10000);
-
     assert_eq!(U256::from_inner(&100u128), U256::from(100u32));
 }

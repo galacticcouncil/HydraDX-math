@@ -190,7 +190,7 @@ where
     pub lp_hub_amount: Balance,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Position<Balance> {
     /// Amount of asset added to omnipool
     pub amount: Balance,

@@ -1,22 +1,11 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::omnipool::types::{
-    AssetReserveState, AssetStateChange, BalanceUpdate, Position,
-};
-
-
+use crate::omnipool::types::{AssetReserveState, AssetStateChange, BalanceUpdate, Position};
+use crate::omnipool_subpools::types::MigrationDetails;
+use crate::support::rational::{round_to_rational, Rounding};
 
 use crate::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
 use crate::types::Balance;
-
-
-
-pub struct MigrationDetails {
-    pub price: (Balance, Balance),
-    pub shares: Balance,
-    pub hub_reserve: Balance,
-    pub share_tokens: Balance,
-}
 
 pub fn convert_position(position: Position<Balance>, details: MigrationDetails) -> Option<Position<Balance>> {
     let shares = position
@@ -31,13 +20,13 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
         .checked_div_inner(&details.shares)?
         .try_to_inner()?;
 
-    let nominator = position.price.0.checked_mul_into(&details.price.1)?.fit_to_inner();
-    let denom = position.price.1.checked_mul_into(&details.price.0)?.fit_to_inner();
+    let nominator = position.price.0.checked_mul_into(&details.price.1)?;
+    let denom = position.price.1.checked_mul_into(&details.price.0)?;
 
     Some(Position {
         shares,
         amount,
-        price: (nominator, denom),
+        price: round_to_rational((nominator, denom), Rounding::Nearest),
     })
 }
 
@@ -99,21 +88,15 @@ pub fn calculate_asset_migration_details(
         // price = asset price * share_issuance / pool shares
         // price = (hub reserve / reserve ) * share issuance / pool shares
         // price = hub*issuance / reserve * pool shares
-        let price_denom = asset_state
-            .reserve
-            .checked_mul_into(&subpool_state.shares)?
-            .fit_to_inner();
+        let price_denom = asset_state.reserve.checked_mul_into(&subpool_state.shares)?;
 
-        let price_num = asset_state
-            .hub_reserve
-            .checked_mul_into(&share_issuance)?
-            .fit_to_inner();
+        let price_num = asset_state.hub_reserve.checked_mul_into(&share_issuance)?;
 
         let delta_q = asset_state.hub_reserve;
 
         Some((
             MigrationDetails {
-                price: (price_num, price_denom),
+                price: round_to_rational((price_num, price_denom), Rounding::Nearest),
                 shares: asset_state.shares,
                 hub_reserve: delta_q,
                 share_tokens: delta_u,
