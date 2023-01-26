@@ -1,4 +1,4 @@
-use crate::support::traits::{CheckedDivInner, CheckedMulInto, Convert};
+use crate::support::traits::{CheckedDivInner, CheckedMulInto};
 use crate::to_u256;
 use crate::types::Balance;
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
@@ -188,7 +188,8 @@ pub fn calculate_shares_removed<const N: u8>(
         let shares = share_issuance
             .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
-            .try_to_inner()?;
+            .try_into()
+            .ok()?;
 
         //apply fee^
 
@@ -216,7 +217,8 @@ pub fn calculate_amount_to_add_for_shares<const N: u8>(
     let d_plus = initial_in_d
         .checked_mul_into(&shares_in.checked_add(share_issuance)?)?
         .checked_div_inner(&share_issuance)?
-        .try_to_inner()?;
+        .try_into()
+        .ok()?;
 
     let xp: Vec<Balance> = initial_reserves
         .iter()

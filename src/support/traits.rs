@@ -8,13 +8,6 @@ pub trait CheckedMulInto {
     fn checked_mul_into(&self, other: &Self) -> Option<Self::Output>;
 }
 
-pub trait Convert {
-    type Inner;
-
-    fn try_to_inner(&self) -> Option<Self::Inner>;
-    fn from_inner(s: &Self::Inner) -> Self;
-}
-
 pub trait CheckedAddInner: Sized {
     type Inner;
     fn checked_add_inner(&self, other: &Self::Inner) -> Option<Self>;

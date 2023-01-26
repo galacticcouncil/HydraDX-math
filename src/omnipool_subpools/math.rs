@@ -4,7 +4,7 @@ use crate::omnipool::types::{AssetReserveState, AssetStateChange, BalanceUpdate,
 use crate::omnipool_subpools::types::MigrationDetails;
 use crate::support::rational::{round_to_rational, Rounding};
 
-use crate::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto, Convert};
+use crate::support::traits::{CheckedDivInner, CheckedMulInner, CheckedMulInto};
 use crate::types::Balance;
 
 pub fn convert_position(position: Position<Balance>, details: MigrationDetails) -> Option<Position<Balance>> {
@@ -12,13 +12,15 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
         .shares
         .checked_mul_into(&details.hub_reserve)?
         .checked_div_inner(&details.shares)?
-        .try_to_inner()?;
+        .try_into()
+        .ok()?;
 
     let amount = position
         .amount
         .checked_mul_into(&details.share_tokens)?
         .checked_div_inner(&details.shares)?
-        .try_to_inner()?;
+        .try_into()
+        .ok()?;
 
     let nominator = position.price.0.checked_mul_into(&details.price.1)?;
     let denom = position.price.1.checked_mul_into(&details.price.0)?;
@@ -71,19 +73,21 @@ pub fn calculate_asset_migration_details(
         let p2 = p1
             .checked_mul_inner(&asset_state.protocol_shares)?
             .checked_div_inner(&asset_state.shares)?;
-        let delta_ps = p2.try_to_inner()?;
+        let delta_ps = p2.try_into().ok()?;
 
         let delta_s = asset_state
             .hub_reserve
             .checked_mul_into(&subpool_state.shares)?
             .checked_div_inner(&subpool_state.hub_reserve)?
-            .try_to_inner()?;
+            .try_into()
+            .ok()?;
 
         let delta_u = asset_state
             .hub_reserve
             .checked_mul_into(&share_issuance)?
             .checked_div_inner(&subpool_state.hub_reserve)?
-            .try_to_inner()?;
+            .try_into()
+            .ok()?;
 
         // price = asset price * share_issuance / pool shares
         // price = (hub reserve / reserve ) * share issuance / pool shares
@@ -126,5 +130,6 @@ pub fn recalculate_protocol_shares(hub_reserve: Balance, shares: Balance, protoc
     hub_reserve
         .checked_mul_into(&protocol_shares)?
         .checked_div_inner(&shares)?
-        .try_to_inner()
+        .try_into()
+        .ok()
 }
