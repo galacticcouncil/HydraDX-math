@@ -127,6 +127,17 @@ proptest! {
 
 proptest! {
     #[test]
+    fn volume_ema_stays_stable_if_the_value_does_not_change(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        volume in (any::<Balance>(), any::<Balance>(), any::<Balance>(), any::<Balance>())
+    ) {
+        let next_volume = volume_weighted_average(volume, volume, smoothing);
+        prop_assert_eq!(next_volume, volume);
+    }
+}
+
+proptest! {
+    #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         (prev_price, incoming_price) in (any_price(), any_price())
