@@ -37,3 +37,22 @@ pub fn round_to_rational((n, d): (U256, U256), rounding: Rounding) -> (u128, u12
     };
     (n, d)
 }
+
+#[test]
+fn round_to_rational_should_work() {
+    let res = round_to_rational((U256::from(1), U256::from(1)), Rounding::Nearest);
+    let expected: (u128, u128) = (1, 1);
+    assert_eq!(res, expected);
+
+    let res = round_to_rational((U256::MAX, U256::MAX), Rounding::Nearest);
+    let expected = (u128::MAX, u128::MAX);
+    assert_eq!(res, expected);
+
+    let res = round_to_rational((U256::MAX, U256::from(1)), Rounding::Nearest);
+    let expected = (u128::MAX, 1u128);
+    assert_eq!(res, expected);
+
+    let res = round_to_rational((U256::from(1), U256::MAX), Rounding::Nearest);
+    let expected = (1u128, u128::MAX);
+    assert_eq!(res, expected);
+}
