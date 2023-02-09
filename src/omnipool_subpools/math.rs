@@ -32,7 +32,7 @@ pub fn convert_position(position: Position<Balance>, details: MigrationDetails) 
     })
 }
 
-pub fn create_new_subpool(
+pub fn create_subpool_initial_state(
     asset_state_a: &AssetReserveState<Balance>,
     asset_state_b: &AssetReserveState<Balance>,
 ) -> Option<AssetReserveState<Balance>> {

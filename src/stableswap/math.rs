@@ -200,7 +200,7 @@ pub fn calculate_shares_removed<const N: u8>(
     }
 }
 
-/// Calculate amount of asset to ithdraw add if given shares amount is added
+/// Calculate amount of asset to withdraw if given shares amount is added
 pub fn calculate_amount_to_add_for_shares<const N: u8>(
     initial_reserves: &[Balance],
     idx_in: usize,
@@ -254,6 +254,9 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     }
 
     let n_coins = reserves.len();
+    if n_coins <= 1 {
+        return None;
+    }
     let fixed_fee = FixedU128::from(fee);
     let fee = fixed_fee
         .checked_mul(&FixedU128::from(n_coins as u128))?
