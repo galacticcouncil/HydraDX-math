@@ -27,7 +27,7 @@ pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, s
 
 /// Calculate the iterated exponential moving average for the given volumes.
 /// `iterations` is the number of iterations of the EMA to calculate.
-/// `prev` is the previous oracle value, `incoming` is the new value to integrate.
+/// `prev` is the previous oracle value; the incoming value is always zero.
 /// `smoothing` is the smoothing factor of the EMA.
 pub fn iterated_volume_ema(
     iterations: u32,
