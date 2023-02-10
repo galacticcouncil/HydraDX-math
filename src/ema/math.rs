@@ -32,10 +32,9 @@ pub fn iterated_balance_ema(iterations: u32, prev: Balance, incoming: Balance, s
 pub fn iterated_volume_ema(
     iterations: u32,
     prev: (Balance, Balance, Balance, Balance),
-    incoming: (Balance, Balance, Balance, Balance),
     smoothing: Fraction,
 ) -> (Balance, Balance, Balance, Balance) {
-    volume_weighted_average(prev, incoming, exp_smoothing(smoothing, iterations))
+    volume_weighted_average(prev, (0, 0, 0, 0), exp_smoothing(smoothing, iterations))
 }
 
 /// Calculate the smoothing factor for a period from a given combination of original smoothing

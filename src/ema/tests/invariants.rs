@@ -138,6 +138,24 @@ proptest! {
 
 proptest! {
     #[test]
+    fn iterated_volume_ema_approaches_zero(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        iterations in 1_u32..MAX_ITERATIONS,
+        volume in (any::<Balance>(), any::<Balance>(), any::<Balance>(), any::<Balance>())
+    ) {
+        let next_volume = iterated_volume_ema(iterations, volume, smoothing);
+        let expected = (
+            iterated_balance_ema(iterations, volume.0, 0, smoothing),
+            iterated_balance_ema(iterations, volume.1, 0, smoothing),
+            iterated_balance_ema(iterations, volume.2, 0, smoothing),
+            iterated_balance_ema(iterations, volume.3, 0, smoothing),
+        );
+        prop_assert_eq!(next_volume, expected);
+    }
+}
+
+proptest! {
+    #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         (prev_price, incoming_price) in (any_price(), any_price())
