@@ -1,8 +1,9 @@
+use crate::support::traits::{CheckedDivInner, CheckedMulInto};
 use crate::to_u256;
 use crate::types::Balance;
-use num_traits::Zero;
+use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
-use sp_arithmetic::Permill;
+use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::prelude::*;
 
 pub const MAX_Y_ITERATIONS: u8 = 128;
@@ -108,6 +109,128 @@ pub fn calculate_shares<const N: u8>(
         Balance::try_from(share_amount).ok()
     }
 }
+/// Calculate amount of shares to be given to LP after LP provided liquidity of some assets to the pool.
+pub fn calculate_shares_for_amount<const N: u8>(
+    initial_reserves: &[Balance],
+    idx_in: usize,
+    amount: Balance,
+    amplification: Balance,
+    share_issuance: Balance,
+) -> Option<Balance> {
+    if idx_in >= initial_reserves.len() {
+        return None;
+    }
+
+    let new_reserve_in = initial_reserves[idx_in].checked_add(amount)?;
+
+    let updated_reserves: Vec<Balance> = initial_reserves
+        .iter()
+        .enumerate()
+        .map(|(idx, v)| if idx == idx_in { new_reserve_in } else { *v })
+        .collect();
+
+    let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+
+    // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
+    // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
+    let updated_d = calculate_d::<N>(&updated_reserves, amplification)?.checked_sub(2_u128)?;
+
+    if updated_d < initial_d {
+        return None;
+    }
+
+    if share_issuance == 0 {
+        // if first liquidity added
+        Some(updated_d)
+    } else {
+        let (issuance_hp, d_diff, d0) = to_u256!(share_issuance, updated_d.checked_sub(initial_d)?, initial_d);
+        let share_amount = issuance_hp.checked_mul(d_diff)?.checked_div(d0)?;
+        Balance::try_from(share_amount).ok()
+    }
+}
+
+/// Calculate amount of shares to burn if amount is removed from pool
+pub fn calculate_shares_removed<const N: u8>(
+    initial_reserves: &[Balance],
+    idx_out: usize,
+    amount_out: Balance,
+    amplification: Balance,
+    share_issuance: Balance,
+    withdraw_fee: Permill,
+) -> Option<Balance> {
+    if idx_out >= initial_reserves.len() {
+        return None;
+    }
+
+    let new_reserve_out = initial_reserves[idx_out].checked_sub(amount_out)?;
+
+    let updated_reserves: Vec<Balance> = initial_reserves
+        .iter()
+        .enumerate()
+        .map(|(idx, v)| if idx == idx_out { new_reserve_out } else { *v })
+        .collect();
+
+    let initial_d = calculate_d::<N>(initial_reserves, amplification)?;
+
+    // We must make sure the updated_d is rounded *down* so that we are not giving the new position too many shares.
+    // calculate_d can return a D value that is above the correct D value by up to 2, so we subtract 2.
+    let updated_d = calculate_d::<N>(&updated_reserves, amplification)?;
+
+    if updated_d > initial_d {
+        return None;
+    }
+
+    let delta_d = initial_d.checked_sub(updated_d)?;
+
+    if share_issuance == 0 {
+        None
+    } else {
+        let shares = share_issuance
+            .checked_mul_into(&delta_d)?
+            .checked_div_inner(&initial_d)?
+            .try_into()
+            .ok()?;
+
+        //apply fee^
+
+        let fee_w = FixedU128::from(withdraw_fee);
+        FixedU128::one()
+            .checked_div(&FixedU128::one().checked_sub(&fee_w)?)?
+            .checked_mul_int(shares)
+    }
+}
+
+/// Calculate amount of asset to withdraw if given shares amount is added
+pub fn calculate_amount_to_add_for_shares<const N: u8>(
+    initial_reserves: &[Balance],
+    idx_in: usize,
+    shares_in: Balance,
+    amplification: Balance,
+    share_issuance: Balance,
+) -> Option<Balance> {
+    if idx_in >= initial_reserves.len() {
+        return None;
+    }
+
+    let initial_in_d = calculate_d::<N>(initial_reserves, amplification)?;
+
+    let d_plus = initial_in_d
+        .checked_mul_into(&shares_in.checked_add(share_issuance)?)?
+        .checked_div_inner(&share_issuance)?
+        .try_into()
+        .ok()?;
+
+    let xp: Vec<Balance> = initial_reserves
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| *idx != idx_in)
+        .map(|(_, v)| *v)
+        .collect();
+
+    let reserve_in = calculate_y::<N>(&xp, d_plus, amplification)?;
+
+    reserve_in.checked_sub(initial_reserves[idx_in])
+}
 
 /// Given amount of shares and asset reserves, calculate corresponding amount of selected asset to be withdrawn.
 pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
@@ -129,6 +252,15 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
     if shares > share_asset_issuance {
         return None;
     }
+
+    let n_coins = reserves.len();
+    if n_coins <= 1 {
+        return None;
+    }
+    let fixed_fee = FixedU128::from(fee);
+    let fee = fixed_fee
+        .checked_mul(&FixedU128::from(n_coins as u128))?
+        .checked_div(&FixedU128::from(4 * (n_coins - 1) as u128))?;
 
     let initial_d = calculate_d::<N>(reserves, amplification)?;
 
@@ -162,7 +294,9 @@ pub fn calculate_withdraw_one_asset<const N: u8, const N_Y: u8>(
         };
 
         let expected = Balance::try_from(dx_expected).ok()?;
-        let reduced = Balance::try_from(*reserve).ok()?.checked_sub(fee.mul_floor(expected))?;
+        let reduced = Balance::try_from(*reserve)
+            .ok()?
+            .checked_sub(fee.checked_mul_int(expected)?)?;
 
         if idx != asset_index {
             reserves_reduced.push(reduced);
