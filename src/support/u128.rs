@@ -110,7 +110,7 @@ fn checked_div_inner_handles_max_u256() {
     let a: U256 = U256::MAX;
     let b: u128 = u128::MAX;
 
-    let expected = U256::from(a) / U256::from(b);
+    let expected = a / U256::from(b);
 
     assert_eq!(a.checked_div_inner(&b), Some(expected));
 }
