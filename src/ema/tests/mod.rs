@@ -133,6 +133,12 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
     let incoming_volume = (8u128, 1u128, 4u128, 0u128);
     let next_volume = volume_weighted_average(start_volume, incoming_volume, smoothing);
     assert_eq!(next_volume, (5u128, 1u128, 7u128, 0u128));
+
+    // liquidity
+    let start_liquidity = (4u128, 8u128);
+    let incoming_liquidity = (8u128, 4u128);
+    let next_liquidity = liquidity_weighted_average(start_liquidity, incoming_liquidity, smoothing);
+    assert_eq!(next_liquidity, (5u128, 7u128));
 }
 
 #[test]

@@ -58,6 +58,14 @@ fn any_price() -> impl Strategy<Value = EmaPrice> {
     any_rational().prop_map(|(n, d)| EmaPrice::new_unchecked(n, d))
 }
 
+fn any_volume() -> impl Strategy<Value = EmaVolume> {
+    (any::<Balance>(), any::<Balance>(), any::<Balance>(), any::<Balance>())
+}
+
+fn any_liquidity() -> impl Strategy<Value = EmaLiquidity> {
+    (any::<Balance>(), any::<Balance>())
+}
+
 fn period_fraction() -> impl Strategy<Value = Fraction> {
     (typical_period()).prop_map(smoothing_from_period)
 }
@@ -129,7 +137,7 @@ proptest! {
     #[test]
     fn volume_ema_stays_stable_if_the_value_does_not_change(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
-        volume in (any::<Balance>(), any::<Balance>(), any::<Balance>(), any::<Balance>())
+        volume in any_volume()
     ) {
         let next_volume = volume_weighted_average(volume, volume, smoothing);
         prop_assert_eq!(next_volume, volume);
@@ -141,7 +149,7 @@ proptest! {
     fn iterated_volume_ema_approaches_zero(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         iterations in 1_u32..MAX_ITERATIONS,
-        volume in (any::<Balance>(), any::<Balance>(), any::<Balance>(), any::<Balance>())
+        volume in any_volume()
     ) {
         let next_volume = iterated_volume_ema(iterations, volume, smoothing);
         let expected = (
@@ -156,6 +164,22 @@ proptest! {
 
 proptest! {
     #[test]
+    fn iterated_liquidity_ema_is_same_as_two_balance_emas(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        iterations in 1_u32..MAX_ITERATIONS,
+        (prev, incoming) in (any_liquidity(), any_liquidity()),
+    ) {
+        let next_liquidity = iterated_liquidity_ema(iterations, prev, incoming, smoothing);
+        let expected = (
+            iterated_balance_ema(iterations, prev.0, incoming.0, smoothing),
+            iterated_balance_ema(iterations, prev.1, incoming.1, smoothing),
+        );
+        prop_assert_eq!(next_liquidity, expected);
+    }
+}
+
+proptest! {
+    #[test]
     fn one_price_iteration_ema_is_same_as_simple_version(
         smoothing in fraction_above_zero_and_less_or_equal_one(),
         (prev_price, incoming_price) in (any_price(), any_price())
@@ -163,6 +187,39 @@ proptest! {
         let iter_price = iterated_price_ema(1, prev_price, incoming_price, smoothing);
         let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
         prop_assert_eq!(iter_price, simple_price);
+    }
+}
+
+proptest! {
+    #[test]
+    fn calculate_new_by_integrating_incoming_is_same_as_weighted_average(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        (prev_price, incoming_price) in (any_price(), any_price()),
+        (prev_volume, incoming_volume) in (any_volume(), any_volume()),
+        (prev_liquidity, incoming_liquidity) in (any_liquidity(), any_liquidity()),
+    ) {
+        let simple_price = price_weighted_average(prev_price, incoming_price, smoothing);
+        let simple_volume = volume_weighted_average(prev_volume, incoming_volume, smoothing);
+        let simple_liquidity = liquidity_weighted_average(prev_liquidity, incoming_liquidity, smoothing);
+        let new_oracle = calculate_new_by_integrating_incoming((prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_volume, incoming_liquidity), smoothing);
+        prop_assert_eq!(new_oracle, (simple_price, simple_volume, simple_liquidity));
+    }
+}
+
+proptest! {
+    #[test]
+    fn update_outdated_to_current_is_same_as_iterated_ema(
+        smoothing in fraction_above_zero_and_less_or_equal_one(),
+        iterations in 1_u32..MAX_ITERATIONS,
+        (prev_price, incoming_price) in (any_price(), any_price()),
+        prev_volume in any_volume(),
+        (prev_liquidity, incoming_liquidity) in (any_liquidity(), any_liquidity()),
+    ) {
+        let iterated_price = iterated_price_ema(iterations, prev_price, incoming_price, smoothing);
+        let iterated_volume = iterated_volume_ema(iterations, prev_volume, smoothing);
+        let iterated_liquidity = iterated_liquidity_ema(iterations, prev_liquidity, incoming_liquidity, smoothing);
+        let current_oracle = update_outdated_to_current(iterations, (prev_price, prev_volume, prev_liquidity), (incoming_price, incoming_liquidity), smoothing);
+        prop_assert_eq!(current_oracle, (iterated_price, iterated_volume, iterated_liquidity));
     }
 }
 
