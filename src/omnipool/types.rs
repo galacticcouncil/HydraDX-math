@@ -20,6 +20,11 @@ impl<Balance> AssetReserveState<Balance>
 where
     Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + Copy + CheckedAdd + CheckedSub + Default,
 {
+    /// Returns price in hub asset as rational number.
+    pub(crate) fn price_as_rational(&self) -> (Balance, Balance) {
+        (self.hub_reserve, self.reserve)
+    }
+
     /// Calculate price for actual state
     pub(crate) fn price(&self) -> Option<FixedU128> {
         FixedU128::checked_from_rational(self.hub_reserve.into(), self.reserve.into())
@@ -139,7 +144,7 @@ impl<Balance: Into<<FixedU128 as FixedPointNumber>::Inner> + CheckedAdd + Checke
 }
 
 /// Delta changes of asset state
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct AssetStateChange<Balance>
 where
     Balance: Default,
@@ -151,7 +156,7 @@ where
 }
 
 /// Delta changes after a trade is executed
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub struct TradeStateChange<Balance>
 where
     Balance: Default,
@@ -163,7 +168,7 @@ where
 }
 
 /// Delta changes after a trade with hub asset is executed.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct HubTradeStateChange<Balance>
 where
     Balance: Default,
@@ -185,7 +190,7 @@ where
     pub lp_hub_amount: Balance,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Position<Balance> {
     /// Amount of asset added to omnipool
     pub amount: Balance,

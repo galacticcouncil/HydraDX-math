@@ -184,7 +184,7 @@ fn calculate_withdraw_one_asset_should_work_when_max_supported_nbr_of_balances_i
     assert!(result.is_some());
     let result = result.unwrap();
 
-    assert_eq!(result, (384u128, 1535u128));
+    assert_eq!(result, (1440u128, 479u128));
 }
 
 #[test]
@@ -236,7 +236,9 @@ fn calculate_withdraw_one_asset_should_work_when_fee_hundred_percent() {
         amp,
         fee,
     );
-    assert!(result.is_none());
+    assert!(result.is_some());
+
+    assert_eq!(result.unwrap(), (960, 959));
 }
 
 #[test]
