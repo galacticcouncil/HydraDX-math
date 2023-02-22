@@ -1,4 +1,5 @@
 use crate::fraction;
+use crate::support::rational::Rounding;
 use crate::to_u128_wrapper;
 use crate::transcendental::saturating_powi_high_precision;
 use crate::types::{Balance, Fraction, Ratio};
@@ -215,27 +216,6 @@ pub(super) fn multiply(f: Fraction, (r_n, r_d): (U256, U256)) -> (U512, U512) {
     // d = l.d * DIV
     let d = r_d.full_mul(U256::from(crate::fraction::DIV));
     (n, d)
-}
-
-/// Enum to specify how to round a rational number.
-/// `Nearest` rounds both numerator and denominator down.
-/// `Down` ensures the output is less than or equal to the input.
-/// `Up` ensures the output is greater than or equal to the input.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Rounding {
-    Nearest,
-    Down,
-    Up,
-}
-
-impl Rounding {
-    pub fn to_bias(self, magnitude: u128) -> (u128, u128) {
-        match self {
-            Rounding::Nearest => (0, 0),
-            Rounding::Down => (0, magnitude),
-            Rounding::Up => (magnitude, 0),
-        }
-    }
 }
 
 /// Reduce the precision of a 512 bit rational number to 383 bits.

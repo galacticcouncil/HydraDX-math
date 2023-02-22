@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::fraction;
+use crate::support::rational::Rounding;
 use crate::test_utils::fraction_to_high_precision;
 use crate::test_utils::{assert_approx_eq, assert_rational_approx_eq, assert_rational_relative_approx_eq};
 use crate::transcendental::saturating_powi_high_precision;
