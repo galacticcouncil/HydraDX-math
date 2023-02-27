@@ -1,4 +1,4 @@
-use super::super::test_utils::assert_eq_approx;
+use super::super::test_utils::assert_approx_eq;
 use crate::lbp::lbp;
 use primitive_types::U256;
 use proptest::prelude::*;
@@ -49,6 +49,6 @@ proptest! {
         let b2 = U256::from(end_x_block.checked_sub(start_x_block).unwrap());
 
         let max_delta = U256::from(lbp_length); //As the rounding error scales linearly with the length of the LB
-        assert_eq_approx!(a1*a2, b1*b2, max_delta, "The invariant does not hold")
+        assert_approx_eq!(a1*a2, b1*b2, max_delta, "The invariant does not hold")
     }
 }

@@ -4,7 +4,7 @@ use sp_arithmetic::{FixedPointNumber, FixedU128};
 
 use std::vec;
 
-use crate::assert_eq_approx;
+use crate::assert_approx_eq;
 
 #[test]
 fn calculate_loyalty_multiplier_should_work() {
@@ -366,7 +366,7 @@ fn calculate_accumulated_rps_should_work() {
     ];
 
     for (accumulated_rps_now, total_shares, reward, expected_accumulated_rps) in testing_values.iter() {
-        assert_eq_approx!(
+        assert_approx_eq!(
             calculate_accumulated_rps(*accumulated_rps_now, *total_shares, *reward).unwrap(),
             *expected_accumulated_rps,
             FixedU128::from_float(0.000_000_11),

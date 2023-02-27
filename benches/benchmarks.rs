@@ -44,7 +44,7 @@ where
 
 fn bench_pow<F>(c: &mut Criterion)
 where
-    F: FixedUnsigned,
+    F: FixedUnsigned + One,
     F::Bits:
         Zero + One + PartialEq + SampleUniform + Shr + ShrAssign + ShlAssign + ToFixed + Copy + AddAssign + BitOrAssign,
     Standard: Distribution<F::Bits>,

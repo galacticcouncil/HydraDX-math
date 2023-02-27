@@ -18,38 +18,38 @@
 
 use core::convert::From;
 use core::ops::{AddAssign, BitOrAssign, ShlAssign, Shr, ShrAssign};
-use fixed::traits::FixedUnsigned;
-use fixed::traits::ToFixed;
+use fixed::traits::{FixedUnsigned, ToFixed};
+use num_traits::{One, SaturatingMul, Zero};
 
 /// right-shift with rounding
 fn rs<T>(operand: T) -> T
 where
-    T: FixedUnsigned,
+    T: FixedUnsigned + One,
 {
-    let lsb = T::from_num(1) >> T::FRAC_NBITS;
-    (operand >> 1) + (operand & lsb)
+    let lsb = T::one() >> T::FRAC_NBITS;
+    (operand >> 1_u32) + (operand & lsb)
 }
 
 /// base 2 logarithm assuming self >=1
 fn log2_inner<S, D>(operand: S) -> D
 where
-    S: FixedUnsigned + PartialOrd<D>,
-    D: FixedUnsigned,
+    S: FixedUnsigned + PartialOrd<D> + One,
+    D: FixedUnsigned + One,
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
 {
     let two = D::from_num(2);
     let mut x = operand;
     let mut result = D::from_num(0).to_bits();
-    let lsb = (D::from_num(1) >> D::FRAC_NBITS).to_bits();
+    let lsb = (D::one() >> D::FRAC_NBITS).to_bits();
 
     while x >= two {
         result += lsb;
         x = rs(x);
     }
 
-    if x == D::from_num(1) {
+    if x == D::one() {
         return D::from_num(result);
-    };
+    }
 
     for _i in (0..D::FRAC_NBITS).rev() {
         x *= x;
@@ -68,18 +68,18 @@ where
 pub fn log2<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
-    D: FixedUnsigned + From<S>,
+    D: FixedUnsigned + From<S> + One,
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
 {
     if operand <= S::from_num(0) {
         return Err(());
-    };
+    }
 
     let operand = D::from(operand);
-    if operand < D::from_num(1) {
-        let inverse = D::from_num(1).checked_div(operand).unwrap(); // Unwrap is safe because operand is always > 0
+    if operand < D::one() {
+        let inverse = D::one().checked_div(operand).unwrap(); // Unwrap is safe because operand is always > 0
         return Ok((log2_inner::<D, D>(inverse), true));
-    };
+    }
     Ok((log2_inner::<D, D>(operand), false))
 }
 
@@ -88,7 +88,7 @@ where
 pub fn ln<S, D>(operand: S) -> Result<(D, bool), ()>
 where
     S: FixedUnsigned,
-    D: FixedUnsigned + From<S>,
+    D: FixedUnsigned + From<S> + One,
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShrAssign + Shr,
 {
@@ -101,20 +101,20 @@ where
 /// neg - bool indicates that operand is negative value.
 pub fn exp<S, D>(operand: S, neg: bool) -> Result<D, ()>
 where
-    S: FixedUnsigned + PartialOrd<D>,
-    D: FixedUnsigned + PartialOrd<S> + From<S>,
+    S: FixedUnsigned + PartialOrd<D> + One,
+    D: FixedUnsigned + PartialOrd<S> + From<S> + One,
 {
     if operand.is_zero() {
-        return Ok(D::from_num(1));
-    };
-    if operand == S::from_num(1) {
+        return Ok(D::one());
+    }
+    if operand == S::one() {
         //TODO: make this as const somewhere
         let e = S::from_str("2.718281828459045235360287471352662497757").map_err(|_| ())?;
         return Ok(D::from(e));
-    };
+    }
 
     let operand = D::from(operand);
-    let mut result = operand + D::from_num(1);
+    let mut result = operand + D::one();
     let mut term = operand;
 
     let max_iter = D::FRAC_NBITS.checked_mul(3).ok_or(())?;
@@ -126,28 +126,27 @@ where
     })?;
 
     if neg {
-        result = D::from_num(1).checked_div(result).ok_or(())?;
+        result = D::one().checked_div(result).ok_or(())?;
     }
 
     Ok(result)
 }
 
+/// power function with arbitrary fixed point number exponent
 pub fn pow<S, D>(operand: S, exponent: S) -> Result<D, ()>
 where
-    S: FixedUnsigned + PartialOrd<D>,
-    D: FixedUnsigned + From<S>,
+    S: FixedUnsigned + One + PartialOrd<D> + Zero,
+    D: FixedUnsigned + From<S> + One + Zero,
     D::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign,
     S::Bits: Copy + ToFixed + AddAssign + BitOrAssign + ShlAssign + Shr + ShrAssign,
 {
     if operand.is_zero() {
-        return Ok(D::from_num(0));
-    };
-    if exponent == S::from_num(0) {
-        return Ok(D::from_num(1));
-    };
-    if exponent == S::from_num(1) {
+        return Ok(D::zero());
+    } else if exponent == S::zero() {
+        return Ok(D::one());
+    } else if exponent == S::one() {
         return Ok(D::from(operand));
-    };
+    }
 
     let (r, neg) = ln::<S, D>(operand)?;
 
@@ -164,18 +163,16 @@ where
 /// power with integer exponent
 pub fn powi<S, D>(operand: S, exponent: u32) -> Result<D, ()>
 where
-    S: FixedUnsigned,
-    D: FixedUnsigned + From<S>,
+    S: FixedUnsigned + Zero,
+    D: FixedUnsigned + From<S> + One + Zero,
 {
-    if operand == S::from_num(0) {
-        return Ok(D::from_num(0));
-    };
-    if exponent == 0 {
-        return Ok(D::from_num(1));
-    };
-    if exponent == 1 {
+    if operand == S::zero() {
+        return Ok(D::zero());
+    } else if exponent == 0 {
+        return Ok(D::one());
+    } else if exponent == 1 {
         return Ok(D::from(operand));
-    };
+    }
     let operand = D::from(operand);
 
     let r = (1..exponent).try_fold(operand, |acc, _| acc.checked_mul(operand));
@@ -183,14 +180,114 @@ where
     r.ok_or(())
 }
 
+/// Determine `operand^n` for with higher precision for `operand` values close to but less than 1.
+pub fn saturating_powi_high_precision<S, D>(operand: S, n: u32) -> D
+where
+    S: FixedUnsigned + One + Zero,
+    D: FixedUnsigned + From<S> + One + Zero,
+    S::Bits: From<u32>,
+    D::Bits: From<u32>,
+{
+    if operand == S::zero() {
+        return D::zero();
+    } else if n == 0 {
+        return D::one();
+    } else if n == 1 {
+        return D::from(operand);
+    }
+
+    // this determines when we use the taylor series approximation at 1
+    // if boundary = 0, we will never use the taylor series approximation.
+    // as boundary -> 1, we will use the taylor series approximation more and more
+    // boundary > 1 can cause overflow in the taylor series approximation
+    let boundary = S::one()
+        .checked_div_int(10_u32.into())
+        .expect("1 / 10 does not fail; qed");
+    match (boundary.checked_div_int(n.into()), S::one().checked_sub(operand)) {
+        (Some(b), Some(one_minus_operand)) if b > one_minus_operand => {
+            powi_near_one(operand.into(), n).unwrap_or_else(|| saturating_pow(operand.into(), n))
+        }
+        _ => saturating_pow(operand.into(), n),
+    }
+}
+
+fn saturating_pow<S>(operand: S, exp: u32) -> S
+where
+    S: FixedUnsigned + One + SaturatingMul,
+    S::Bits: From<u32>,
+{
+    if exp == 0 {
+        return S::one();
+    }
+
+    let msb_pos = 32 - exp.leading_zeros();
+
+    let mut result = S::one();
+    let mut pow_val = operand;
+    for i in 0..msb_pos {
+        if ((1 << i) & exp) > 0 {
+            result = result.saturating_mul(pow_val);
+        }
+        pow_val = pow_val.saturating_mul(pow_val);
+    }
+    result
+}
+
+/// Determine `operand^n` for `operand` values close to but less than 1.
+fn powi_near_one<S>(operand: S, n: u32) -> Option<S>
+where
+    S: FixedUnsigned + One + Zero,
+    S::Bits: From<u32>,
+{
+    if n == 0 {
+        return Some(S::one());
+    } else if n == 1 {
+        return Some(operand);
+    }
+    let one_minus_operand = S::one().checked_sub(operand)?;
+
+    // prevents overflows
+    debug_assert!(S::one().checked_div_int(n.into())? > one_minus_operand);
+    if S::one().checked_div_int(n.into())? <= one_minus_operand {
+        return None;
+    }
+
+    let mut s_pos = S::one();
+    let mut s_minus = S::zero();
+    let mut t = S::one();
+    // increasing number of iterations will allow us to return a result for operands farther from 1,
+    // or for higher values of n
+    let iterations = 32_u32;
+    for i in 1..iterations {
+        // bare math fine because n > 1 and return condition below
+        let b = one_minus_operand.checked_mul_int(S::Bits::from(n - i + 1))?;
+        let t_factor = b.checked_div_int(i.into())?;
+        t = t.checked_mul(t_factor)?;
+        if i % 2 == 0 || operand > S::one() {
+            s_pos = s_pos.checked_add(t)?;
+        } else {
+            s_minus = s_minus.checked_add(t)?;
+        }
+
+        // if i >= b, all future terms will be zero because kth derivatives of a polynomial
+        // of degree n where k > n are zero
+        // if t == 0, all future terms will be zero because they will be multiples of t
+        if i >= n || t == S::zero() {
+            return s_pos.checked_sub(s_minus);
+        }
+    }
+    None // if we do not have convergence, we do not risk returning an inaccurate value
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::types::FixedBalance;
+    use crate::fraction;
+    use crate::types::{FixedBalance, Fraction};
     use core::str::FromStr;
     use fixed::traits::LossyInto;
     use fixed::types::U64F64;
 
-    use super::{exp, log2, pow, powi};
+    use super::*;
 
     #[test]
     fn exp_works() {
@@ -200,7 +297,7 @@ mod tests {
         let e = S::from_str("2.718281828459045235360287471352662497757").unwrap();
 
         let zero = S::from_num(0);
-        let one = S::from_num(1);
+        let one = S::one();
         let two = S::from_num(2);
 
         assert_eq!(exp::<S, D>(zero, false), Ok(D::from_num(one)));
@@ -221,7 +318,7 @@ mod tests {
         type D = U64F64;
 
         let zero = S::from_num(0);
-        let one = S::from_num(1);
+        let one = S::one();
         let two = S::from_num(2);
         let four = S::from_num(4);
 
@@ -239,16 +336,70 @@ mod tests {
         type D = U64F64;
 
         let zero = S::from_num(0);
-        let one = S::from_num(1);
+        let one = S::one();
         let two = S::from_num(2);
         let four = S::from_num(4);
 
         assert_eq!(powi(two, 0), Ok(D::from_num(one)));
         assert_eq!(powi(zero, 2), Ok(D::from_num(zero)));
         assert_eq!(powi(two, 1), Ok(D::from_num(2)));
+        assert_eq!(powi(two, 2), Ok(D::from_num(4)));
         assert_eq!(powi(two, 3), Ok(D::from_num(8)));
         assert_eq!(powi(one / four, 2), Ok(D::from_num(0.0625)));
-        assert_eq!(powi(S::from_num(2), 2), Ok(D::from_num(4)));
+    }
+
+    #[test]
+    fn saturating_powi_high_precision_works() {
+        type S = U64F64;
+        type D = U64F64;
+
+        let zero = S::from_num(0);
+        let one = S::one();
+        let two = S::from_num(2);
+        let four = S::from_num(4);
+
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 0), D::from_num(one));
+        assert_eq!(saturating_powi_high_precision::<S, D>(zero, 2), D::from_num(zero));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 1), D::from_num(2));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 2), D::from_num(4));
+        assert_eq!(saturating_powi_high_precision::<S, D>(two, 3), D::from_num(8));
+        assert_eq!(
+            saturating_powi_high_precision::<S, D>(one / four, 2),
+            D::from_num(0.0625)
+        );
+        assert_eq!(
+            saturating_powi_high_precision::<S, D>(S::from_num(9) / 10, 2),
+            D::from_num(81) / 100
+        );
+
+        let expected: D = powi(D::from_num(9) / 10, 2).unwrap();
+        assert_eq!(saturating_powi_high_precision::<S, D>(S::from_num(9) / 10, 2), expected);
+        let expected: D = powi(D::from_num(8) / 10, 2).unwrap();
+        assert_eq!(saturating_powi_high_precision::<S, D>(S::from_num(8) / 10, 2), expected);
+    }
+
+    #[test]
+    fn saturating_powi_high_precision_works_for_fraction() {
+        assert_eq!(
+            saturating_powi_high_precision::<Fraction, Fraction>(Fraction::one() / 4, 2),
+            Fraction::from_num(0.0625)
+        );
+        assert_eq!(
+            saturating_powi_high_precision::<Fraction, Fraction>(fraction::frac(6, 10), 2),
+            fraction::frac(36, 100)
+        );
+        let expected: Fraction = powi(fraction::frac(8, 10), 2).unwrap();
+        assert_eq!(
+            saturating_powi_high_precision::<Fraction, Fraction>(fraction::frac(8, 10), 2),
+            expected
+        );
+    }
+
+    #[test]
+    fn powi_near_one_works() {
+        type S = U64F64;
+
+        assert_eq!(powi_near_one(S::from_num(9) / 10, 2), Some(S::from_num(81) / 100));
     }
 
     #[test]
@@ -256,7 +407,7 @@ mod tests {
         type S = FixedBalance;
         type D = FixedBalance;
         let zero = S::from_num(0);
-        let one = S::from_num(1);
+        let one = S::one();
         let two = S::from_num(2);
         let three = S::from_num(3);
         let four = S::from_num(4);

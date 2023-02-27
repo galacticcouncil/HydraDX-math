@@ -1,4 +1,4 @@
-use crate::{assert_eq_approx, types::Balance};
+use crate::{assert_approx_eq, types::Balance};
 use proptest::prelude::*;
 use sp_arithmetic::traits::One;
 use sp_arithmetic::{
@@ -83,7 +83,7 @@ fn assert_loyalty_factor(b: FixedU128, periods: u32, scale_coef: u32, multiplier
         .unwrap();
 
     let tolerance = FixedU128::from((2, (ONE / 10_000))); //0.000_000_02
-    assert_eq_approx!(
+    assert_approx_eq!(
         lhs,
         rhs,
         tolerance,
@@ -176,7 +176,7 @@ proptest! {
                 .checked_add(&b).unwrap();
 
         let tolerance = FixedU128::from((1, ONE)); //0.000_000_000_001
-        assert_eq_approx!(multiplier, bound, tolerance, "loyalty multiplier, periods == scale_coef");
+        assert_approx_eq!(multiplier, bound, tolerance, "loyalty multiplier, periods == scale_coef");
 
         //LoyaltyFactor * (t + tb + scaleCoef*(b + 1)) == t + tb + b*scaleCoef*(b + 1)
         assert_loyalty_factor(b, periods, scale_coef, multiplier);
@@ -215,7 +215,7 @@ proptest! {
         assert!(max_rewards == p, "max_rewards ~= (accumulated_rpvs_now - accumulated_rpvs) * valued_shares");
 
         let tolerance = 1_u128; //0.000_000_000_001
-        assert_eq_approx!(
+        assert_approx_eq!(
             user_rewards.checked_add(accumulated_claimed_rewards).unwrap(),
             loyalty_multiplier.checked_mul_int(max_rewards).unwrap(),
             tolerance,

@@ -15,11 +15,14 @@ extern crate approx;
 #[cfg(test)]
 mod test_pow_accuracy;
 
+pub mod ema;
 pub mod fee;
+pub mod fraction;
 pub mod lbp;
 pub mod liquidity_mining;
 pub mod omnipool;
 pub mod omnipool_subpools;
+pub mod ratio;
 pub mod stableswap;
 pub mod support;
 #[cfg(test)]
@@ -51,6 +54,13 @@ macro_rules! round_up {
 macro_rules! to_u256 {
     ($($x:expr),+) => (
         {($(U256::from($x)),+)}
+    );
+}
+
+#[macro_export]
+macro_rules! to_u128_wrapper {
+    ($($x:expr),+) => (
+        {($(U128::from($x)),+)}
     );
 }
 
