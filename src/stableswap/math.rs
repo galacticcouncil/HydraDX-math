@@ -185,11 +185,13 @@ pub fn calculate_shares_removed<const N: u8>(
     if share_issuance == 0 {
         None
     } else {
-        let shares = share_issuance
+        let shares: Balance = share_issuance
             .checked_mul_into(&delta_d)?
             .checked_div_inner(&initial_d)?
             .try_into()
             .ok()?;
+
+        let shares = shares.checked_add(Balance::one())?;
 
         //apply fee^
 
