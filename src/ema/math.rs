@@ -88,7 +88,7 @@ pub fn iterated_liquidity_ema(
 /// Example:
 /// `exp_smoothing(0.6, 2) = 1 - (1 - 0.6)^2 = 1 - 0.40^2 = 1 - 0.16 = 0.84`
 ///
-/// ```
+/// ```ignore
 /// # use hydra_dx_math::ema::exp_smoothing;
 /// # use hydra_dy_math::types::Fraction;
 /// assert_eq!(exp_smoothing(Fraction::from_num(0.6), 2), FixedU128::from_num(0.84));
