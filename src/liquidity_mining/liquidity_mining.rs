@@ -127,3 +127,23 @@ pub fn calculate_rewards_for_periods<Period: num_traits::CheckedSub + TryInto<u3
     let periods = TryInto::<u128>::try_into(periods_since_last_update).map_err(|_e| MathError::Overflow)?;
     reward_per_period.checked_mul_int(periods).ok_or(MathError::Overflow)
 }
+
+/// This function caluclates yield farm rewards [`Balance`] and rewards per valued shares
+/// delta(`delta_rpvs`) [`FixedU128`] or error.
+pub fn calculate_yield_farm_rewards(
+    yield_farm_rpz: FixedU128,
+    global_farm_rpz: FixedU128,
+    multiplier: FixedU128,
+    total_valued_shares: Balance,
+) -> Result<(FixedU128, Balance), MathError> {
+    let stake_in_global_farm =
+        calculate_global_farm_shares(total_valued_shares, multiplier).map_err(|_| MathError::Overflow)?;
+
+    let yield_farm_rewards =
+        calculate_reward(yield_farm_rpz, global_farm_rpz, stake_in_global_farm).map_err(|_| MathError::Overflow)?;
+
+    let delta_rpvs =
+        FixedU128::checked_from_rational(yield_farm_rewards, total_valued_shares).ok_or(MathError::Overflow)?;
+
+    Ok((delta_rpvs, yield_farm_rewards))
+}
