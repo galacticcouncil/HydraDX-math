@@ -1,6 +1,6 @@
 use crate::liquidity_mining::liquidity_mining::*;
 
-use sp_arithmetic::{FixedPointNumber, FixedU128};
+use sp_arithmetic::FixedU128;
 
 use std::vec;
 
@@ -141,101 +141,6 @@ fn calculate_loyalty_multiplier_should_work() {
         assert_eq!(
             calculate_loyalty_multiplier(*periods, FixedU128::from_inner(0), 15).unwrap(),
             *expected_multiplier_4,
-        );
-    }
-}
-
-#[test]
-fn calculate_reward_per_period_should_work() {
-    let testing_values = vec![
-        (
-            FixedU128::from_inner(833_333_333_300_000), //0.000_833_333_333_3
-            12578954_u128,
-            156789_u128,
-            10482461666247368200000_u128,
-        ),
-        (
-            FixedU128::from_inner(83_333_333_330_000_000), //0.083_333_333_33
-            1246578_u128,
-            4684789_u128,
-            103881499995844740000000_u128,
-        ),
-        (
-            FixedU128::from_inner(36_666_666_670_000_000), //0.036_666_666_67
-            3980_u128,
-            488_u128,
-            145933333346600000000_u128,
-        ),
-        (
-            FixedU128::from_inner(166_666_666_700_000_000), //0.166_666_6667
-            9897454_u128,
-            1684653_u128,
-            1649575666996581800000000_u128,
-        ),
-        (
-            FixedU128::from_inner(6_250_000_000_000_000), //0.006_25
-            1687_u128,
-            28_u128,
-            10543750000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(12_500_000_000_000_000), //0.0125
-            3879_u128,
-            7_u128,
-            7000000000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(133_333_333_300_000_000), //0.133_333_333_3
-            35189_u128,
-            468787897_u128,
-            4691866665493700000000_u128,
-        ),
-        (
-            FixedU128::from_inner(3_111_392_405_000_000), //0.003_111_392_405
-            48954_u128,
-            161_u128,
-            152315103794370000000_u128,
-        ),
-        (
-            FixedU128::from_inner(375_000_000_000_000), //0.000_375
-            54789782_u128,
-            3_u128,
-            3000000000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(138_571_428_600_000_000), //0.138_571_428_6
-            17989865464312_u128,
-            59898_u128,
-            59898000000000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(37_500_000_000_000_000), //0.0375
-            2_u128,
-            7987_u128,
-            75000000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(78_750_000_000_000_000), //0.078_75
-            5_u128,
-            498741_u128,
-            393750000000000000_u128,
-        ),
-        (
-            FixedU128::from_inner(40_000_000_000_000_000), //0.04
-            5468_u128,
-            8798_u128,
-            218720000000000000000_u128,
-        ),
-        (FixedU128::from_inner(0), 68797_u128, 789846_u128, 0_u128),
-    ];
-
-    for (yield_per_period, total_farm_shares_z, max_reward_per_period, expected_reward_per_period) in
-        testing_values.iter()
-    {
-        assert_eq!(
-            calculate_global_farm_reward_per_period(*yield_per_period, *total_farm_shares_z, *max_reward_per_period)
-                .unwrap(),
-            FixedU128::from((*expected_reward_per_period, FixedU128::DIV))
         );
     }
 }
@@ -717,38 +622,311 @@ fn calculate_reward_should_work() {
 }
 
 #[test]
-fn calculate_adjusted_shares_should_work() {
-    assert_eq!(calculate_adjusted_shares(0, FixedU128::from(0)).unwrap(), 0);
+fn calculate_yield_farm_rewards_should_work() {
+    let testing_values = vec![
+        (
+            259_u128,
+            299_u128,
+            55563662_u128,
+            2222546480_u128,
+            40_000_000_000_000_000_000_u128,
+        ),
+        (
+            1148_u128,
+            1151_u128,
+            5671016_u128,
+            17013048_u128,
+            3_000_000_000_000_000_000_u128,
+        ),
+        (
+            523_u128,
+            823_u128,
+            61428_u128,
+            18428400_u128,
+            300_000_000_000_000_000_000_u128,
+        ),
+        (
+            317_u128,
+            320_u128,
+            527114_u128,
+            1581342_u128,
+            3_000_000_000_000_000_000_u128,
+        ),
+        (
+            596_u128,
+            5684_u128,
+            3011_u128,
+            15319968_u128,
+            5_088_000_000_000_000_000_000_u128,
+        ),
+        (
+            4_u128,
+            37_u128,
+            71071995_u128,
+            2345375835_u128,
+            33_000_000_000_000_000_000_u128,
+        ),
+        (
+            213_u128,
+            678_u128,
+            85452_u128,
+            39735180_u128,
+            465_000_000_000_000_000_000_u128,
+        ),
+        (
+            970_u128,
+            978_u128,
+            474403_u128,
+            3795224_u128,
+            8_000_000_000_000_000_000_u128,
+        ),
+        (
+            6_u128,
+            28_u128,
+            147690_u128,
+            3249180_u128,
+            22_000_000_000_000_000_000_u128,
+        ),
+        (
+            713_u128,
+            876_u128,
+            75987_u128,
+            12385881_u128,
+            163_000_000_000_000_000_000_u128,
+        ),
+        (
+            833_u128,
+            8373_u128,
+            7521_u128,
+            56708340_u128,
+            7_540_000_000_000_000_000_000_u128,
+        ),
+        (
+            586_u128,
+            5886_u128,
+            318_u128,
+            1685400_u128,
+            5_300_000_000_000_000_000_000_u128,
+        ),
+        (
+            251_u128,
+            2591_u128,
+            28732_u128,
+            67232880_u128,
+            2_340_000_000_000_000_000_000_u128,
+        ),
+        (
+            77_u128,
+            80_u128,
+            26611087_u128,
+            79833261_u128,
+            3_000_000_000_000_000_000_u128,
+        ),
+        (
+            2491_u128,
+            2537_u128,
+            85100506_u128,
+            3914623276_u128,
+            46_000_000_000_000_000_000_u128,
+        ),
+        (
+            295_u128,
+            471_u128,
+            358776_u128,
+            63144576_u128,
+            176_000_000_000_000_000_000_u128,
+        ),
+        (
+            450_u128,
+            952_u128,
+            356723_u128,
+            179074946_u128,
+            502_000_000_000_000_000_000_u128,
+        ),
+        (
+            82_u128,
+            357_u128,
+            932564_u128,
+            256455100_u128,
+            275_000_000_000_000_000_000_u128,
+        ),
+        (
+            81_u128,
+            1557_u128,
+            758404_u128,
+            1119404304_u128,
+            1_476_000_000_000_000_000_000_u128,
+        ),
+        (
+            266_u128,
+            2564373_u128,
+            5278_u128,
+            13533356746_u128,
+            2_564_107_000_000_000_000_000_000_u128,
+        ),
+        (129_u128, 129_u128, 86085676_u128, 0_u128, 0),
+    ];
 
-    assert_eq!(calculate_adjusted_shares(16_841_351, FixedU128::from(0)).unwrap(), 0);
-
-    assert_eq!(
-        calculate_adjusted_shares(16_841_351, FixedU128::from_inner(156_874_561_300_000_000)).unwrap(),
-        2_641_979
-    );
-
-    assert_eq!(
-        calculate_adjusted_shares(16_841_351, FixedU128::from_inner(18_641_535_156_874_561_300_000_000)).unwrap(),
-        313_948_636_755_764
-    );
+    for (
+        yield_farm_accumulated_rpz,
+        global_farm_accumuated_rpz,
+        total_valued_shares,
+        expected_rewards_from_global_farm,
+        expected_delta_rpvs,
+    ) in testing_values.iter()
+    {
+        assert_eq!(
+            calculate_yield_farm_rewards(
+                FixedU128::from(*yield_farm_accumulated_rpz),
+                FixedU128::from(*global_farm_accumuated_rpz),
+                FixedU128::from(1),
+                *total_valued_shares
+            )
+            .unwrap(),
+            (
+                FixedU128::from_inner(*expected_delta_rpvs),
+                *expected_rewards_from_global_farm
+            )
+        );
+    }
 }
 
 #[test]
-fn calculate_rewards_for_periods_should_work() {
-    assert_eq!(calculate_rewards_for_periods(FixedU128::from(0), 0).unwrap(), 0);
+fn calculate_global_farm_rewards_should_work() {
+    let testing_values = vec![
+        (
+            FixedU128::from_inner(833_333_333_300_000), //0.000_833_333_333_3
+            12578954_u128,
+            156789_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            100,
+            1_048_246_u128,
+        ),
+        (
+            FixedU128::from_inner(83_333_333_330_000_000), //0.083_333_333_33
+            1246578_u128,
+            4684789_u128,
+            FixedU128::from_inner(500_000_000_000_000_000), //.5
+            10,
+            519_407_u128,
+        ),
+        (
+            FixedU128::from_inner(36_666_666_670_000_000), //0.036_666_666_67
+            3980_u128,
+            488_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            58,
+            8_464_u128,
+        ),
+        (
+            FixedU128::from_inner(166_666_666_700_000_000), //0.166_666_6667
+            9897454_u128,
+            1684653_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            1649575_u128,
+        ),
+        (
+            FixedU128::from_inner(6_250_000_000_000_000), //0.006_25
+            1687_u128,
+            28_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            10_u128,
+        ),
+        (
+            FixedU128::from_inner(12_500_000_000_000_000), //0.0125
+            3879_u128,
+            7_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1_000,
+            7_000_u128,
+        ),
+        (
+            FixedU128::from_inner(133_333_333_300_000_000), //0.133_333_333_3
+            35189_u128,
+            468787897_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            10,
+            46_918_u128,
+        ),
+        (
+            FixedU128::from_inner(3_111_392_405_000_000), //0.003_111_392_405
+            48954_u128,
+            161_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            152_u128,
+        ),
+        (
+            FixedU128::from_inner(375_000_000_000_000), //0.000_375
+            54789782_u128,
+            3_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            3_u128,
+        ),
+        (
+            FixedU128::from_inner(138_571_428_600_000_000), //0.138_571_428_6
+            17989865464312_u128,
+            59898_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            59898_u128,
+        ),
+        (
+            FixedU128::from_inner(37_500_000_000_000_000), //0.0375
+            2_u128,
+            7987_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            0_u128,
+        ),
+        (
+            FixedU128::from_inner(78_750_000_000_000_000), //0.078_75
+            5000000000000_u128,
+            498741_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            498741_u128,
+        ),
+        (
+            FixedU128::from_inner(40_000_000_000_000_000), //0.04
+            5468_u128,
+            8798_u128,
+            FixedU128::from_inner(1_000_000_000_000_000_000),
+            1,
+            218_u128,
+        ),
+        (
+            FixedU128::from_inner(0),
+            68797_u128,
+            789846_u128,
+            FixedU128::from_inner(500_000_000_000_000_000),
+            1_000,
+            0_u128,
+        ),
+    ];
 
-    assert_eq!(
-        calculate_rewards_for_periods(FixedU128::from(0), 16_841_351,).unwrap(),
-        0
-    );
-
-    assert_eq!(
-        calculate_rewards_for_periods(FixedU128::from_inner(156_874_561_300_000_000), 16_841_351,).unwrap(),
-        2_641_979
-    );
-
-    assert_eq!(
-        calculate_rewards_for_periods(FixedU128::from_inner(18_641_535_156_874_561_300_000_000), 16_841_351,).unwrap(),
-        313_948_636_755_764
-    );
+    for (
+        yield_per_period,
+        total_shares_z,
+        max_reward_per_period,
+        price_adjustment,
+        periods_since_last_update,
+        expected_rewards,
+    ) in testing_values.iter()
+    {
+        assert_eq!(
+            calculate_global_farm_rewards(
+                *total_shares_z,
+                *price_adjustment,
+                *yield_per_period,
+                *max_reward_per_period,
+                *periods_since_last_update
+            )
+            .unwrap(),
+            *expected_rewards
+        );
+    }
 }
