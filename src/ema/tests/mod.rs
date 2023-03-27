@@ -85,6 +85,42 @@ fn round_to_rational_should_work() {
 }
 
 #[test]
+fn round_u256_to_rational_should_work() {
+    let res = round_u256_to_rational((U256::from(1), U256::from(1)), Rounding::Nearest);
+    let expected = EmaPrice::new(1, 1);
+    assert_eq!(res, expected,);
+
+    let res = round_u256_to_rational((U256::MAX, U256::MAX), Rounding::Nearest);
+    let expected = EmaPrice::new(u128::MAX, u128::MAX);
+    assert_eq!(res, expected,);
+
+    let res = round_u256_to_rational((U256::MAX, U256::from(1)), Rounding::Nearest);
+    let expected = EmaPrice::new(u128::MAX, 1);
+    assert_eq!(res, expected,);
+
+    let res = round_u256_to_rational((U256::from(1), U256::MAX), Rounding::Nearest);
+    let expected = EmaPrice::new(1, u128::MAX);
+    assert_eq!(res, expected,);
+
+    let d = 323853616005226055489000679651893043332_u128;
+    let res = round_u256_to_rational(
+        (
+            U256::from_dec_str("34599284998074995708396179719034205723253966454380752564716172454912477882716")
+                .unwrap(),
+            U256::from(d),
+        ),
+        Rounding::Down,
+    );
+    let boundary = Rational::from_str_radix(
+        "34599284998074995708396179719034205723253966454380752564716172454912477882716",
+        10,
+    )
+        .unwrap()
+        / d;
+    assert!(Rational::from(res) <= boundary);
+}
+
+#[test]
 fn weighted_averages_work_on_small_values_with_correct_ratios() {
     let smoothing = smoothing_from_period(7);
 

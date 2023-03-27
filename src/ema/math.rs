@@ -236,25 +236,37 @@ pub(super) fn round((n, d): (U512, U512), rounding: Rounding) -> (U512, U512) {
     }
 }
 
+macro_rules! round_uint_to_rational {
+    ($n:expr, $d:expr, $rounding:expr) => {{
+        let shift = $n.bits().max($d.bits()).saturating_sub(128);
+        let (nominator, denominator) = if shift > 0 {
+            let min_n = if $n.is_zero() { 0 } else { 1 };
+            let (bias_n, bias_d) = $rounding.to_bias(1);
+            (
+                ($n >> shift).low_u128().saturating_add(bias_n).max(min_n),
+                ($d >> shift).low_u128().saturating_add(bias_d).max(1),
+            )
+        } else {
+            ($n.low_u128(), $d.low_u128())
+        };
+        EmaPrice::new(nominator, denominator)
+    }};
+}
+
 /// Round a 512 bit rational number to a 128 bit rational number.
 /// The rounding is done by shifting which implicitly rounds down both numerator and denominator.
 /// This can effectivly round the complete rational number up or down pseudo-randomly.
 /// Specify `rounding` other than `Nearest` to round the whole number up or down.
 pub(super) fn round_to_rational((n, d): (U512, U512), rounding: Rounding) -> EmaPrice {
-    let shift = n.bits().max(d.bits()).saturating_sub(128);
-    let (n, d) = if shift > 0 {
-        let min_n = if n.is_zero() { 0 } else { 1 };
-        let (bias_n, bias_d) = rounding.to_bias(1);
-        let shifted_n = (n >> shift).low_u128();
-        let shifted_d = (d >> shift).low_u128();
-        (
-            shifted_n.saturating_add(bias_n).max(min_n),
-            shifted_d.saturating_add(bias_d).max(1),
-        )
-    } else {
-        (n.low_u128(), d.low_u128())
-    };
-    EmaPrice::new(n, d)
+    round_uint_to_rational!(n,d,rounding)
+}
+
+/// Round a 256 bit rational number to a 128 bit rational number.
+/// The rounding is done by shifting which implicitly rounds down both numerator and denominator.
+/// This can effectivly round the complete rational number up or down pseudo-randomly.
+/// Specify `rounding` other than `Nearest` to round the whole number up or down.
+pub fn round_u256_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
+    round_uint_to_rational!(n,d,rounding)
 }
 
 /// Add `l` and `r` and round the result to a 128 bit rational number.
