@@ -13,10 +13,10 @@ primitive-types = {default-features = false, version = '0.12.0'}
 num-traits = {default-features = false, version = "0.2.14"}
 fixed = { version = "=1.15.0", features = ["num-traits"] }
 # Added because of use of the FixedU128, used to implement `Ratio`
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive", "max-encoded-len"] }
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive", "max-encoded-len"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.37", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.37", default-features = false }
+sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.38", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch="polkadot-v0.9.38", default-features = false }
 
 # Added optional serde support for (de-)serializing `Ratio`
 serde = { version = "1.0.136", optional = true }
