@@ -115,7 +115,7 @@ fn round_u256_to_rational_should_work() {
         "34599284998074995708396179719034205723253966454380752564716172454912477882716",
         10,
     )
-        .unwrap()
+    .unwrap()
         / d;
     assert!(Rational::from(res) <= boundary);
 }

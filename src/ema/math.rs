@@ -258,7 +258,7 @@ macro_rules! round_uint_to_rational {
 /// This can effectivly round the complete rational number up or down pseudo-randomly.
 /// Specify `rounding` other than `Nearest` to round the whole number up or down.
 pub(super) fn round_to_rational((n, d): (U512, U512), rounding: Rounding) -> EmaPrice {
-    round_uint_to_rational!(n,d,rounding)
+    round_uint_to_rational!(n, d, rounding)
 }
 
 /// Round a 256 bit rational number to a 128 bit rational number.
@@ -266,7 +266,7 @@ pub(super) fn round_to_rational((n, d): (U512, U512), rounding: Rounding) -> Ema
 /// This can effectivly round the complete rational number up or down pseudo-randomly.
 /// Specify `rounding` other than `Nearest` to round the whole number up or down.
 pub fn round_u256_to_rational((n, d): (U256, U256), rounding: Rounding) -> EmaPrice {
-    round_uint_to_rational!(n,d,rounding)
+    round_uint_to_rational!(n, d, rounding)
 }
 
 /// Add `l` and `r` and round the result to a 128 bit rational number.
