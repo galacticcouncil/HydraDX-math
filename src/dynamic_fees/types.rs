@@ -1,5 +1,5 @@
-use sp_arithmetic::FixedU128;
 use crate::types::Balance;
+use sp_arithmetic::FixedU128;
 
 /// Fee parameters - minimum and maximum fee, decay and amplification.
 #[derive(Debug)]

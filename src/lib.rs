@@ -15,6 +15,7 @@ extern crate approx;
 #[cfg(test)]
 mod test_pow_accuracy;
 
+pub mod dynamic_fees;
 pub mod ema;
 pub mod fee;
 pub mod fraction;
@@ -30,7 +31,6 @@ pub mod test_utils;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
-pub mod dynamic_fees;
 
 #[macro_export]
 macro_rules! ensure {
