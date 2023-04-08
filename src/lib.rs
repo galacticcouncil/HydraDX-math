@@ -30,6 +30,7 @@ pub mod test_utils;
 pub mod transcendental;
 pub mod types;
 pub mod xyk;
+pub mod dynamic_fees;
 
 #[macro_export]
 macro_rules! ensure {
