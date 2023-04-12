@@ -2,7 +2,7 @@ use crate::types::Balance;
 use sp_arithmetic::FixedU128;
 
 /// Fee parameters - minimum and maximum fee, decay and amplification.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FeeParams<Fee> {
     pub min_fee: Fee,
     pub max_fee: Fee,
@@ -11,7 +11,7 @@ pub struct FeeParams<Fee> {
 }
 
 /// Oracle entry data for an asset, providing amount in and out and total liquidity of an asset.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OracleEntry {
     pub amount_in: Balance,
     pub amount_out: Balance,
