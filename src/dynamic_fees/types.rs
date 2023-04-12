@@ -4,10 +4,10 @@ use sp_arithmetic::FixedU128;
 /// Fee parameters - minimum and maximum fee, decay and amplification.
 #[derive(Debug)]
 pub struct FeeParams<Fee> {
-    pub(crate) min_fee: Fee,
-    pub(crate) max_fee: Fee,
-    pub(crate) decay: FixedU128,
-    pub(crate) amplification: FixedU128,
+    pub min_fee: Fee,
+    pub max_fee: Fee,
+    pub decay: FixedU128,
+    pub amplification: FixedU128,
 }
 
 /// Oracle entry data for an asset, providing amount in and out and total liquidity of an asset.
