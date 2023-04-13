@@ -5,7 +5,6 @@ use crate::omnipool::{
     calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference, verify_asset_cap,
 };
 use crate::types::Balance;
-use sp_arithmetic::traits::Zero;
 use sp_arithmetic::{FixedU128, Permill};
 
 const UNIT: Balance = 1_000_000_000_000;
@@ -451,7 +450,7 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         &position,
         imbalance,
         total_hub_reserve,
-        FixedU128::zero(),
+        FixedU128::from_rational(asset_state.hub_reserve, asset_state.reserve),
         Permill::zero(),
     );
 
@@ -519,7 +518,7 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         &position,
         imbalance,
         total_hub_reserve,
-        FixedU128::zero(),
+        FixedU128::from_rational(asset_state.hub_reserve, asset_state.reserve),
         Permill::zero(),
     );
 

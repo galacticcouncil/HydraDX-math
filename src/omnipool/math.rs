@@ -323,18 +323,14 @@ pub fn calculate_remove_liquidity_state_changes(
     };
 
     // Calculate withdrawal fee
-    let withdraw_fee = if !oracle_price.is_zero() {
-        let price_diff = if oracle_price <= current_price {
-            current_price.saturating_sub(oracle_price)
-        } else {
-            oracle_price.saturating_sub(current_price)
-        };
-
-        let x = price_diff.checked_div(&oracle_price)?;
-        FixedU128::one().saturating_sub(x.clamp(min_withdraw_fee.into(), FixedU128::one()))
+    let price_diff = if oracle_price <= current_price {
+        current_price.saturating_sub(oracle_price)
     } else {
-        FixedU128::one().saturating_sub(min_withdraw_fee.into())
+        oracle_price.saturating_sub(current_price)
     };
+
+    let x = price_diff.checked_div(&oracle_price)?;
+    let withdraw_fee = FixedU128::one().saturating_sub(x.clamp(min_withdraw_fee.into(), FixedU128::one()));
 
     // Apply withdrawal fee
     let delta_reserve = withdraw_fee.checked_mul_int(delta_reserve)?;
