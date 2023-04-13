@@ -6,6 +6,7 @@ use crate::types::Balance;
 use crate::MathError::Overflow;
 use primitive_types::U256;
 use proptest::prelude::*;
+use sp_arithmetic::traits::Zero;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 
 pub const ONE: Balance = 1_000_000_000_000;
@@ -564,6 +565,8 @@ proptest! {
             &position,
             imbalance,
             100 * ONE,
+            FixedU128::zero(),
+            Permill::zero(),
         );
 
         assert!(result.is_some());

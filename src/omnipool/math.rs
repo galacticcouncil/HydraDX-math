@@ -8,6 +8,7 @@ use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
+use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::min;
 use sp_std::ops::Sub;
@@ -249,6 +250,8 @@ pub fn calculate_remove_liquidity_state_changes(
     position: &Position<Balance>,
     imbalance: I129<Balance>,
     total_hub_reserve: Balance,
+    oracle_price: FixedU128,
+    min_withdraw_fee: Permill,
 ) -> Option<LiquidityStateChange<Balance>> {
     let current_shares = asset_state.shares;
     let current_reserve = asset_state.reserve;
@@ -305,8 +308,6 @@ pub fn calculate_remove_liquidity_state_changes(
     let delta_shares = to_balance!(delta_shares_hp).ok()?;
     let delta_b = to_balance!(delta_b_hp).ok()?;
 
-    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
-
     let hub_transferred = if current_price > position_price {
         // LP receives some hub asset
 
@@ -320,6 +321,27 @@ pub fn calculate_remove_liquidity_state_changes(
     } else {
         Balance::zero()
     };
+
+    // Calculate withdrawal fee
+    let withdraw_fee = if !oracle_price.is_zero() {
+        let price_diff = if oracle_price <= current_price {
+            current_price.saturating_sub(oracle_price)
+        } else {
+            oracle_price.saturating_sub(current_price)
+        };
+
+        let x = price_diff.checked_div(&oracle_price)?;
+        FixedU128::one().saturating_sub(x.clamp(min_withdraw_fee.into(), FixedU128::one()))
+    } else {
+        FixedU128::one().saturating_sub(min_withdraw_fee.into())
+    };
+
+    // Apply withdrawal fee
+    let delta_reserve = withdraw_fee.checked_mul_int(delta_reserve)?;
+    let delta_hub_reserve = withdraw_fee.checked_mul_int(delta_hub_reserve)?;
+    let hub_transferred = withdraw_fee.checked_mul_int(hub_transferred)?;
+
+    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
 
     Some(LiquidityStateChange {
         asset: AssetStateChange {
