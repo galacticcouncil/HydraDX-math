@@ -330,7 +330,14 @@ pub fn calculate_remove_liquidity_state_changes(
     };
 
     let fee = price_diff.checked_div(&oracle_price)?;
-    let withdraw_fee = FixedU128::one().saturating_sub(fee.clamp(min_withdraw_fee.into(), FixedU128::one()));
+
+    // just a defensive check to ensure that min withdrawal fee is really < 1.
+    // Reason being that clamp panics if min value > max value.
+    let min_fee: FixedU128 = min_withdraw_fee.into();
+    if min_fee > FixedU128::one() {
+        return None;
+    }
+    let withdraw_fee = FixedU128::one().saturating_sub(fee.clamp(min_fee, FixedU128::one()));
 
     // Apply withdrawal fee
     let delta_reserve = withdraw_fee.checked_mul_int(delta_reserve)?;
