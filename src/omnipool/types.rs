@@ -188,6 +188,7 @@ where
     pub delta_position_reserve: BalanceUpdate<Balance>,
     pub delta_position_shares: BalanceUpdate<Balance>,
     pub lp_hub_amount: Balance,
+    pub withdrawal_fee: Option<FixedU128>,
 }
 
 #[derive(Debug, PartialEq, Eq)]

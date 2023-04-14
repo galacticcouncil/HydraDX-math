@@ -350,6 +350,7 @@ pub fn calculate_remove_liquidity_state_changes(
         lp_hub_amount: hub_transferred,
         delta_position_reserve: Decrease(delta_position_amount),
         delta_position_shares: Decrease(shares_removed),
+        withdrawal_fee: Some(withdraw_fee),
     })
 }
 
