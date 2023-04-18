@@ -248,21 +248,21 @@ pub fn calculate_withdrawal_fee(
     spot_price: FixedU128,
     oracle_price: FixedU128,
     min_withdrawal_fee: Permill,
-) -> Option<FixedU128> {
+) -> FixedU128 {
     let price_diff = if oracle_price <= spot_price {
         spot_price.saturating_sub(oracle_price)
     } else {
         oracle_price.saturating_sub(spot_price)
     };
 
-    // just a defensive check to ensure that min withdrawal fee is really <= 1.
-    // Reason being that clamp panics if min value > max value.
     let min_fee: FixedU128 = min_withdrawal_fee.into();
-    if min_fee > FixedU128::one() {
-        return None;
+    debug_assert!(min_fee <= FixedU128::one());
+
+    if oracle_price.is_zero(){
+        return min_fee;
     }
 
-    Some(price_diff.checked_div(&oracle_price)?.clamp(min_fee, FixedU128::one()))
+    price_diff.div(oracle_price).clamp(min_fee, FixedU128::one())
 }
 
 /// Calculate delta changes of remove liqudiity given current asset state and position from which liquidity should be removed.

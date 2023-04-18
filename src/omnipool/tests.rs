@@ -792,23 +792,21 @@ fn calculate_withdrawal_fee_should_work_correctly() {
     let spot_price = FixedU128::from_str("100000000000000000000").unwrap();
     let oracle_price = FixedU128::from_str("95000000000000000000").unwrap();
 
-    dbg!(spot_price);
-    dbg!(oracle_price);
     let min_withdrawal_fee = Permill::from_float(0.00001);
     let expected_fee = FixedU128::from_inner(52631578947368421);
     assert_eq!(
         calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
-        Some(expected_fee)
+        expected_fee
     );
 
     // Test case 2: Spot price < oracle price, min fee = 0.1%
     let spot_price = FixedU128::from_str("500000000000000000000").unwrap();
     let oracle_price = FixedU128::from_str("600000000000000000000").unwrap();
     let min_withdrawal_fee = Permill::from_float(0.001);
-    let expected_fee = FixedU128::from_inner(166666666666666666);
+    let expected_fee = FixedU128::from_inner(166666666666666667);
     assert_eq!(
         calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
-        Some(expected_fee)
+        expected_fee
     );
 
     // Test case 3: Spot price < oracle price, min fee = 17% - should return min fee
@@ -817,7 +815,7 @@ fn calculate_withdrawal_fee_should_work_correctly() {
     let min_withdrawal_fee = Permill::from_float(0.17);
     assert_eq!(
         calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
-        Some(min_withdrawal_fee.into())
+        min_withdrawal_fee.into()
     );
 
     // Test case 4: Oracle price == spot price, min fee = 0.05% - should return min fee
@@ -826,7 +824,7 @@ fn calculate_withdrawal_fee_should_work_correctly() {
     let min_withdrawal_fee = Permill::from_float(0.05);
     assert_eq!(
         calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
-        Some(min_withdrawal_fee.into())
+        min_withdrawal_fee.into()
     );
 
     // Test case 5: Oracle price > spot price, min fee = 1%
@@ -836,24 +834,26 @@ fn calculate_withdrawal_fee_should_work_correctly() {
     let expected_fee = FixedU128::from_inner(111111111111111111);
     assert_eq!(
         calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
-        Some(expected_fee)
+        expected_fee
     );
 
     // Test case 6: Oracle price is zero, should return None
+    let expected_fee: FixedU128 = Permill::from_percent(1).into();
     assert_eq!(
-        calculate_withdrawal_fee(FixedU128::from(100), FixedU128::from(0), Permill::from_percent(0)),
-        None
+        calculate_withdrawal_fee(FixedU128::from(100), FixedU128::from(0), Permill::from_percent(1)),
+        expected_fee
     );
 
     // Test case 7: Spot price is zero, should return 100%
     assert_eq!(
         calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(100), Permill::from_percent(0)),
-        Some(FixedU128::one())
+        FixedU128::one()
     );
 
     // Test case 8: Both prices are zero, should return None
+    let expected_fee: FixedU128 = Permill::from_percent(1).into();
     assert_eq!(
-        calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(0), Permill::from_percent(0)),
-        None
+        calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(0), Permill::from_percent(1)),
+        expected_fee
     );
 }
