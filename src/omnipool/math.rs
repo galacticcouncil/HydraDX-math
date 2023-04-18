@@ -243,6 +243,28 @@ pub fn calculate_add_liquidity_state_changes(
     })
 }
 
+/// Calculate withdrawal fee given current spot price and oracle price.
+pub fn calculate_withdrawal_fee(
+    spot_price: FixedU128,
+    oracle_price: FixedU128,
+    min_withdrawal_fee: Permill,
+) -> Option<FixedU128> {
+    let price_diff = if oracle_price <= spot_price {
+        spot_price.saturating_sub(oracle_price)
+    } else {
+        oracle_price.saturating_sub(spot_price)
+    };
+
+    // just a defensive check to ensure that min withdrawal fee is really <= 1.
+    // Reason being that clamp panics if min value > max value.
+    let min_fee: FixedU128 = min_withdrawal_fee.into();
+    if min_fee > FixedU128::one() {
+        return None;
+    }
+
+    Some(price_diff.checked_div(&oracle_price)?.clamp(min_fee, FixedU128::one()))
+}
+
 /// Calculate delta changes of remove liqudiity given current asset state and position from which liquidity should be removed.
 pub fn calculate_remove_liquidity_state_changes(
     asset_state: &AssetReserveState<Balance>,
@@ -250,8 +272,7 @@ pub fn calculate_remove_liquidity_state_changes(
     position: &Position<Balance>,
     imbalance: I129<Balance>,
     total_hub_reserve: Balance,
-    oracle_price: FixedU128,
-    min_withdraw_fee: Permill,
+    withdrawal_fee: FixedU128,
 ) -> Option<LiquidityStateChange<Balance>> {
     let current_shares = asset_state.shares;
     let current_reserve = asset_state.reserve;
@@ -322,22 +343,7 @@ pub fn calculate_remove_liquidity_state_changes(
         Balance::zero()
     };
 
-    // Calculate withdrawal fee
-    let price_diff = if oracle_price <= current_price {
-        current_price.saturating_sub(oracle_price)
-    } else {
-        oracle_price.saturating_sub(current_price)
-    };
-
-    // just a defensive check to ensure that min withdrawal fee is really <= 1.
-    // Reason being that clamp panics if min value > max value.
-    let min_fee: FixedU128 = min_withdraw_fee.into();
-    if min_fee > FixedU128::one() {
-        return None;
-    }
-
-    let fee = price_diff.checked_div(&oracle_price)?.clamp(min_fee, FixedU128::one());
-    let fee_complement = FixedU128::one().saturating_sub(fee);
+    let fee_complement = FixedU128::one().saturating_sub(withdrawal_fee);
 
     // Apply withdrawal fee
     let delta_reserve = fee_complement.checked_mul_int(delta_reserve)?;
@@ -357,7 +363,6 @@ pub fn calculate_remove_liquidity_state_changes(
         lp_hub_amount: hub_transferred,
         delta_position_reserve: Decrease(delta_position_amount),
         delta_position_shares: Decrease(shares_removed),
-        withdrawal_fee: Some(fee),
     })
 }
 
