@@ -1,12 +1,15 @@
 use crate::MathError;
+use crate::MathError::Overflow;
 
 use sp_arithmetic::{
     traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedSub},
     FixedPointNumber, FixedU128,
 };
 
+use crate::to_balance;
 use crate::types::Balance;
 use core::convert::TryInto;
+use primitive_types::U128;
 
 /// This function calculate loyalty multiplier or error.
 ///
@@ -133,11 +136,19 @@ pub fn calculate_global_farm_rewards<Period: num_traits::CheckedSub + TryInto<u3
         .checked_mul_int(total_shares_z)
         .ok_or(MathError::Overflow)?;
 
-    let reward_per_period = yield_per_period
-        .checked_mul(&FixedU128::from(total_shares_z_adjusted))
-        .ok_or(MathError::Overflow)?
-        .min(FixedU128::from(max_reward_per_period));
-
     let periods = TryInto::<u128>::try_into(periods_since_last_update).map_err(|_e| MathError::Overflow)?;
-    reward_per_period.checked_mul_int(periods).ok_or(MathError::Overflow)
+
+    //(total_shares_z_adjusted * yield_per_period.into_inner() * periods)/FixedU128::DIV;
+    let calculated_rewards = U128::from(total_shares_z_adjusted)
+        .full_mul(yield_per_period.into_inner().into())
+        .checked_mul(periods.into())
+        .ok_or(MathError::Overflow)?
+        .checked_div(FixedU128::DIV.into())
+        .ok_or(MathError::Overflow)?;
+
+    let rewards = to_balance!(calculated_rewards)?;
+
+    let max_reward_for_periods = max_reward_per_period.checked_mul(periods).ok_or(MathError::Overflow)?;
+
+    Ok(rewards.min(max_reward_for_periods))
 }
