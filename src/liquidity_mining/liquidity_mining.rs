@@ -6,10 +6,10 @@ use sp_arithmetic::{
     FixedPointNumber, FixedU128,
 };
 
+use crate::to_balance;
 use crate::types::Balance;
-use crate::{to_balance, to_u256};
 use core::convert::TryInto;
-use primitive_types::U256;
+use primitive_types::U128;
 
 /// This function calculate loyalty multiplier or error.
 ///
@@ -139,9 +139,8 @@ pub fn calculate_global_farm_rewards<Period: num_traits::CheckedSub + TryInto<u3
     let periods = TryInto::<u128>::try_into(periods_since_last_update).map_err(|_e| MathError::Overflow)?;
 
     //(total_shares_z_adjusted * yield_per_period.into_inner() * periods)/FixedU128::DIV;
-    let calculated_rewards = to_u256!(total_shares_z_adjusted)
-        .checked_mul(yield_per_period.into_inner().into())
-        .ok_or(MathError::Overflow)?
+    let calculated_rewards = U128::from(total_shares_z_adjusted)
+        .full_mul(yield_per_period.into_inner().into())
         .checked_mul(periods.into())
         .ok_or(MathError::Overflow)?
         .checked_div(FixedU128::DIV.into())
