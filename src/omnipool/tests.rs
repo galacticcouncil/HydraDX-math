@@ -2,10 +2,13 @@ use crate::omnipool::types::{AssetReserveState, BalanceUpdate, Position, I129};
 use crate::omnipool::{
     calculate_add_liquidity_state_changes, calculate_buy_for_hub_asset_state_changes, calculate_buy_state_changes,
     calculate_cap_difference, calculate_delta_imbalance, calculate_remove_liquidity_state_changes,
-    calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference, verify_asset_cap,
+    calculate_sell_hub_state_changes, calculate_sell_state_changes, calculate_tvl_cap_difference,
+    calculate_withdrawal_fee, verify_asset_cap,
 };
 use crate::types::Balance;
+use num_traits::{One, Zero};
 use sp_arithmetic::{FixedU128, Permill};
+use std::str::FromStr;
 
 const UNIT: Balance = 1_000_000_000_000;
 
@@ -450,6 +453,7 @@ fn calculate_remove_liquidity_should_work_when_correct_input_provided() {
         &position,
         imbalance,
         total_hub_reserve,
+        FixedU128::zero(),
     );
 
     assert!(state_changes.is_some());
@@ -516,6 +520,7 @@ fn calculate_remove_liquidity_should_work_when_current_price_is_smaller_than_pos
         &position,
         imbalance,
         total_hub_reserve,
+        FixedU128::zero(),
     );
 
     assert!(state_changes.is_some());
@@ -673,4 +678,182 @@ fn calculate_tvl_cap_diff_should_work_correctly() {
 
     let result = calculate_tvl_cap_difference(&asset_state, &stable_asset, tvl_cap, total_hub_resrerve);
     assert_eq!(result, Some(0));
+}
+
+#[test]
+fn calculate_remove_liquidity_should_apply_correct_fee() {
+    let asset_state = AssetReserveState {
+        reserve: 10 * UNIT,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let amount_to_remove = 2 * UNIT;
+
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 22 * UNIT;
+
+    let position = Position {
+        amount: 3 * UNIT,
+        shares: 3 * UNIT,
+        price: (FixedU128::from_float(2.23).into_inner(), 1_000_000_000_000_000_000),
+    };
+
+    let state_changes = calculate_remove_liquidity_state_changes(
+        &asset_state,
+        amount_to_remove,
+        &position,
+        imbalance,
+        total_hub_reserve,
+        FixedU128::from_float(0.01),
+    );
+
+    assert!(state_changes.is_some());
+
+    let state_changes = state_changes.unwrap();
+
+    assert_eq!(
+        state_changes.asset.delta_reserve,
+        BalanceUpdate::Decrease(1872340425531u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_hub_reserve,
+        BalanceUpdate::Decrease(3744680851062)
+    );
+    assert_eq!(
+        state_changes.asset.delta_shares,
+        BalanceUpdate::Decrease(1891252955082u128)
+    );
+    assert_eq!(
+        state_changes.asset.delta_protocol_shares,
+        BalanceUpdate::Increase(108747044918u128)
+    );
+    assert_eq!(state_changes.delta_imbalance, BalanceUpdate::Increase(170212765957u128));
+
+    assert_eq!(
+        state_changes.delta_position_reserve,
+        BalanceUpdate::Decrease(2000000000000u128)
+    );
+
+    assert_eq!(
+        state_changes.delta_position_shares,
+        BalanceUpdate::Decrease(amount_to_remove)
+    );
+
+    assert_eq!(state_changes.lp_hub_amount, 0u128);
+}
+
+#[test]
+fn calculate_remove_liquidity_should_apply_fee_to_hub_amount() {
+    let asset_state = AssetReserveState {
+        reserve: 10 * UNIT,
+        hub_reserve: 20 * UNIT,
+        shares: 10 * UNIT,
+        protocol_shares: 0u128,
+    };
+
+    let amount_to_remove = 2 * UNIT;
+
+    let imbalance = I129 {
+        value: UNIT,
+        negative: true,
+    };
+    let total_hub_reserve = 22 * UNIT;
+
+    let position = Position {
+        amount: 3 * UNIT,
+        shares: 3 * UNIT,
+        price: (FixedU128::from_float(0.23).into_inner(), 1_000_000_000_000_000_000),
+    };
+
+    let state_changes = calculate_remove_liquidity_state_changes(
+        &asset_state,
+        amount_to_remove,
+        &position,
+        imbalance,
+        total_hub_reserve,
+        FixedU128::from_float(0.01),
+    );
+
+    assert!(state_changes.is_some());
+
+    let state_changes = state_changes.unwrap();
+
+    assert_eq!(state_changes.lp_hub_amount, 3143139013452u128);
+}
+
+#[test]
+fn calculate_withdrawal_fee_should_work_correctly() {
+    // Test case 1: Oracle price <= spot price, min fee = 0.001%
+    let spot_price = FixedU128::from_str("100000000000000000000").unwrap();
+    let oracle_price = FixedU128::from_str("95000000000000000000").unwrap();
+
+    let min_withdrawal_fee = Permill::from_float(0.00001);
+    let expected_fee = FixedU128::from_inner(52631578947368421);
+    assert_eq!(
+        calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
+        expected_fee
+    );
+
+    // Test case 2: Spot price < oracle price, min fee = 0.1%
+    let spot_price = FixedU128::from_str("500000000000000000000").unwrap();
+    let oracle_price = FixedU128::from_str("600000000000000000000").unwrap();
+    let min_withdrawal_fee = Permill::from_float(0.001);
+    let expected_fee = FixedU128::from_inner(166666666666666667);
+    assert_eq!(
+        calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
+        expected_fee
+    );
+
+    // Test case 3: Spot price < oracle price, min fee = 17% - should return min fee
+    let spot_price = FixedU128::from_str("500000000000000000000").unwrap();
+    let oracle_price = FixedU128::from_str("600000000000000000000").unwrap();
+    let min_withdrawal_fee = Permill::from_float(0.17);
+    assert_eq!(
+        calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
+        min_withdrawal_fee.into()
+    );
+
+    // Test case 4: Oracle price == spot price, min fee = 0.05% - should return min fee
+    let spot_price = FixedU128::from_str("200000000000000000000").unwrap();
+    let oracle_price = FixedU128::from_str("200000000000000000000").unwrap();
+    let min_withdrawal_fee = Permill::from_float(0.05);
+    assert_eq!(
+        calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
+        min_withdrawal_fee.into()
+    );
+
+    // Test case 5: Oracle price > spot price, min fee = 1%
+    let spot_price = FixedU128::from_str("800000000000000000000").unwrap();
+    let oracle_price = FixedU128::from_str("900000000000000000000").unwrap();
+    let min_withdrawal_fee = Permill::from_percent(1);
+    let expected_fee = FixedU128::from_inner(111111111111111111);
+    assert_eq!(
+        calculate_withdrawal_fee(spot_price, oracle_price, min_withdrawal_fee),
+        expected_fee
+    );
+
+    // Test case 6: Oracle price is zero, should return None
+    let expected_fee: FixedU128 = Permill::from_percent(1).into();
+    assert_eq!(
+        calculate_withdrawal_fee(FixedU128::from(100), FixedU128::from(0), Permill::from_percent(1)),
+        expected_fee
+    );
+
+    // Test case 7: Spot price is zero, should return 100%
+    assert_eq!(
+        calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(100), Permill::from_percent(0)),
+        FixedU128::one()
+    );
+
+    // Test case 8: Both prices are zero, should return None
+    let expected_fee: FixedU128 = Permill::from_percent(1).into();
+    assert_eq!(
+        calculate_withdrawal_fee(FixedU128::from(0), FixedU128::from(0), Permill::from_percent(1)),
+        expected_fee
+    );
 }
