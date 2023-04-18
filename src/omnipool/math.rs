@@ -258,7 +258,7 @@ pub fn calculate_withdrawal_fee(
     let min_fee: FixedU128 = min_withdrawal_fee.into();
     debug_assert!(min_fee <= FixedU128::one());
 
-    if oracle_price.is_zero(){
+    if oracle_price.is_zero() {
         return min_fee;
     }
 
