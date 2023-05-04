@@ -17,6 +17,7 @@ use primitive_types::{U128, U256, U512};
 use rug::Rational;
 use sp_arithmetic::{FixedPointNumber, FixedU128};
 
+pub const SHORT_PERIOD: u64 = 9;
 pub const TEN_MINUTES_PERIOD: u64 = 100;
 pub const DAY_PERIOD: u64 = 14_400;
 pub const WEEK_PERIOD: u64 = 100_800;
@@ -140,6 +141,18 @@ fn weighted_averages_work_on_small_values_with_correct_ratios() {
     let incoming_liquidity = (8u128, 4u128);
     let next_liquidity = liquidity_weighted_average(start_liquidity, incoming_liquidity, smoothing);
     assert_eq!(next_liquidity, (5u128, 7u128));
+}
+
+#[test]
+fn balance_weighted_averages_work_on_typical_values_with_short_smoothing() {
+    let smoothing = smoothing_from_period(SHORT_PERIOD);
+    let start_balance = 1_000_000_000_000u128;
+    let incoming_balance = 11_000_000_000_000u128;
+    let next_balance = balance_weighted_average(start_balance, incoming_balance, smoothing);
+    let expected_balance: Rational =
+        start_balance + Rational::from((incoming_balance - start_balance, 1)) * 2 / (SHORT_PERIOD + 1);
+    assert_eq!(next_balance, expected_balance.round());
+    assert_eq!(next_balance, 3_000_000_000_000u128);
 }
 
 #[test]
