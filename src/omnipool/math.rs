@@ -8,6 +8,7 @@ use crate::MathError::Overflow;
 use crate::{to_balance, to_u256};
 use num_traits::{CheckedDiv, CheckedMul, CheckedSub, One, Zero};
 use primitive_types::U256;
+use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointNumber, FixedU128, Permill};
 use sp_std::cmp::min;
 use sp_std::ops::Sub;
@@ -242,6 +243,28 @@ pub fn calculate_add_liquidity_state_changes(
     })
 }
 
+/// Calculate withdrawal fee given current spot price and oracle price.
+pub fn calculate_withdrawal_fee(
+    spot_price: FixedU128,
+    oracle_price: FixedU128,
+    min_withdrawal_fee: Permill,
+) -> FixedU128 {
+    let price_diff = if oracle_price <= spot_price {
+        spot_price.saturating_sub(oracle_price)
+    } else {
+        oracle_price.saturating_sub(spot_price)
+    };
+
+    let min_fee: FixedU128 = min_withdrawal_fee.into();
+    debug_assert!(min_fee <= FixedU128::one());
+
+    if oracle_price.is_zero() {
+        return min_fee;
+    }
+
+    price_diff.div(oracle_price).clamp(min_fee, FixedU128::one())
+}
+
 /// Calculate delta changes of remove liqudiity given current asset state and position from which liquidity should be removed.
 pub fn calculate_remove_liquidity_state_changes(
     asset_state: &AssetReserveState<Balance>,
@@ -249,6 +272,7 @@ pub fn calculate_remove_liquidity_state_changes(
     position: &Position<Balance>,
     imbalance: I129<Balance>,
     total_hub_reserve: Balance,
+    withdrawal_fee: FixedU128,
 ) -> Option<LiquidityStateChange<Balance>> {
     let current_shares = asset_state.shares;
     let current_reserve = asset_state.reserve;
@@ -305,8 +329,6 @@ pub fn calculate_remove_liquidity_state_changes(
     let delta_shares = to_balance!(delta_shares_hp).ok()?;
     let delta_b = to_balance!(delta_b_hp).ok()?;
 
-    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
-
     let hub_transferred = if current_price > position_price {
         // LP receives some hub asset
 
@@ -320,6 +342,15 @@ pub fn calculate_remove_liquidity_state_changes(
     } else {
         Balance::zero()
     };
+
+    let fee_complement = FixedU128::one().saturating_sub(withdrawal_fee);
+
+    // Apply withdrawal fee
+    let delta_reserve = fee_complement.checked_mul_int(delta_reserve)?;
+    let delta_hub_reserve = fee_complement.checked_mul_int(delta_hub_reserve)?;
+    let hub_transferred = fee_complement.checked_mul_int(hub_transferred)?;
+
+    let delta_imbalance = calculate_delta_imbalance(delta_hub_reserve, imbalance, total_hub_reserve)?;
 
     Some(LiquidityStateChange {
         asset: AssetStateChange {
