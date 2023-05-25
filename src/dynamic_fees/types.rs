@@ -19,6 +19,7 @@ pub struct OracleEntry {
 }
 
 impl OracleEntry {
+    /// Returns the difference between the in and out balance and information if the difference is negative.
     pub(super) fn net_volume(&self, direction: NetVolumeDirection) -> (Balance, bool) {
         match direction {
             NetVolumeDirection::OutIn => (

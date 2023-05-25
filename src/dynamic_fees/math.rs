@@ -1,5 +1,5 @@
+use super::types::*;
 use crate::dynamic_fees::types::NetVolumeDirection::{InOut, OutIn};
-use crate::dynamic_fees::types::{FeeParams, NetVolumeDirection, OracleEntry};
 use num_traits::Zero;
 use sp_arithmetic::traits::Saturating;
 use sp_arithmetic::{FixedPointOperand, FixedU128, PerThing};
