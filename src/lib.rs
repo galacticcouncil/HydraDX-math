@@ -15,6 +15,7 @@ extern crate approx;
 #[cfg(test)]
 mod test_pow_accuracy;
 
+pub mod dynamic_fees;
 pub mod ema;
 pub mod fee;
 pub mod fraction;
